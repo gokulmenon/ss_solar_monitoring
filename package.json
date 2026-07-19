@@ -9,6 +9,8 @@
     "mock:live": "tsx scripts/mock-live-ws.ts",
     "relay": "python3 bridge/modbus_ws_relay.py",
     "relay:csv": "CSV_LOG_PATH=./logs/meter_data.csv python3 bridge/modbus_ws_relay.py",
+    "generate:history-snapshot": "node scripts/generate-history-snapshot.mjs",
+    "prebuild": "npm run generate:history-snapshot",
     "build": "next build",
     "start": "next start",
     "lint": "eslint . --ext .ts,.tsx",

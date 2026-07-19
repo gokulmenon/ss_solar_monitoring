@@ -1,0 +1,105 @@
+{
+  "source": "csv",
+  "generated_at": "2026-07-19T17:31:11.806Z",
+  "window_hours": 24,
+  "points": [
+    {
+      "timestamp": "2026-07-19T03:00:00.000Z",
+      "net_grid_w": 30997,
+      "phase_a_voltage_v": 245,
+      "sample_count": 3114
+    },
+    {
+      "timestamp": "2026-07-19T04:00:00.000Z",
+      "net_grid_w": 48160,
+      "phase_a_voltage_v": 245.35,
+      "sample_count": 3295
+    },
+    {
+      "timestamp": "2026-07-19T05:00:00.000Z",
+      "net_grid_w": 41530,
+      "phase_a_voltage_v": 245.56,
+      "sample_count": 3295
+    },
+    {
+      "timestamp": "2026-07-19T06:00:00.000Z",
+      "net_grid_w": 35420,
+      "phase_a_voltage_v": 245.75,
+      "sample_count": 3295
+    },
+    {
+      "timestamp": "2026-07-19T07:00:00.000Z",
+      "net_grid_w": 23298,
+      "phase_a_voltage_v": 246.4,
+      "sample_count": 3297
+    },
+    {
+      "timestamp": "2026-07-19T08:00:00.000Z",
+      "net_grid_w": 16232,
+      "phase_a_voltage_v": 247.46,
+      "sample_count": 3298
+    },
+    {
+      "timestamp": "2026-07-19T09:00:00.000Z",
+      "net_grid_w": 13960,
+      "phase_a_voltage_v": 247.26,
+      "sample_count": 3298
+    },
+    {
+      "timestamp": "2026-07-19T10:00:00.000Z",
+      "net_grid_w": 8693,
+      "phase_a_voltage_v": 247.89,
+      "sample_count": 3299
+    },
+    {
+      "timestamp": "2026-07-19T11:00:00.000Z",
+      "net_grid_w": 8663,
+      "phase_a_voltage_v": 247.47,
+      "sample_count": 3300
+    },
+    {
+      "timestamp": "2026-07-19T12:00:00.000Z",
+      "net_grid_w": 20116,
+      "phase_a_voltage_v": 247.68,
+      "sample_count": 3299
+    },
+    {
+      "timestamp": "2026-07-19T13:00:00.000Z",
+      "net_grid_w": 24301,
+      "phase_a_voltage_v": 248.25,
+      "sample_count": 3304
+    },
+    {
+      "timestamp": "2026-07-19T14:00:00.000Z",
+      "net_grid_w": 27787,
+      "phase_a_voltage_v": 248.04,
+      "sample_count": 3299
+    },
+    {
+      "timestamp": "2026-07-19T15:00:00.000Z",
+      "net_grid_w": 34631,
+      "phase_a_voltage_v": 247.92,
+      "sample_count": 3300
+    },
+    {
+      "timestamp": "2026-07-19T16:00:00.000Z",
+      "net_grid_w": 15947,
+      "phase_a_voltage_v": 248.91,
+      "sample_count": 3151
+    },
+    {
+      "timestamp": "2026-07-19T17:00:00.000Z",
+      "net_grid_w": 16891,
+      "phase_a_voltage_v": 249.24,
+      "sample_count": 1401
+    }
+  ],
+  "summary": {
+    "imported_kwh": 324.7,
+    "exported_kwh": 0,
+    "average_voltage_v": 247.13,
+    "peak_import_w": 120817,
+    "peak_export_w": 0,
+    "sample_count": 47245
+  }
+}

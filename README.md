@@ -7,7 +7,9 @@ The app is split into two data paths:
 - `/` redirects to `/home`.
 - `/home` is the main dashboard and adapts into a wider tablet/desktop layout automatically.
 - `/live` reads from a local WebSocket relay for low-latency telemetry.
-- `/history` is the history page. It renders a local CSV-backed dashboard plus a separate Supabase-backed cloud section on the same page.
+- `/history` is the history page. It renders a CSV-backed dashboard plus a separate Supabase-backed cloud section on the same page.
+- On localhost, the CSV panel reads the live `logs/meter-backups/*.csv` files from disk.
+- On Vercel, the CSV panel reads a build-generated snapshot derived from the committed `logs/` folder.
 
 The dashboard runs immediately in mock mode, but the relay is ready to connect to your verified Modbus RTU poller.
 
@@ -108,6 +110,17 @@ Default value:
 
 The Python relay also auto-loads `bridge/.env` on startup. Fill that file once and you can run `npm run relay` without re-exporting variables every time.
 
+## CSV history by environment
+
+The CSV history path is intentionally split so both environments feel consistent:
+
+- Localhost uses the live relay files from `logs/meter-backups/`.
+- Vercel uses a build-generated snapshot, so the deployed app can render the committed CSV history without needing access to your Mac.
+
+The snapshot is generated automatically during `npm run build` by the `prebuild` hook, which writes `public/history-snapshot.json` from the current CSV files in the repo.
+
+If you update the committed logs, push the change and redeploy Vercel to refresh the deployed snapshot.
+
 ## Run the Next.js app
 
 ### Mock-only development
@@ -117,6 +130,8 @@ This is enough to run the dashboard immediately, even with no hardware attached.
 ```bash
 npm run dev
 ```
+
+In local development, the CSV history panel reads the live files under `logs/meter-backups/`, so new relay writes appear without any redeploy.
 
 ### App plus mock WebSocket relay
 
@@ -235,11 +250,14 @@ npm run relay
 
 ### Can the Vercel app read the CSV logs directly?
 
-Not from your Mac, no. The local CSV section on `/history` is for localhost and the relay machine only.
+It reads the committed CSV snapshot, not the live files on your Mac.
 
-If the frontend is deployed to Vercel and the relay stays local, the live WebSocket can still come through the tunnel, but the Vercel serverless runtime cannot see your Mac's local `./logs` directory.
+That is the key difference:
 
-That is why the cloud section on `/history` reads from Supabase instead of from the local files.
+- Local development reads the live `./logs/meter-backups` files on your machine.
+- Vercel reads the build-generated snapshot from the repo so the deployed CSV history is not empty.
+
+This is why you must push new log files and redeploy if you want Vercel's CSV dashboard to reflect the newest local relay data.
 
 ### Good first-deploy checklist
 

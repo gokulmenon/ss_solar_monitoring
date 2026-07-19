@@ -39,6 +39,7 @@ function formatEnergy(value: number) {
 export function HistoryDashboard() {
   const [history, setHistory] = useState<HistoryResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const [sourceLabel, setSourceLabel] = useState("Local CSV logs");
 
   useEffect(() => {
     const controller = new AbortController();
@@ -53,6 +54,11 @@ export function HistoryDashboard() {
         if (!response.ok) {
           throw new Error(`History request failed: ${response.status}`);
         }
+
+        const csvSource = response.headers.get("x-history-csv-source");
+        setSourceLabel(
+          csvSource === "deployed-snapshot" ? "Deployed CSV snapshot" : "Local CSV logs",
+        );
 
         const payload = (await response.json()) as HistoryResponse;
         setHistory(payload);
@@ -72,7 +78,6 @@ export function HistoryDashboard() {
 
   const data = history?.points ?? [];
   const summary = history?.summary;
-  const sourceLabel = "Local CSV logs";
   const windowHours = history?.window_hours ?? 24;
   const hasData = data.length > 0;
 
@@ -111,7 +116,7 @@ export function HistoryDashboard() {
             Log-backed grid history
           </h1>
           <p className="mt-1 text-sm text-slate-400">
-            This view reads the CSV backups from your relay when they are available.
+            This view reads live CSV logs on localhost and the deployed CSV snapshot on Vercel.
           </p>
         </div>
         <Badge variant="secondary">{sourceLabel}</Badge>
@@ -135,14 +140,15 @@ export function HistoryDashboard() {
       <Card className="overflow-hidden border-white/10 bg-slate-950/80">
         <CardHeader className="pb-2">
           <CardTitle className="text-[11px] uppercase tracking-[0.24em] text-slate-400">
-            {windowHours}-hour relay history
+            {windowHours}-hour CSV history
           </CardTitle>
         </CardHeader>
         <CardContent className="pt-0">
           {!loading && !hasData ? (
             <div className="rounded-3xl border border-dashed border-white/10 bg-white/[0.02] px-4 py-10 text-center text-sm text-slate-400">
-              No local CSV logs found yet. Start the relay with CSV logging enabled and this view
-              will fill in automatically.
+              {sourceLabel === "Deployed CSV snapshot"
+                ? "No deployed CSV snapshot found yet. Commit the logs folder and rebuild Vercel to populate this view."
+                : "No local CSV logs found yet. Start the relay with CSV logging enabled and this view will fill in automatically."}
             </div>
           ) : (
             <div className="h-[340px] w-full md:h-[380px]">

@@ -37,6 +37,9 @@ type RawHistoryRow = {
 const DEFAULT_WINDOW_HOURS = 24;
 const DEFAULT_BUCKET_MINUTES = 60;
 const SUPABASE_TABLE_NAME = process.env.SUPABASE_TABLE_NAME?.trim() || "meter_readings";
+const HISTORY_SNAPSHOT_PATH = path.join(process.cwd(), "public", "history-snapshot.json");
+
+type CsvHistoryMode = "live" | "snapshot";
 
 function roundTwoDecimals(value: number) {
   return Math.round(value * 100) / 100;
@@ -85,6 +88,36 @@ async function fileExists(filePath: string) {
     return true;
   } catch {
     return false;
+  }
+}
+
+function isLocalHostname(hostname: string | undefined) {
+  const normalizedHost = hostname?.toLowerCase();
+
+  return (
+    normalizedHost === "localhost" ||
+    normalizedHost === "127.0.0.1" ||
+    normalizedHost === "::1" ||
+    normalizedHost?.endsWith(".local")
+  );
+}
+
+async function loadHistorySnapshot(): Promise<HistoryResponse | null> {
+  if (!(await fileExists(HISTORY_SNAPSHOT_PATH))) {
+    return null;
+  }
+
+  try {
+    const payload = JSON.parse(await readFile(HISTORY_SNAPSHOT_PATH, "utf8")) as Partial<HistoryResponse>;
+
+    if (!payload || !Array.isArray(payload.points) || !payload.summary) {
+      return null;
+    }
+
+    return payload as HistoryResponse;
+  } catch (error) {
+    console.warn("Failed to load deployed CSV snapshot:", error);
+    return null;
   }
 }
 
@@ -231,7 +264,14 @@ function buildHistoryResponse(source: HistorySource, rows: RawHistoryRow[]): His
   };
 }
 
-async function loadHistoryFromCsv(): Promise<HistoryResponse> {
+async function loadHistoryFromCsv(mode: CsvHistoryMode = "live"): Promise<HistoryResponse> {
+  if (mode === "snapshot") {
+    const snapshot = await loadHistorySnapshot();
+    if (snapshot) {
+      return snapshot;
+    }
+  }
+
   const rows = await loadRelayCsvRows();
   return buildHistoryResponse("csv", rows);
 }
@@ -301,19 +341,26 @@ export function resolveHistorySource(hostname: string | undefined): HistorySourc
     return override;
   }
 
-  const normalizedHost = hostname?.toLowerCase();
-  if (
-    normalizedHost === "localhost" ||
-    normalizedHost === "127.0.0.1" ||
-    normalizedHost === "::1" ||
-    normalizedHost?.endsWith(".local")
-  ) {
+  if (isLocalHostname(hostname)) {
     return "csv";
   }
 
   return "supabase";
 }
 
-export async function loadHistoryResponse(source: HistorySource): Promise<HistoryResponse> {
-  return source === "csv" ? loadHistoryFromCsv() : loadHistoryFromSupabase();
+export function resolveCsvHistoryMode(hostname: string | undefined): CsvHistoryMode {
+  if (!hostname) {
+    return "live";
+  }
+
+  return isLocalHostname(hostname) ? "live" : "snapshot";
+}
+
+export async function loadHistoryResponse(
+  source: HistorySource,
+  hostname?: string,
+): Promise<HistoryResponse> {
+  return source === "csv"
+    ? loadHistoryFromCsv(resolveCsvHistoryMode(hostname))
+    : loadHistoryFromSupabase();
 }

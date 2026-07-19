@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 
-import { loadHistoryResponse, resolveHistorySource, type HistorySource } from "@/lib/history";
+import {
+  loadHistoryResponse,
+  resolveCsvHistoryMode,
+  resolveHistorySource,
+  type HistorySource,
+} from "@/lib/history";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -13,11 +18,19 @@ export async function GET(request: Request) {
       ? sourceParam
       : resolveHistorySource(url.hostname);
 
-  const payload = await loadHistoryResponse(source);
+  const csvMode = source === "csv" ? resolveCsvHistoryMode(url.hostname) : null;
+  const payload = await loadHistoryResponse(source, url.hostname);
 
   return NextResponse.json(payload, {
     headers: {
       "Cache-Control": "no-store, max-age=0",
+      "X-History-Source": source,
+      ...(csvMode
+        ? {
+            "X-History-Csv-Source":
+              csvMode === "snapshot" ? "deployed-snapshot" : "local-files",
+          }
+        : {}),
     },
   });
 }
