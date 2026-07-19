@@ -131,7 +131,7 @@ source .venv/bin/activate
 2. Start the relay.
 
 ```bash
-python3 bridge/modbus_ws_relay.py
+npm run relay
 ```
 
 Optional environment variables:
@@ -148,8 +148,58 @@ If you want CSV logging alongside the WebSocket relay, set `CSV_LOG_PATH`.
 Example:
 
 ```bash
-CSV_LOG_PATH=./logs/meter_data.csv python3 bridge/modbus_ws_relay.py
+npm run relay:csv
 ```
+
+## Deploying to Vercel
+
+### Does the first deploy need an environment variable?
+
+No. The frontend can be imported and deployed to Vercel without `NEXT_PUBLIC_LIVE_WS_URL`, because the app still builds and the live page falls back to mock behavior if the relay is not reachable.
+
+If you want the deployed site to talk to a live relay immediately, then yes, add:
+
+- `NEXT_PUBLIC_LIVE_WS_URL`
+
+before or right after the first deploy, and redeploy after setting it.
+
+### What the Vercel env var should be
+
+Use the public `wss://` URL of your tunnel, not `ws://127.0.0.1:8787`.
+
+Examples:
+
+- `wss://your-relay.example.com`
+- `wss://abcdef123.trycloudflare.com`
+
+Because this is a `NEXT_PUBLIC_` variable, it is bundled into the client build. After changing it in Vercel, trigger a new deployment so the app picks up the new value.
+
+### Recommended tunnel flow
+
+1. Run the local relay on the Mac attached to the meter:
+
+```bash
+npm run relay
+```
+
+2. Expose port `8787` with your tunnel provider.
+
+3. Copy the tunnel's `wss://` URL into Vercel Project Settings as `NEXT_PUBLIC_LIVE_WS_URL`.
+
+4. Redeploy the Vercel app.
+
+### Why this works
+
+- Vercel hosts the frontend.
+- The Mac hosts the hardware relay.
+- The tunnel bridges the browser on Vercel to the local relay machine.
+
+### Good first-deploy checklist
+
+1. Import the Git repo into Vercel.
+2. Let the first deploy succeed with the default fallback if you want.
+3. Add `NEXT_PUBLIC_LIVE_WS_URL` when your tunnel is ready.
+4. Redeploy.
 
 ## Playwright E2E
 
