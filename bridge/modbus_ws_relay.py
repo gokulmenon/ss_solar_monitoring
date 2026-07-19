@@ -26,6 +26,7 @@ import os
 import struct
 import urllib.error
 import urllib.request
+from urllib.parse import urlparse
 from dataclasses import dataclass, asdict
 from datetime import datetime, timezone
 from pathlib import Path
@@ -38,6 +39,37 @@ try:
     from pymodbus.client import ModbusSerialClient
 except ImportError:  # pragma: no cover - resolved when bridge deps are installed
     ModbusSerialClient = None
+
+
+def load_env_file(path: Path) -> None:
+    """
+    Load simple KEY=VALUE pairs from a local .env file.
+
+    Existing shell exports win, so this stays friendly to manual overrides.
+    """
+    if not path.exists():
+        return
+
+    for raw_line in path.read_text().splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#"):
+            continue
+
+        if line.startswith("export "):
+            line = line[len("export ") :].strip()
+
+        if "=" not in line:
+            continue
+
+        key, value = line.split("=", 1)
+        key = key.strip()
+        value = value.strip().strip('"').strip("'")
+
+        if key and key not in os.environ:
+            os.environ[key] = value
+
+
+load_env_file(Path(__file__).with_name(".env"))
 
 
 HOST = os.getenv("BRIDGE_HOST", "127.0.0.1")
@@ -137,6 +169,27 @@ def bucket_start_for_timestamp(timestamp: str, bucket_minutes: int) -> str:
     return datetime.fromtimestamp(bucket_seconds, tz=timezone.utc).isoformat().replace("+00:00", "Z")
 
 
+def resolve_csv_sink() -> tuple[Path | None, bool]:
+    """
+    Resolve the CSV target.
+
+    Returns:
+    - (path, True) for daily directory-backed CSV backups
+    - (path, False) for a legacy single CSV file
+    - (None, False) if CSV logging is disabled
+    """
+    if CSV_LOG_PATH:
+        candidate = Path(CSV_LOG_PATH).expanduser()
+        if candidate.suffix.lower() == ".csv":
+            return candidate, False
+        return candidate, True
+
+    if CSV_BACKUP_DIR:
+        return Path(CSV_BACKUP_DIR).expanduser(), True
+
+    return None, False
+
+
 def build_payload(client) -> RelayPayload:
     """Collect one live meter snapshot."""
     total_active_power_w = read_float_register(client, 8210)
@@ -162,14 +215,13 @@ def write_csv_row(payload: RelayPayload) -> None:
     - If CSV_LOG_PATH is set, keep the legacy single-file append mode.
     - Otherwise, write one CSV per local calendar day inside CSV_BACKUP_DIR.
     """
-    if not CSV_LOG_PATH and not CSV_BACKUP_DIR:
+    path, is_daily_directory = resolve_csv_sink()
+    if path is None:
         return
 
-    if CSV_LOG_PATH:
-        path = Path(CSV_LOG_PATH)
-    else:
+    if is_daily_directory:
         local_day = datetime.now().astimezone().strftime("%Y-%m-%d")
-        path = Path(CSV_BACKUP_DIR) / f"{CSV_BACKUP_PREFIX}_{local_day}.csv"
+        path = path / f"{CSV_BACKUP_PREFIX}_{local_day}.csv"
 
     path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -295,6 +347,30 @@ def build_offline_status_payload(failures: int) -> RelayStatusPayload:
     )
 
 
+def describe_cloud_sync() -> str:
+    """Return a short human-readable cloud sync status for startup logs."""
+    if not SUPABASE_URL or not SUPABASE_SERVICE_ROLE_KEY:
+        return "Cloud sync disabled"
+
+    host = urlparse(SUPABASE_URL).netloc or SUPABASE_URL
+    return (
+        f"Cloud sync enabled -> host {host}, table {SUPABASE_TABLE_NAME}, "
+        f"batch {SUPABASE_BATCH_MINUTES}m"
+    )
+
+
+def describe_csv_logging() -> str:
+    """Return a short human-readable CSV backup status for startup logs."""
+    path, is_daily_directory = resolve_csv_sink()
+    if path is None:
+        return "CSV backup disabled"
+
+    if is_daily_directory:
+        return f"CSV backup enabled -> daily files in {path}"
+
+    return f"CSV backup enabled -> single file {path}"
+
+
 async def broadcast(clients: set[WebSocketServerProtocol], message: str) -> None:
     """Push the latest payload to every connected browser client."""
     stale_clients: list[WebSocketServerProtocol] = []
@@ -344,6 +420,8 @@ async def main() -> None:
             f"Modbus relay listening on ws://{HOST}:{PORT} "
             f"(serial: {SERIAL_PORT}, baud: {BAUDRATE}, slave: {SLAVE_ID})"
         )
+        print(f"[{datetime.now().strftime('%H:%M:%S')}] {describe_cloud_sync()}")
+        print(f"[{datetime.now().strftime('%H:%M:%S')}] {describe_csv_logging()}")
 
         try:
             while True:

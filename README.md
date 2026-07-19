@@ -106,6 +106,8 @@ Default value:
 - `SUPABASE_URL=` if you are syncing the relay to Supabase locally
 - `SUPABASE_SERVICE_ROLE_KEY=` if you are syncing the relay to Supabase locally
 
+The Python relay also auto-loads `bridge/.env` on startup. Fill that file once and you can run `npm run relay` without re-exporting variables every time.
+
 ## Run the Next.js app
 
 ### Mock-only development
@@ -163,6 +165,8 @@ By default, the relay writes one CSV per day into `./logs/meter-backups`, for ex
 ```
 
 If you want the old append-only single file behavior, set `CSV_LOG_PATH`.
+
+The relay automatically reads `bridge/.env` first, then falls back to your shell exports if you set them manually. That means you can keep the local relay config in one place and just run `npm run relay`.
 
 The cloud sync path uses the same relay process:
 
