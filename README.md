@@ -163,7 +163,17 @@ Optional environment variables:
 - `BRIDGE_PORT=8787`
 - `SERIAL_PORT=/dev/cu.usbserial-BH002YZD`
 - `MODBUS_BAUDRATE=9600`
+- `BRIDGE_POLL_INTERVAL_SECONDS=1`
 - `MODBUS_SLAVE_ID=1`
+- `METER_TOTAL_ACTIVE_POWER_REGISTER=8210`
+- `METER_PHASE_A_VOLTAGE_REGISTER=8192`
+- `METER_REGISTER_KIND=holding`
+- `METER_VOLTAGE_SCALE=0.1`
+- `HOYMILES_WIFI_HOST=192.168.1.8`
+- `HOYMILES_WIFI_COMMAND=hoymiles-wifi`
+- `HOYMILES_WIFI_COMMAND_ARG=get-real-data-new`
+- `HOYMILES_WIFI_TIMEOUT_SECONDS=20`
+- `HOYMILES_WIFI_REFRESH_SECONDS=30`
 - `BRIDGE_OFFLINE_THRESHOLD=10`
 - `CSV_BACKUP_DIR=./logs/meter-backups`
 - `CSV_BACKUP_PREFIX=meter`
@@ -185,9 +195,25 @@ The relay automatically reads `bridge/.env` first, then falls back to your shell
 
 The cloud sync path uses the same relay process:
 
-- every second: poll the meter and append to the local CSV backup
-- every 15 minutes: flush one aggregated row to Supabase
+- every second: poll the Chint meter and append to the local CSV backup
+- every 30 seconds by default: refresh the Hoymiles JSON snapshot
+- every 15 minutes: flush one aggregated meter row to Supabase
 - on startup/shutdown: close out any pending cloud batch
+
+The Hoymiles side now uses the local `hoymiles-wifi` CLI instead of RS-485.
+That gives you inverter totals plus per-port readings in one JSON response.
+The relay parses that JSON into:
+
+- inverter-level totals
+- per-port readings grouped by inverter serial number
+- an overall total of all inverter active-power totals
+
+If the DTU host IP changes, update `HOYMILES_WIFI_HOST`.
+If you want to inspect the raw JSON manually, run:
+
+```bash
+hoymiles-wifi --host 192.168.1.8 --as-json get-real-data-new
+```
 
 Example:
 
