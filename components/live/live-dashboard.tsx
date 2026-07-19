@@ -1,66 +1,33 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import useWebSocket, { ReadyState } from "react-use-websocket";
+import { Activity, Flame, Gauge, SunMedium } from "lucide-react";
 
-import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { MetricCard } from "@/components/live/metric-card";
+import { SeriesAreaCard } from "@/components/charts/series-area-card";
+import { useLiveTelemetry } from "@/components/telemetry/use-live-telemetry";
 import { PowerFlowVisualizer } from "@/components/live/power-flow-visualizer";
-import { createMockLiveTelemetry, type LiveTelemetry } from "@/lib/mock-data";
 
-type LiveBridgeTelemetry = Partial<LiveTelemetry> & {
-  phase_a_voltage_v?: number;
-};
+function formatKw(value: number) {
+  return `${(value / 1000).toFixed(2)} kW`;
+}
 
 function formatWatts(value: number) {
   return `${Math.round(value).toLocaleString()} W`;
 }
 
-function formatGridValue(value: number) {
-  const abs = Math.abs(value);
-  return abs >= 1000 ? `${(abs / 1000).toFixed(1)} kW` : `${abs.toLocaleString()} W`;
+function formatCurrent(value: number) {
+  return `${value.toFixed(1)} A`;
 }
 
 export function LiveDashboard() {
-  const wsUrl = process.env.NEXT_PUBLIC_LIVE_WS_URL ?? "ws://127.0.0.1:8787";
-  const { lastJsonMessage, readyState } = useWebSocket<LiveBridgeTelemetry>(wsUrl, {
-    shouldReconnect: () => true,
-    reconnectAttempts: Infinity,
-    reconnectInterval: 1500,
-    retryOnError: true,
-    share: false,
-  });
-
-  const [mockTelemetry, setMockTelemetry] = useState<LiveTelemetry>(() => createMockLiveTelemetry());
-  const [bridgeTelemetry, setBridgeTelemetry] = useState<LiveBridgeTelemetry | null>(null);
-
-  useEffect(() => {
-    const interval = window.setInterval(() => {
-      setMockTelemetry(createMockLiveTelemetry());
-    }, 1000);
-
-    setMockTelemetry(createMockLiveTelemetry());
-
-    return () => window.clearInterval(interval);
-  }, []);
-
-  useEffect(() => {
-    if (!lastJsonMessage) return;
-    setBridgeTelemetry(lastJsonMessage);
-  }, [lastJsonMessage]);
-
-  const telemetry = bridgeTelemetry
-    ? {
-        ...mockTelemetry,
-        ...bridgeTelemetry,
-        timestamp: bridgeTelemetry.timestamp ?? mockTelemetry.timestamp,
-      }
-    : mockTelemetry;
-
-  const exporting = telemetry.net_grid_w < 0;
-  const importing = telemetry.net_grid_w > 0;
-  const connected = readyState === ReadyState.OPEN && bridgeTelemetry !== null;
+  const { telemetry, series, connected } = useLiveTelemetry();
+  const homeLoadKw = telemetry.home_consumption_w / 1000;
+  const solarKw = telemetry.solar_production_w / 1000;
+  const gridKw = telemetry.net_grid_w / 1000;
+  const voltageV = telemetry.phase_a_voltage_v ?? 245;
+  const estimatedCurrentA = Math.abs(telemetry.net_grid_w) / Math.max(voltageV, 1);
 
   return (
     <div className="space-y-4">
@@ -68,76 +35,97 @@ export function LiveDashboard() {
         <div>
           <p className="text-[11px] uppercase tracking-[0.26em] text-slate-400">Live</p>
           <h1 className="mt-1 text-2xl font-semibold tracking-tight text-slate-50">
-            Edge telemetry
+            Consumption Detail
           </h1>
           <p className="mt-1 text-sm text-slate-400">
-            WebSocket feed for sub-second grid and solar power.
+            Real-time household load and power exchange over the last 10 minutes.
           </p>
         </div>
         <Badge variant={connected ? "success" : "warning"}>{connected ? "Bridge connected" : "Mock stream"}</Badge>
       </div>
 
-      <Card
-        className={[
-          "overflow-hidden border-white/10 bg-gradient-to-br",
-          exporting
-            ? "from-emerald-500/20 via-slate-950/90 to-slate-950 shadow-glowGreen"
-            : importing
-              ? "from-rose-500/20 via-slate-950/90 to-slate-950 shadow-glowRed"
-              : "from-sky-500/15 via-slate-950/90 to-slate-950 shadow-glowAmber",
-        ].join(" ")}
-      >
+      <Card className="overflow-hidden border-white/10 bg-gradient-to-br from-sky-500/12 via-slate-950/90 to-slate-950">
         <CardHeader className="pb-2">
-          <CardTitle className="text-[11px] uppercase tracking-[0.26em] text-slate-400">
-            Net grid power
+          <CardTitle className="flex items-center gap-2 text-[11px] uppercase tracking-[0.26em] text-slate-400">
+            <Flame className="h-4 w-4 text-orange-300" />
+            Power Consumed
           </CardTitle>
         </CardHeader>
-        <CardContent className="pt-0">
-          <div
-            className={[
-              "text-6xl font-semibold tracking-tight sm:text-7xl",
-              exporting ? "text-emerald-300 drop-shadow-[0_0_24px_rgba(16,185,129,0.42)]" : "",
-              importing ? "text-rose-300 drop-shadow-[0_0_24px_rgba(251,113,133,0.42)]" : "",
-            ].join(" ")}
-          >
-            {telemetry.net_grid_w > 0 ? "+" : ""}
-            {formatGridValue(telemetry.net_grid_w)}
+        <CardContent>
+          <div className="text-6xl font-semibold tracking-tight text-slate-50">
+            {formatKw(homeLoadKw * 1000)}
           </div>
           <p className="mt-3 text-sm text-slate-300">
-            {exporting
-              ? `Exporting ${formatGridValue(telemetry.net_grid_w)} to the grid`
-              : importing
-                ? `Importing ${formatGridValue(telemetry.net_grid_w)} from the grid`
-                : "Grid exchange is at equilibrium"}
+            Household load currently being drawn from the service panel.
           </p>
-          <p className="mt-2 text-xs text-slate-500">
-            Updated at {new Date(telemetry.timestamp).toLocaleTimeString([], {
-              hour: "2-digit",
-              minute: "2-digit",
-              second: "2-digit",
-            })}
-          </p>
-          {typeof bridgeTelemetry?.phase_a_voltage_v === "number" ? (
-            <p className="mt-1 text-xs text-slate-500">
-              Phase A voltage: {bridgeTelemetry.phase_a_voltage_v.toFixed(1)} V
-            </p>
-          ) : null}
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-1 gap-3">
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
         <MetricCard
-          label="Solar production"
-          value={formatWatts(telemetry.solar_production_w)}
-          detail="Current photovoltaic output from the rooftop array."
+          label="Grid exchange"
+          value={formatKw(Math.abs(gridKw) * 1000)}
+          detail={gridKw < 0 ? "Exporting to the grid" : "Importing from the grid"}
+          tone={gridKw < 0 ? "green" : "red"}
+        />
+        <MetricCard
+          label="Solar output"
+          value={formatKw(solarKw * 1000)}
+          detail="Live photovoltaic generation."
           tone="amber"
         />
         <MetricCard
-          label="Home consumption"
-          value={formatWatts(telemetry.home_consumption_w)}
-          detail="Estimated household load measured at the service panel."
+          label="Estimated current"
+          value={formatCurrent(estimatedCurrentA)}
+          detail={`Based on ${voltageV.toFixed(1)} V phase A voltage.`}
           tone="blue"
         />
+      </div>
+
+      <SeriesAreaCard
+        title="Last 10 Minutes"
+        subtitle="Live household power consumption trend."
+        data={series}
+        dataKey="home_consumption_w"
+        stroke="#38bdf8"
+        fill="#60a5fa"
+        formatter={(value) => `${Math.round(value).toLocaleString()} W`}
+      />
+
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+        <Card className="border-white/10 bg-slate-950/80">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-[11px] uppercase tracking-[0.24em] text-slate-400">
+              <SunMedium className="h-4 w-4 text-yellow-300" />
+              Solar Production
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-semibold text-emerald-300">
+              {formatWatts(telemetry.solar_production_w)}
+            </div>
+            <p className="mt-2 text-sm text-slate-400">
+              Live solar generation from the bridge feed.
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-white/10 bg-slate-950/80">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-[11px] uppercase tracking-[0.24em] text-slate-400">
+              <Gauge className="h-4 w-4 text-violet-300" />
+              Phase A Voltage
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-semibold text-slate-50">
+              {telemetry.phase_a_voltage_v?.toFixed(1) ?? "—"} V
+            </div>
+            <p className="mt-2 text-sm text-slate-400">
+              Voltage from register 8192 when available.
+            </p>
+          </CardContent>
+        </Card>
       </div>
 
       <PowerFlowVisualizer

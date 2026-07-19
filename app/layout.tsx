@@ -27,7 +27,7 @@ export default function RootLayout({
     <html lang="en">
       <body>
         <div className="min-h-[100svh]">
-          <main className="mx-auto flex min-h-[100svh] w-full max-w-[430px] flex-col px-4 pb-32 pt-4">
+          <main className="mx-auto flex min-h-[100svh] w-full max-w-[430px] flex-col px-4 pb-32 pt-4 sm:max-w-[720px] md:max-w-[960px] lg:max-w-[1180px] sm:px-6 lg:px-8">
             {children}
           </main>
           <BottomTabBar />

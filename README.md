@@ -4,6 +4,8 @@ Mobile-first solar monitoring PWA for an iPhone-style dashboard.
 
 The app is split into two data paths:
 
+- `/` redirects to `/home`.
+- `/home` is the main dashboard and adapts into a wider tablet/desktop layout automatically.
 - `/live` reads from a local WebSocket relay for low-latency telemetry.
 - `/history` reads batched time-series data over REST, which mirrors the future cloud database path.
 
@@ -48,6 +50,7 @@ Example payload:
 ### File map
 
 - `app/layout.tsx`: mobile shell and fixed bottom iOS-style tab bar.
+- `app/home/page.tsx`: main dashboard view.
 - `app/live/page.tsx`: live telemetry screen.
 - `app/history/page.tsx`: chart screen.
 - `app/settings/page.tsx`: bridge and deployment placeholders.
@@ -166,7 +169,7 @@ npm run test:e2e
 
 The navigation test checks that:
 
-- `/` redirects to `/live`
+- `/` redirects to `/home`
 - the bottom tab bar is visible
 - the History tab navigates to `/history`
 
@@ -176,6 +179,7 @@ The navigation test checks that:
 - The relay also attempts `8192` for phase A voltage and divides by `10.0`.
 - If `8192` is unavailable, the relay keeps running and simply omits that field.
 - The dashboard still uses mock solar and home values until you add more meter/register sources.
+- The shell uses CSS breakpoints so phones keep the compact iPhone layout while tablets and desktops get a wider dashboard grid.
 
 ## Real meter integration path
 

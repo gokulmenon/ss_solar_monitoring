@@ -2,11 +2,16 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ChartArea, Settings2, Zap } from "lucide-react";
+import { ChartArea, Home, Settings2, Zap } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
 const tabs = [
+  {
+    href: "/home",
+    label: "Home",
+    icon: Home,
+  },
   {
     href: "/live",
     label: "Live",
@@ -31,9 +36,9 @@ export function BottomTabBar() {
     <div className="pointer-events-none fixed inset-x-0 bottom-0 z-50 flex justify-center px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
       <nav
         aria-label="Primary"
-        className="pointer-events-auto w-full max-w-[430px] rounded-[1.75rem] border border-white/10 bg-slate-950/80 px-2 py-2 shadow-2xl shadow-slate-950/40 backdrop-blur-2xl"
+        className="pointer-events-auto w-full max-w-[430px] rounded-[1.75rem] border border-white/10 bg-slate-950/80 px-2 py-2 shadow-2xl shadow-slate-950/40 backdrop-blur-2xl sm:max-w-[720px] md:max-w-[960px] lg:max-w-[1180px]"
       >
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-4 gap-2">
           {tabs.map((tab) => {
             const active = pathname === tab.href || pathname.startsWith(`${tab.href}/`);
             const Icon = tab.icon;
