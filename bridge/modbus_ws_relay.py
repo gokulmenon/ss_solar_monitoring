@@ -98,6 +98,7 @@ HOYMILES_WIFI_COMMAND = os.getenv("HOYMILES_WIFI_COMMAND", "hoymiles-wifi")
 HOYMILES_WIFI_COMMAND_ARG = os.getenv("HOYMILES_WIFI_COMMAND_ARG", "get-real-data-new")
 HOYMILES_WIFI_TIMEOUT_SECONDS = float(os.getenv("HOYMILES_WIFI_TIMEOUT_SECONDS", "20"))
 HOYMILES_WIFI_REFRESH_SECONDS = float(os.getenv("HOYMILES_WIFI_REFRESH_SECONDS", "30"))
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 CSV_LOG_PATH = os.getenv("CSV_LOG_PATH")
 CSV_BACKUP_DIR = os.getenv("CSV_BACKUP_DIR", "./logs/meter-backups")
@@ -404,6 +405,15 @@ def scale_thousandths(value: Any) -> Optional[float]:
     return None if number is None else number / 1000.0
 
 
+def first_present(mapping: dict[str, Any], *keys: str) -> Any:
+    """Return the first non-empty value across snake_case and camelCase keys."""
+    for key in keys:
+        value = mapping.get(key)
+        if value is not None:
+            return value
+    return None
+
+
 def extract_json_payload(text: str) -> dict[str, Any]:
     """
     Parse JSON from hoymiles-wifi stdout.
@@ -430,6 +440,24 @@ def extract_json_payload(text: str) -> dict[str, Any]:
     return loaded
 
 
+def resolve_hoymiles_command() -> Optional[str]:
+    """
+    Resolve hoymiles-wifi from PATH, then from the project virtualenv.
+
+    npm scripts do not always preserve an activated shell's PATH exactly, so
+    this keeps `npm run relay` working after `pip install -r bridge/requirements.txt`.
+    """
+    executable = shutil.which(HOYMILES_WIFI_COMMAND)
+    if executable is not None:
+        return executable
+
+    local_venv_executable = PROJECT_ROOT / ".venv" / "bin" / HOYMILES_WIFI_COMMAND
+    if local_venv_executable.exists():
+        return str(local_venv_executable)
+
+    return None
+
+
 def normalize_serial(value: Any) -> str:
     normalized = coerce_int(value)
     if normalized is not None:
@@ -441,24 +469,22 @@ def parse_hoymiles_port(raw_port: Any) -> HoymilesPortReading | None:
     if not isinstance(raw_port, dict):
         return None
 
-    serial_number = normalize_serial(raw_port.get("serial_number") or raw_port.get("serialNumber"))
-    port_number = coerce_int(raw_port.get("port_number") or raw_port.get("portNumber"))
+    serial_number = normalize_serial(first_present(raw_port, "serial_number", "serialNumber"))
+    port_number = coerce_int(first_present(raw_port, "port_number", "portNumber"))
     if port_number is None:
         return None
+
+    raw_power = coerce_float(first_present(raw_port, "power", "active_power", "activePower"))
 
     return HoymilesPortReading(
         serial_number=serial_number,
         port_number=port_number,
-        voltage_v=scale_tenths(raw_port.get("voltage")),
-        current_a=scale_hundredths(raw_port.get("current")),
-        power_w=(
-            int(round(coerce_float(raw_port.get("power")) / 10.0))
-            if coerce_float(raw_port.get("power")) is not None
-            else None
-        ),
-        energy_total_raw=coerce_int(raw_port.get("energy_total")),
-        energy_daily_raw=coerce_int(raw_port.get("energy_daily")),
-        error_code=coerce_int(raw_port.get("error_code")),
+        voltage_v=scale_tenths(first_present(raw_port, "voltage", "voltage_v", "voltageV")),
+        current_a=scale_hundredths(first_present(raw_port, "current", "current_a", "currentA")),
+        power_w=int(round(raw_power / 10.0)) if raw_power is not None else None,
+        energy_total_raw=coerce_int(first_present(raw_port, "energy_total", "energyTotal")),
+        energy_daily_raw=coerce_int(first_present(raw_port, "energy_daily", "energyDaily")),
+        error_code=coerce_int(first_present(raw_port, "error_code", "errorCode")),
     )
 
 
@@ -466,34 +492,36 @@ def parse_hoymiles_inverter(raw_inverter: Any, ports: list[HoymilesPortReading])
     if not isinstance(raw_inverter, dict):
         return None
 
-    serial_number = normalize_serial(raw_inverter.get("serial_number") or raw_inverter.get("serialNumber"))
-    active_power_raw = coerce_int(raw_inverter.get("active_power"))
+    serial_number = normalize_serial(first_present(raw_inverter, "serial_number", "serialNumber"))
+    active_power_raw = coerce_int(first_present(raw_inverter, "active_power", "activePower"))
 
     return HoymilesInverterReading(
         serial_number=serial_number,
         active_power_w=int(round(active_power_raw / 10.0)) if active_power_raw is not None else None,
-        reactive_power_var=coerce_int(raw_inverter.get("reactive_power")),
-        voltage_v=scale_tenths(raw_inverter.get("voltage")),
-        current_a=scale_hundredths(raw_inverter.get("current")),
-        frequency_hz=scale_hundredths(raw_inverter.get("frequency")),
-        power_factor=scale_thousandths(raw_inverter.get("power_factor")),
-        temperature_c=scale_tenths(raw_inverter.get("temperature")),
-        warning_number=coerce_int(raw_inverter.get("warning_number")),
-        link_status=coerce_int(raw_inverter.get("link_status")),
-        power_limit_w=coerce_int(raw_inverter.get("power_limit")),
-        modulation_index_signal=coerce_int(raw_inverter.get("modulation_index_signal")),
+        reactive_power_var=coerce_int(first_present(raw_inverter, "reactive_power", "reactivePower")),
+        voltage_v=scale_tenths(first_present(raw_inverter, "voltage", "voltage_v", "voltageV")),
+        current_a=scale_hundredths(first_present(raw_inverter, "current", "current_a", "currentA")),
+        frequency_hz=scale_hundredths(first_present(raw_inverter, "frequency", "frequency_hz", "frequencyHz")),
+        power_factor=scale_thousandths(first_present(raw_inverter, "power_factor", "powerFactor")),
+        temperature_c=scale_tenths(first_present(raw_inverter, "temperature", "temperature_c", "temperatureC")),
+        warning_number=coerce_int(first_present(raw_inverter, "warning_number", "warningNumber")),
+        link_status=coerce_int(first_present(raw_inverter, "link_status", "linkStatus")),
+        power_limit_w=coerce_int(first_present(raw_inverter, "power_limit", "powerLimit")),
+        modulation_index_signal=coerce_int(
+            first_present(raw_inverter, "modulation_index_signal", "modulationIndexSignal")
+        ),
         ports=ports,
     )
 
 
 def build_hoymiles_snapshot(payload: dict[str, Any]) -> HoymilesSnapshot:
-    raw_inverters = payload.get("sgs_data") or []
-    raw_ports = payload.get("pv_data") or []
+    raw_inverters = first_present(payload, "sgs_data", "sgsData") or []
+    raw_ports = first_present(payload, "pv_data", "pvData") or []
     if not isinstance(raw_inverters, list):
         raw_inverters = []
     if not isinstance(raw_ports, list):
         raw_ports = []
-    device_serial_number = payload.get("device_serial_number")
+    device_serial_number = first_present(payload, "device_serial_number", "deviceSerialNumber")
     timestamp_raw = payload.get("timestamp")
     root_error = payload.get("error")
 
@@ -511,7 +539,9 @@ def build_hoymiles_snapshot(payload: dict[str, Any]) -> HoymilesSnapshot:
 
     for raw_inverter in raw_inverters:
         serial_number = normalize_serial(
-            raw_inverter.get("serial_number") if isinstance(raw_inverter, dict) else None
+            first_present(raw_inverter, "serial_number", "serialNumber")
+            if isinstance(raw_inverter, dict)
+            else None
         )
         ports = sorted(ports_by_serial.get(serial_number, []), key=lambda item: item.port_number)
         inverter = parse_hoymiles_inverter(raw_inverter, ports)
@@ -523,6 +553,12 @@ def build_hoymiles_snapshot(payload: dict[str, Any]) -> HoymilesSnapshot:
         if inverter.active_power_w is not None:
             total_active_power_w += inverter.active_power_w
         inverters.append(inverter)
+
+    # The DTU reports dtuPower in the same tenths-of-watts scale as inverter
+    # activePower. Keep it as a fallback for partial responses.
+    dtu_power_raw = coerce_float(first_present(payload, "dtu_power", "dtuPower"))
+    if inverter_count == 0 and dtu_power_raw is not None:
+        total_active_power_w = int(round(dtu_power_raw / 10.0))
 
     status = "OK" if inverter_count > 0 else "OFFLINE"
     timestamp_value = coerce_float(timestamp_raw)
@@ -572,7 +608,7 @@ async def read_hoymiles_snapshot() -> HoymilesSnapshot:
         command.extend(["--timeout", str(timeout_value)])
     command.append(HOYMILES_WIFI_COMMAND_ARG)
 
-    executable = shutil.which(command[0])
+    executable = resolve_hoymiles_command()
     if executable is None:
         return build_offline_hoymiles_snapshot(
             f"{HOYMILES_WIFI_COMMAND} command was not found on PATH"
@@ -811,6 +847,17 @@ async def hoymiles_refresh_loop(
 ) -> None:
     while True:
         snapshot = await read_hoymiles_snapshot()
+        if snapshot.status == "OK":
+            print(
+                f"[{datetime.now().strftime('%H:%M:%S')}] "
+                f"Hoymiles refresh ok -> {snapshot.total_active_power_w} W, "
+                f"{snapshot.inverter_count} inverters, {snapshot.port_count} ports"
+            )
+        else:
+            print(
+                f"[{datetime.now().strftime('%H:%M:%S')}] "
+                f"Hoymiles refresh offline -> {snapshot.error or 'unknown error'}"
+            )
         async with state_lock:
             latest_hoymiles_snapshot["value"] = snapshot
             meter_snapshot = latest_meter_snapshot["value"]
