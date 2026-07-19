@@ -32,9 +32,9 @@ export function PowerFlowVisualizer({
 }: PowerFlowVisualizerProps) {
   const exporting = netGridW < 0;
   const importing = netGridW > 0;
-  const solarToHomeW = Math.min(solarProductionW, homeConsumptionW);
   const surplusW = Math.max(0, solarProductionW - homeConsumptionW);
   const gridFlowW = Math.abs(netGridW);
+  const hasSolarGeneration = solarProductionW > 10;
 
   return (
     <Card className="overflow-hidden border-white/10 bg-slate-950/80">
@@ -85,7 +85,7 @@ export function PowerFlowVisualizer({
               strokeWidth="4"
               fill="none"
               strokeLinecap="round"
-              opacity={solarProductionW > 0 ? 1 : 0.25}
+              opacity={hasSolarGeneration ? 1 : 0}
             />
             <path
               id="gridToHouse"
@@ -106,7 +106,7 @@ export function PowerFlowVisualizer({
               opacity={exporting ? 1 : 0.18}
             />
 
-            {solarProductionW > 0 ? (
+            {hasSolarGeneration ? (
               <>
                 <FlowPulse pathId="solarToHouse" tint="#fde047" />
                 {surplusW > 0 ? <FlowPulse pathId="houseToGrid" tint="#34d399" delay="0.75s" /> : null}
@@ -123,7 +123,7 @@ export function PowerFlowVisualizer({
                 SOLAR
               </text>
               <text x="84" y="104" textAnchor="middle" className="fill-slate-400 text-[9px]">
-                {Math.round(solarProductionW / 1000)} kW
+                {solarProductionW > 10 ? `${Math.round(solarProductionW / 1000)} kW` : "0 W"}
               </text>
 
               <rect x="252" y="20" width="88" height="80" rx="22" fill="rgba(14,165,233,0.18)" stroke="rgba(56,189,248,0.82)" />

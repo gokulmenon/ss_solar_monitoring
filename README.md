@@ -7,7 +7,7 @@ The app is split into two data paths:
 - `/` redirects to `/home`.
 - `/home` is the main dashboard and adapts into a wider tablet/desktop layout automatically.
 - `/live` reads from a local WebSocket relay for low-latency telemetry.
-- `/history` reads batched time-series data over REST, which mirrors the future cloud database path.
+- `/history` is the history page. It renders a local CSV-backed dashboard plus a separate Supabase-backed cloud section on the same page.
 
 The dashboard runs immediately in mock mode, but the relay is ready to connect to your verified Modbus RTU poller.
 
@@ -19,7 +19,7 @@ Next.js on Vercel cannot talk directly to `/dev/cu.usbserial-BH002YZD`. The Mac 
 
 - Python handles serial + Modbus RTU.
 - WebSockets push live readings to the dashboard.
-- REST handles historical data.
+- REST serves the local CSV history, and Supabase stores the batched cloud history.
 
 ### Why WebSockets for live data
 
@@ -30,6 +30,8 @@ WebSockets are the best fit for the local telemetry bridge because they give you
 - A clean local bridge pattern that can stay on your Mac while the Next.js app is deployed elsewhere.
 
 MQTT would also work, but it adds broker management. A database-first push model is better for history than for sub-second live telemetry.
+
+For the cloud path, the relay still samples the meter every second, but it batches those readings into a 15-minute window before inserting a single row into Supabase. That keeps the free tier usage low while still preserving useful trend data.
 
 ### Current live payload shape
 
@@ -54,12 +56,14 @@ Example payload:
 - `app/live/page.tsx`: live telemetry screen.
 - `app/history/page.tsx`: chart screen.
 - `app/settings/page.tsx`: bridge and deployment placeholders.
-- `app/api/history/route.ts`: mock REST endpoint for history data.
+- `app/api/history/route.ts`: history endpoint that prefers CSV logs and falls back to mock data.
+- `components/history/cloud-history-dashboard.tsx`: cloud-backed history subcomponent.
 - `components/live/*`: live dashboard cards and power flow visualizer.
 - `components/history/*`: history dashboard and chart.
 - `lib/mock-data.ts`: reusable mock generators for both paths.
 - `scripts/mock-live-ws.ts`: mock local WebSocket publisher for development.
 - `bridge/modbus_ws_relay.py`: Python relay for the real meter.
+- `supabase/migrations/*`: table schema for the batched cloud history.
 - `tests/navigation.spec.ts`: mobile Playwright navigation test.
 
 ## Install
@@ -99,6 +103,8 @@ cp .env.example .env.local
 Default value:
 
 - `NEXT_PUBLIC_LIVE_WS_URL=ws://127.0.0.1:8787`
+- `SUPABASE_URL=` if you are syncing the relay to Supabase locally
+- `SUPABASE_SERVICE_ROLE_KEY=` if you are syncing the relay to Supabase locally
 
 ## Run the Next.js app
 
@@ -141,9 +147,28 @@ Optional environment variables:
 - `SERIAL_PORT=/dev/cu.usbserial-BH002YZD`
 - `MODBUS_BAUDRATE=9600`
 - `MODBUS_SLAVE_ID=1`
-- `CSV_LOG_PATH=./logs/meter_data.csv`
+- `BRIDGE_OFFLINE_THRESHOLD=10`
+- `CSV_BACKUP_DIR=./logs/meter-backups`
+- `CSV_BACKUP_PREFIX=meter`
+- `CSV_LOG_PATH=./logs/meter_data.csv` for legacy single-file logging
+- `SUPABASE_URL=https://ezxqlbdiwysuhabtnaxa.supabase.co`
+- `SUPABASE_SERVICE_ROLE_KEY=...`
+- `SUPABASE_TABLE_NAME=meter_readings`
+- `SUPABASE_BATCH_MINUTES=15`
 
-If you want CSV logging alongside the WebSocket relay, set `CSV_LOG_PATH`.
+By default, the relay writes one CSV per day into `./logs/meter-backups`, for example:
+
+```bash
+./logs/meter-backups/meter_2026-07-19.csv
+```
+
+If you want the old append-only single file behavior, set `CSV_LOG_PATH`.
+
+The cloud sync path uses the same relay process:
+
+- every second: poll the meter and append to the local CSV backup
+- every 15 minutes: flush one aggregated row to Supabase
+- on startup/shutdown: close out any pending cloud batch
 
 Example:
 
@@ -174,6 +199,16 @@ Examples:
 
 Because this is a `NEXT_PUBLIC_` variable, it is bundled into the client build. After changing it in Vercel, trigger a new deployment so the app picks up the new value.
 
+For the cloud history section, add these server-side environment variables in Vercel:
+
+- `SUPABASE_URL` = your Supabase project URL, for example `https://ezxqlbdiwysuhabtnaxa.supabase.co`
+- `SUPABASE_SERVICE_ROLE_KEY` = copy this from Supabase Dashboard -> Settings -> API -> Project API keys
+- `SUPABASE_TABLE_NAME` = `meter_readings`
+
+You do not need the raw Postgres password string for the app. If you ever want the direct database connection string for `psql` or a database client, open the Supabase Dashboard and click `Connect`. That is separate from the app runtime and is not required for the `/history` page to read Supabase.
+
+You also do not need the Supabase publishable/anon key for this implementation. The Next.js server route and the local relay use the service-role key server-side, so the cloud read path works even if you did not set up RLS policies yet. Supabase documents that service keys bypass RLS, and they should never be exposed to the browser. If you later want a browser-only Supabase client, then you would add the publishable key and enable RLS policies for that path.
+
 ### Recommended tunnel flow
 
 1. Run the local relay on the Mac attached to the meter:
@@ -193,6 +228,14 @@ npm run relay
 - Vercel hosts the frontend.
 - The Mac hosts the hardware relay.
 - The tunnel bridges the browser on Vercel to the local relay machine.
+
+### Can the Vercel app read the CSV logs directly?
+
+Not from your Mac, no. The local CSV section on `/history` is for localhost and the relay machine only.
+
+If the frontend is deployed to Vercel and the relay stays local, the live WebSocket can still come through the tunnel, but the Vercel serverless runtime cannot see your Mac's local `./logs` directory.
+
+That is why the cloud section on `/history` reads from Supabase instead of from the local files.
 
 ### Good first-deploy checklist
 
@@ -228,8 +271,10 @@ The navigation test checks that:
 - The relay reads `8210` for the total active power value you already verified.
 - The relay also attempts `8192` for phase A voltage and divides by `10.0`.
 - If `8192` is unavailable, the relay keeps running and simply omits that field.
-- The dashboard still uses mock solar and home values until you add more meter/register sources.
+- The live dashboard still uses mock solar and home values until you add more meter/register sources.
 - The shell uses CSS breakpoints so phones keep the compact iPhone layout while tablets and desktops get a wider dashboard grid.
+- The relay writes daily CSV backups by default, so you get offline historical snapshots even if the tunnel or frontend is unavailable.
+- After `BRIDGE_OFFLINE_THRESHOLD` consecutive failures, the relay emits a `HARDWARE_OFFLINE` status message so the UI can show a red bridge warning.
 
 ## Real meter integration path
 

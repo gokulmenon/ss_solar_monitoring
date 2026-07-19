@@ -22,12 +22,18 @@ function formatCurrent(value: number) {
 }
 
 export function LiveDashboard() {
-  const { telemetry, series, connected } = useLiveTelemetry();
+  const { telemetry, series, bridgeState } = useLiveTelemetry();
   const homeLoadKw = telemetry.home_consumption_w / 1000;
   const solarKw = telemetry.solar_production_w / 1000;
   const gridKw = telemetry.net_grid_w / 1000;
   const voltageV = telemetry.phase_a_voltage_v ?? 245;
   const estimatedCurrentA = Math.abs(telemetry.net_grid_w) / Math.max(voltageV, 1);
+  const bridgeLabel =
+    bridgeState === "hardware_offline"
+      ? "Bridge Disconnected"
+      : bridgeState === "connected"
+        ? "System Online"
+        : "Mock Stream";
 
   return (
     <div className="space-y-4">
@@ -41,8 +47,34 @@ export function LiveDashboard() {
             Real-time household load and power exchange over the last 10 minutes.
           </p>
         </div>
-        <Badge variant={connected ? "success" : "warning"}>{connected ? "Bridge connected" : "Mock stream"}</Badge>
+        <Badge
+          variant={
+            bridgeState === "hardware_offline"
+              ? "danger"
+              : bridgeState === "connected"
+                ? "success"
+                : "warning"
+          }
+        >
+          {bridgeLabel}
+        </Badge>
       </div>
+
+      {bridgeState === "hardware_offline" ? (
+        <Card className="border-rose-500/30 bg-rose-500/10">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-[11px] uppercase tracking-[0.24em] text-rose-200">
+              Bridge Offline
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-rose-100/90">
+              The relay has reported repeated Modbus failures. Check the USB adapter, serial cable,
+              and meter power.
+            </p>
+          </CardContent>
+        </Card>
+      ) : null}
 
       <Card className="overflow-hidden border-white/10 bg-gradient-to-br from-sky-500/12 via-slate-950/90 to-slate-950">
         <CardHeader className="pb-2">
@@ -77,19 +109,20 @@ export function LiveDashboard() {
         <MetricCard
           label="Estimated current"
           value={formatCurrent(estimatedCurrentA)}
-          detail={`Based on ${voltageV.toFixed(1)} V phase A voltage.`}
+          detail={`Approximate breaker current based on ${voltageV.toFixed(1)} V and total wattage.`}
           tone="blue"
         />
       </div>
 
       <SeriesAreaCard
-        title="Last 10 Minutes"
-        subtitle="Live household power consumption trend."
+        title="Live household trend"
+        subtitle="Real-time household power consumption. Switch between 10m, 6h, and 24h."
         data={series}
         dataKey="home_consumption_w"
         stroke="#38bdf8"
         fill="#60a5fa"
         formatter={(value) => `${Math.round(value).toLocaleString()} W`}
+        defaultRange="6h"
       />
 
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">

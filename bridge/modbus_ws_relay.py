@@ -20,9 +20,12 @@ from __future__ import annotations
 
 import asyncio
 import csv
+import gc
 import json
 import os
 import struct
+import urllib.error
+import urllib.request
 from dataclasses import dataclass, asdict
 from datetime import datetime, timezone
 from pathlib import Path
@@ -43,6 +46,14 @@ SERIAL_PORT = os.getenv("SERIAL_PORT", "/dev/cu.usbserial-BH002YZD")
 BAUDRATE = int(os.getenv("MODBUS_BAUDRATE", "9600"))
 SLAVE_ID = int(os.getenv("MODBUS_SLAVE_ID", "1"))
 CSV_LOG_PATH = os.getenv("CSV_LOG_PATH")
+CSV_BACKUP_DIR = os.getenv("CSV_BACKUP_DIR", "./logs/meter-backups")
+CSV_BACKUP_PREFIX = os.getenv("CSV_BACKUP_PREFIX", "meter")
+OFFLINE_FAILURE_THRESHOLD = int(os.getenv("BRIDGE_OFFLINE_THRESHOLD", "10"))
+SUPABASE_URL = os.getenv("SUPABASE_URL", "").strip()
+SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "").strip()
+SUPABASE_TABLE_NAME = os.getenv("SUPABASE_TABLE_NAME", "meter_readings")
+SUPABASE_BATCH_MINUTES = int(os.getenv("SUPABASE_BATCH_MINUTES", "15"))
+SUPABASE_SYNC_TIMEOUT_SECONDS = float(os.getenv("SUPABASE_SYNC_TIMEOUT_SECONDS", "5"))
 
 
 @dataclass
@@ -50,6 +61,30 @@ class RelayPayload:
     timestamp: str
     net_grid_w: int
     phase_a_voltage_v: Optional[float] = None
+
+
+@dataclass
+class RelayStatusPayload:
+    timestamp: str
+    status: str
+    failures: int
+    message: Optional[str] = None
+
+
+@dataclass
+class CloudBatchState:
+    bucket_start: str
+    sample_count: int = 0
+    net_grid_sum_w: int = 0
+    voltage_sum_v: float = 0.0
+    voltage_sample_count: int = 0
+
+    def add_sample(self, payload: RelayPayload) -> None:
+        self.sample_count += 1
+        self.net_grid_sum_w += payload.net_grid_w
+        if payload.phase_a_voltage_v is not None:
+            self.voltage_sum_v += payload.phase_a_voltage_v
+            self.voltage_sample_count += 1
 
 
 def decode_float32_be(registers: list[int]) -> float:
@@ -74,6 +109,18 @@ def create_modbus_client():
     )
 
 
+def release_modbus_client(client) -> None:
+    """Close the Modbus client and force the serial port handle to release."""
+    if client is None:
+        return
+
+    try:
+        client.close()
+    finally:
+        del client
+        gc.collect()
+
+
 def read_float_register(client, address: int) -> float:
     """Read a two-register float from the meter and return the decoded value."""
     result = client.read_holding_registers(address=address, count=2, slave=SLAVE_ID)
@@ -81,6 +128,13 @@ def read_float_register(client, address: int) -> float:
         raise RuntimeError(f"Modbus error while reading register {address}")
 
     return decode_float32_be(result.registers)
+
+
+def bucket_start_for_timestamp(timestamp: str, bucket_minutes: int) -> str:
+    """Round a UTC timestamp down to the start of the cloud batch window."""
+    date = datetime.fromisoformat(timestamp.replace("Z", "+00:00")).astimezone(timezone.utc)
+    bucket_seconds = int(date.timestamp() // (bucket_minutes * 60) * bucket_minutes * 60)
+    return datetime.fromtimestamp(bucket_seconds, tz=timezone.utc).isoformat().replace("+00:00", "Z")
 
 
 def build_payload(client) -> RelayPayload:
@@ -101,25 +155,144 @@ def build_payload(client) -> RelayPayload:
 
 
 def write_csv_row(payload: RelayPayload) -> None:
-    """Optional CSV sink that mirrors your original logging script."""
-    if not CSV_LOG_PATH:
+    """
+    Optional CSV sink for offline backups.
+
+    Behavior:
+    - If CSV_LOG_PATH is set, keep the legacy single-file append mode.
+    - Otherwise, write one CSV per local calendar day inside CSV_BACKUP_DIR.
+    """
+    if not CSV_LOG_PATH and not CSV_BACKUP_DIR:
         return
 
-    path = Path(CSV_LOG_PATH)
+    if CSV_LOG_PATH:
+        path = Path(CSV_LOG_PATH)
+    else:
+        local_day = datetime.now().astimezone().strftime("%Y-%m-%d")
+        path = Path(CSV_BACKUP_DIR) / f"{CSV_BACKUP_PREFIX}_{local_day}.csv"
+
     path.parent.mkdir(parents=True, exist_ok=True)
 
     write_header = not path.exists() or path.stat().st_size == 0
     with path.open("a", newline="") as file:
         writer = csv.writer(file)
         if write_header:
-            writer.writerow(["Timestamp", "Net Grid Power (W)", "Phase A Voltage (V)"])
+            writer.writerow(
+                [
+                    "Timestamp (UTC)",
+                    "Net Grid Power (W)",
+                    "Phase A Voltage (V)",
+                ]
+            )
         writer.writerow([payload.timestamp, payload.net_grid_w, payload.phase_a_voltage_v])
+
+
+def build_supabase_batch_row(batch: CloudBatchState) -> dict[str, int | float | str | None]:
+    """Convert the in-memory batch into a Supabase row."""
+    average_watts = int(round(batch.net_grid_sum_w / max(batch.sample_count, 1)))
+    average_voltage = (
+        round(batch.voltage_sum_v / batch.voltage_sample_count, 1)
+        if batch.voltage_sample_count > 0
+        else None
+    )
+
+    return {
+        "timestamp": batch.bucket_start,
+        "sample_count": batch.sample_count,
+        "net_grid_w": average_watts,
+        "phase_a_voltage_v": average_voltage,
+    }
+
+
+def sync_supabase_batch(batch: CloudBatchState) -> None:
+    """POST one aggregated batch row to Supabase."""
+    if not SUPABASE_URL or not SUPABASE_SERVICE_ROLE_KEY:
+        return
+
+    row = build_supabase_batch_row(batch)
+    url = f"{SUPABASE_URL.rstrip('/')}/rest/v1/{SUPABASE_TABLE_NAME}?on_conflict=timestamp"
+    body = json.dumps(row).encode("utf-8")
+    request = urllib.request.Request(
+        url,
+        data=body,
+        method="POST",
+        headers={
+            "apikey": SUPABASE_SERVICE_ROLE_KEY,
+            "Authorization": f"Bearer {SUPABASE_SERVICE_ROLE_KEY}",
+            "Content-Type": "application/json",
+            "Prefer": "resolution=merge-duplicates,return=minimal",
+        },
+    )
+
+    try:
+        print(
+            f"[{datetime.now().strftime('%H:%M:%S')}] "
+            f"Supabase batch flush {batch.bucket_start} ({batch.sample_count} samples)..."
+        )
+        with urllib.request.urlopen(request, timeout=SUPABASE_SYNC_TIMEOUT_SECONDS) as response:
+            if response.status not in {200, 201, 204}:
+                raise RuntimeError(f"Unexpected Supabase status {response.status}")
+        print(
+            f"[{datetime.now().strftime('%H:%M:%S')}] "
+            f"Supabase batch ok {batch.bucket_start} ({batch.sample_count} samples)"
+        )
+    except urllib.error.URLError as exc:
+        print(
+            f"[{datetime.now().strftime('%H:%M:%S')}] "
+            f"Supabase batch failed {batch.bucket_start}: {exc}"
+        )
+
+
+async def flush_cloud_batch(batch: Optional[CloudBatchState]) -> None:
+    if batch is None or batch.sample_count == 0:
+        return
+
+    await asyncio.to_thread(sync_supabase_batch, batch)
+
+
+async def advance_cloud_batch(
+    current_batch: Optional[CloudBatchState],
+    payload: RelayPayload,
+) -> CloudBatchState | None:
+    """Aggregate the current reading into a 15-minute cloud batch."""
+    if not SUPABASE_URL or not SUPABASE_SERVICE_ROLE_KEY:
+        return current_batch
+
+    bucket_start = bucket_start_for_timestamp(payload.timestamp, SUPABASE_BATCH_MINUTES)
+    batch = current_batch
+
+    if batch is None:
+        batch = CloudBatchState(bucket_start=bucket_start)
+    elif batch.bucket_start != bucket_start:
+        await flush_cloud_batch(batch)
+        batch = CloudBatchState(bucket_start=bucket_start)
+
+    batch.add_sample(payload)
+    return batch
 
 
 def payload_to_json(payload: RelayPayload) -> str:
     """Serialize the payload and omit any empty optional values."""
     data = asdict(payload)
     return json.dumps({key: value for key, value in data.items() if value is not None})
+
+
+def status_payload_to_json(payload: RelayStatusPayload) -> str:
+    """Serialize a bridge status message."""
+    data = asdict(payload)
+    return json.dumps({key: value for key, value in data.items() if value is not None})
+
+
+def build_offline_status_payload(failures: int) -> RelayStatusPayload:
+    return RelayStatusPayload(
+        timestamp=datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+        status="HARDWARE_OFFLINE",
+        failures=failures,
+        message=(
+            "Modbus hardware is offline. "
+            "Check the USB adapter, serial cable, and meter power."
+        ),
+    )
 
 
 async def broadcast(clients: set[WebSocketServerProtocol], message: str) -> None:
@@ -160,6 +333,8 @@ async def main() -> None:
 
     connected_clients: set[WebSocketServerProtocol] = set()
     latest_message: dict[str, str | None] = {"value": None}
+    failure_count = 0
+    pending_cloud_batch: Optional[CloudBatchState] = None
 
     async def handler(websocket: WebSocketServerProtocol) -> None:
         await client_handler(websocket, connected_clients, latest_message)
@@ -176,7 +351,9 @@ async def main() -> None:
                     payload = await asyncio.to_thread(build_payload, client)
                     message = payload_to_json(payload)
                     latest_message["value"] = message
+                    failure_count = 0
                     write_csv_row(payload)
+                    pending_cloud_batch = await advance_cloud_batch(pending_cloud_batch, payload)
                     await broadcast(connected_clients, message)
                     print(
                         f"[{datetime.now().strftime('%H:%M:%S')}] "
@@ -186,10 +363,18 @@ async def main() -> None:
                             if payload.phase_a_voltage_v is not None
                             else ""
                         )
-                    )
+                        )
                 except Exception as exc:
+                    failure_count += 1
                     print(f"[{datetime.now().strftime('%H:%M:%S')}] Relay hiccup: {exc}")
-                    client.close()
+                    if failure_count >= OFFLINE_FAILURE_THRESHOLD:
+                        offline_message = status_payload_to_json(
+                            build_offline_status_payload(failure_count)
+                        )
+                        latest_message["value"] = offline_message
+                        await broadcast(connected_clients, offline_message)
+
+                    release_modbus_client(client)
                     await asyncio.sleep(1)
                     client = create_modbus_client()
                     if not client.connect():
@@ -197,12 +382,14 @@ async def main() -> None:
                             f"[{datetime.now().strftime('%H:%M:%S')}] "
                             f"Reconnection failed. Retrying in 1s..."
                         )
+                        release_modbus_client(client)
                         await asyncio.sleep(1)
                         continue
 
                 await asyncio.sleep(1)
         finally:
-            client.close()
+            await flush_cloud_batch(pending_cloud_batch)
+            release_modbus_client(client)
 
 
 if __name__ == "__main__":

@@ -6,6 +6,7 @@ coverage
 .DS_Store
 .env.local
 .env.*.local
+.venv
 dist
 __pycache__
 *.pyc

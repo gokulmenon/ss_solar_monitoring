@@ -7,18 +7,36 @@ import { createMockLiveTelemetry, type LiveTelemetry } from "@/lib/mock-data";
 
 export type LiveBridgeTelemetry = Partial<LiveTelemetry> & {
   phase_a_voltage_v?: number;
+  status?: "HARDWARE_OFFLINE";
+  failures?: number;
+  message?: string;
 };
 
 export type LiveSeriesPoint = LiveTelemetry & {
   phase_a_voltage_v?: number;
 };
 
-const SERIES_LIMIT = 60;
-const SERIES_BUCKET_MS = 10_000;
+export type BridgeState = "mock" | "connected" | "hardware_offline";
 
-function bucketTimestamp(timestamp: string) {
+type LiveSeriesBucket = LiveSeriesPoint & {
+  sampleCount: number;
+};
+
+const SERIES_LIMIT = 24 * 60;
+
+function hasTelemetryFields(message: LiveBridgeTelemetry) {
+  return (
+    typeof message.timestamp === "string" ||
+    typeof message.solar_production_w === "number" ||
+    typeof message.net_grid_w === "number" ||
+    typeof message.home_consumption_w === "number" ||
+    typeof message.phase_a_voltage_v === "number"
+  );
+}
+
+function minuteBucketTimestamp(timestamp: string) {
   const date = new Date(timestamp);
-  const bucketMs = Math.floor(date.getTime() / SERIES_BUCKET_MS) * SERIES_BUCKET_MS;
+  const bucketMs = Math.floor(date.getTime() / 60_000) * 60_000;
   return new Date(bucketMs).toISOString();
 }
 
@@ -45,9 +63,12 @@ export function useLiveTelemetry() {
 
   const [mockTelemetry, setMockTelemetry] = useState<LiveTelemetry>(() => createMockLiveTelemetry());
   const [bridgeTelemetry, setBridgeTelemetry] = useState<LiveBridgeTelemetry | null>(null);
-  const [series, setSeries] = useState<LiveSeriesPoint[]>(() => []);
+  const [hardwareOffline, setHardwareOffline] = useState(false);
+  const [seriesBuckets, setSeriesBuckets] = useState<LiveSeriesBucket[]>(() => []);
 
   useEffect(() => {
+    if (readyState === ReadyState.OPEN) return undefined;
+
     const interval = window.setInterval(() => {
       setMockTelemetry(createMockLiveTelemetry());
     }, 1000);
@@ -59,6 +80,16 @@ export function useLiveTelemetry() {
 
   useEffect(() => {
     if (!lastJsonMessage) return;
+
+    if (lastJsonMessage.status === "HARDWARE_OFFLINE") {
+      setHardwareOffline(true);
+      return;
+    }
+
+    if (hasTelemetryFields(lastJsonMessage)) {
+      setHardwareOffline(false);
+    }
+
     setBridgeTelemetry(lastJsonMessage);
   }, [lastJsonMessage]);
 
@@ -68,27 +99,61 @@ export function useLiveTelemetry() {
   );
 
   useEffect(() => {
-    const nextPoint = {
+    const nextPoint: LiveSeriesBucket = {
       ...telemetry,
-      timestamp: bucketTimestamp(telemetry.timestamp),
+      timestamp: minuteBucketTimestamp(telemetry.timestamp),
+      sampleCount: 1,
     };
 
-    setSeries((previous) => {
+    setSeriesBuckets((previous) => {
       if (previous.length === 0) return [nextPoint];
 
       const lastPoint = previous[previous.length - 1];
       if (lastPoint.timestamp === nextPoint.timestamp) {
-        return [...previous.slice(0, -1), nextPoint].slice(-SERIES_LIMIT);
+        const sampleCount = lastPoint.sampleCount + 1;
+        const averagedPoint: LiveSeriesBucket = {
+          ...lastPoint,
+          ...nextPoint,
+          sampleCount,
+          solar_production_w: Math.round(
+            (lastPoint.solar_production_w * lastPoint.sampleCount + nextPoint.solar_production_w) /
+              sampleCount,
+          ),
+          net_grid_w: Math.round(
+            (lastPoint.net_grid_w * lastPoint.sampleCount + nextPoint.net_grid_w) / sampleCount,
+          ),
+          home_consumption_w: Math.round(
+            (lastPoint.home_consumption_w * lastPoint.sampleCount + nextPoint.home_consumption_w) /
+              sampleCount,
+          ),
+          phase_a_voltage_v:
+            typeof nextPoint.phase_a_voltage_v === "number"
+              ? Math.round(
+                  ((lastPoint.phase_a_voltage_v ?? nextPoint.phase_a_voltage_v) *
+                    lastPoint.sampleCount +
+                    nextPoint.phase_a_voltage_v) /
+                    sampleCount,
+                )
+              : lastPoint.phase_a_voltage_v,
+        };
+
+        return [...previous.slice(0, -1), averagedPoint].slice(-SERIES_LIMIT);
       }
 
       return [...previous, nextPoint].slice(-SERIES_LIMIT);
     });
   }, [telemetry]);
 
+  const series = useMemo<LiveSeriesPoint[]>(
+    () =>
+      seriesBuckets.map(({ sampleCount: _sampleCount, ...point }) => point),
+    [seriesBuckets],
+  );
+
   return {
     telemetry,
     series,
-    connected: readyState === ReadyState.OPEN,
+    bridgeState: hardwareOffline ? "hardware_offline" : readyState === ReadyState.OPEN ? "connected" : "mock",
     readyState,
     wsUrl,
   };

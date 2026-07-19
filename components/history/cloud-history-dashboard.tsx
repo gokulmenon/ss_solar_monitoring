@@ -36,7 +36,19 @@ function formatEnergy(value: number) {
   return `${value.toFixed(2)} kWh`;
 }
 
-export function HistoryDashboard() {
+function formatLastSynced(timestamp: string | null) {
+  if (!timestamp) return "Never";
+
+  return new Date(timestamp).toLocaleString([], {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+export function CloudHistoryDashboard() {
   const [history, setHistory] = useState<HistoryResponse | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -45,13 +57,13 @@ export function HistoryDashboard() {
 
     async function loadHistory() {
       try {
-        const response = await fetch("/api/history?source=csv", {
+        const response = await fetch("/api/history?source=supabase", {
           signal: controller.signal,
           cache: "no-store",
         });
 
         if (!response.ok) {
-          throw new Error(`History request failed: ${response.status}`);
+          throw new Error(`Cloud history request failed: ${response.status}`);
         }
 
         const payload = (await response.json()) as HistoryResponse;
@@ -72,9 +84,53 @@ export function HistoryDashboard() {
 
   const data = history?.points ?? [];
   const summary = history?.summary;
-  const sourceLabel = "Local CSV logs";
+  const sourceLabel = "Supabase cloud";
   const windowHours = history?.window_hours ?? 24;
   const hasData = data.length > 0;
+  const latestTimestamp = data.at(-1)?.timestamp ?? null;
+  const latestAgeMinutes = useMemo(() => {
+    if (!latestTimestamp) return null;
+
+    const parsed = new Date(latestTimestamp).getTime();
+    if (!Number.isFinite(parsed)) return null;
+
+    return Math.max(0, Math.round((Date.now() - parsed) / 60_000));
+  }, [latestTimestamp]);
+
+  const cloudSyncStatus = useMemo(() => {
+    if (loading) {
+      return {
+        label: "Checking cloud sync",
+        detail: "Loading the latest Supabase rows.",
+        tone: "text-slate-300",
+      };
+    }
+
+    if (!hasData) {
+      return {
+        label: "Cloud sync idle",
+        detail: "No Supabase batches have arrived yet.",
+        tone: "text-rose-300",
+      };
+    }
+
+    if (latestAgeMinutes !== null && latestAgeMinutes <= 20) {
+      return {
+        label: "Cloud sync active",
+        detail: `Last batch landed about ${latestAgeMinutes} minute${latestAgeMinutes === 1 ? "" : "s"} ago.`,
+        tone: "text-emerald-300",
+      };
+    }
+
+    return {
+      label: "Cloud sync waiting",
+      detail: latestAgeMinutes === null
+        ? "The latest Supabase timestamp could not be parsed."
+        : `Last cloud batch is ${latestAgeMinutes} minutes old.`,
+      tone: "text-amber-300",
+    };
+  }, [hasData, latestAgeMinutes, loading]);
+  const isCloudOffline = !loading && (!hasData || (latestAgeMinutes !== null && latestAgeMinutes > 60));
 
   const stats = useMemo(
     () => [
@@ -106,12 +162,12 @@ export function HistoryDashboard() {
     <div className="space-y-4">
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
-          <p className="text-[11px] uppercase tracking-[0.26em] text-slate-400">History</p>
-          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-slate-50">
-            Log-backed grid history
-          </h1>
+          <p className="text-[11px] uppercase tracking-[0.26em] text-slate-400">Cloud</p>
+          <h2 className="mt-1 text-xl font-semibold tracking-tight text-slate-50">
+            Supabase history
+          </h2>
           <p className="mt-1 text-sm text-slate-400">
-            This view reads the CSV backups from your relay when they are available.
+            This section reads the cloud-backed rows that the relay batches and uploads.
           </p>
         </div>
         <Badge variant="secondary">{sourceLabel}</Badge>
@@ -132,17 +188,66 @@ export function HistoryDashboard() {
         ))}
       </div>
 
+      <Card className="border-white/10 bg-slate-950/80">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-[11px] uppercase tracking-[0.24em] text-slate-400">
+            Cloud sync status
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="flex items-start gap-3 pt-0">
+          <span
+            className={`mt-1 h-3 w-3 rounded-full ${
+              cloudSyncStatus.tone === "text-emerald-300"
+                ? "bg-emerald-300"
+                : cloudSyncStatus.tone === "text-amber-300"
+                  ? "bg-amber-300"
+                  : cloudSyncStatus.tone === "text-rose-300"
+                    ? "bg-rose-300"
+                    : "bg-slate-300"
+            }`}
+          />
+          <div>
+            <div className={`text-lg font-semibold ${cloudSyncStatus.tone}`}>
+              {cloudSyncStatus.label}
+            </div>
+            <p className="mt-1 text-sm text-slate-400">{cloudSyncStatus.detail}</p>
+            <p className="mt-2 text-xs uppercase tracking-[0.2em] text-slate-500">
+              Last synced at
+            </p>
+            <p className="mt-1 text-sm font-medium text-slate-200">
+              {loading ? "..." : formatLastSynced(latestTimestamp)}
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
+      {isCloudOffline ? (
+        <Card className="border-rose-500/30 bg-rose-500/10">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-[11px] uppercase tracking-[0.24em] text-rose-200">
+              Cloud Sync Warning
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-rose-100/90">
+              The cloud feed looks stale or empty. Check the relay terminal, Supabase credentials,
+              or whether the 15-minute batch flush is still running.
+            </p>
+          </CardContent>
+        </Card>
+      ) : null}
+
       <Card className="overflow-hidden border-white/10 bg-slate-950/80">
         <CardHeader className="pb-2">
           <CardTitle className="text-[11px] uppercase tracking-[0.24em] text-slate-400">
-            {windowHours}-hour relay history
+            {windowHours}-hour cloud history
           </CardTitle>
         </CardHeader>
         <CardContent className="pt-0">
           {!loading && !hasData ? (
             <div className="rounded-3xl border border-dashed border-white/10 bg-white/[0.02] px-4 py-10 text-center text-sm text-slate-400">
-              No local CSV logs found yet. Start the relay with CSV logging enabled and this view
-              will fill in automatically.
+              No Supabase history found yet. Once the relay starts batching rows, they will appear
+              here.
             </div>
           ) : (
             <div className="h-[340px] w-full md:h-[380px]">
@@ -205,10 +310,10 @@ export function HistoryDashboard() {
                     yAxisId="left"
                     type="monotone"
                     dataKey="net_grid_w"
-                    stroke="#60a5fa"
-                    fill="rgba(96, 165, 250, 0.20)"
+                    stroke="#38bdf8"
+                    fill="rgba(56, 189, 248, 0.20)"
                     strokeWidth={3}
-                    activeDot={{ r: 7, strokeWidth: 2, stroke: "#60a5fa", fill: "#0f172a" }}
+                    activeDot={{ r: 7, strokeWidth: 2, stroke: "#38bdf8", fill: "#0f172a" }}
                   />
                   <Line
                     yAxisId="right"
@@ -223,40 +328,6 @@ export function HistoryDashboard() {
               </ResponsiveContainer>
             </div>
           )}
-        </CardContent>
-      </Card>
-
-      <Card className="border-white/10 bg-slate-950/80">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-[11px] uppercase tracking-[0.24em] text-slate-400">
-            Readout
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="grid grid-cols-2 gap-3 pt-0 text-sm text-slate-300 md:grid-cols-4">
-          <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-3">
-            <div className="text-slate-500">Peak export</div>
-            <div className="mt-1 text-lg font-semibold text-slate-100">
-              {loading ? "..." : hasData ? formatWattage(summary?.peak_export_w ?? 0) : "—"}
-            </div>
-          </div>
-          <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-3">
-            <div className="text-slate-500">Samples</div>
-            <div className="mt-1 text-lg font-semibold text-slate-100">
-              {loading ? "..." : hasData ? (summary?.sample_count ?? 0).toLocaleString() : "—"}
-            </div>
-          </div>
-          <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-3">
-            <div className="text-slate-500">Data source</div>
-            <div className="mt-1 text-lg font-semibold text-slate-100">
-              {loading ? "..." : sourceLabel}
-            </div>
-          </div>
-          <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-3">
-            <div className="text-slate-500">Window</div>
-            <div className="mt-1 text-lg font-semibold text-slate-100">
-              {loading ? "..." : hasData ? `${windowHours} hours` : "—"}
-            </div>
-          </div>
         </CardContent>
       </Card>
     </div>

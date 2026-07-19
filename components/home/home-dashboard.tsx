@@ -20,12 +20,18 @@ function formatCurrent(value: number) {
 }
 
 export function HomeDashboard() {
-  const { telemetry, series, connected } = useLiveTelemetry();
+  const { telemetry, series, bridgeState } = useLiveTelemetry();
 
   const activePowerKw = Math.abs(telemetry.net_grid_w) / 1000;
   const voltageV = telemetry.phase_a_voltage_v ?? 245;
   const estimatedCurrentA = activePowerKw > 0 ? (activePowerKw * 1000) / Math.max(voltageV, 1) : 0;
   const homeLoadKw = telemetry.home_consumption_w / 1000;
+  const bridgeLabel =
+    bridgeState === "hardware_offline"
+      ? "Bridge Disconnected"
+      : bridgeState === "connected"
+        ? "System Online"
+        : "Mock Stream";
 
   return (
     <div className="space-y-4">
@@ -37,11 +43,35 @@ export function HomeDashboard() {
           </h1>
           <p className="mt-1 text-sm text-slate-400">Local bridge telemetry on the Mac relay.</p>
         </div>
-        <Badge variant={connected ? "success" : "warning"}>
+        <Badge
+          variant={
+            bridgeState === "hardware_offline"
+              ? "danger"
+              : bridgeState === "connected"
+                ? "success"
+                : "warning"
+          }
+        >
           <span className="mr-2 inline-flex h-2.5 w-2.5 rounded-full bg-current" />
-          {connected ? "System Online" : "Mock Stream"}
+          {bridgeLabel}
         </Badge>
       </div>
+
+      {bridgeState === "hardware_offline" ? (
+        <Card className="border-rose-500/30 bg-rose-500/10">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-[11px] uppercase tracking-[0.24em] text-rose-200">
+              Bridge Offline
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-rose-100/90">
+              The relay has reported repeated Modbus failures. Displaying the last good reading
+              until the bridge recovers.
+            </p>
+          </CardContent>
+        </Card>
+      ) : null}
 
       <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
         <Card className="border-white/10 bg-slate-950/80">
@@ -79,18 +109,23 @@ export function HomeDashboard() {
             <div className="text-5xl font-semibold tracking-tight text-slate-50">
               {formatCurrent(estimatedCurrentA)}
             </div>
+            <p className="mt-2 text-sm text-slate-400">
+              Approximate current. Direct phase currents can be added later from registers 8198
+              and 8200.
+            </p>
           </CardContent>
         </Card>
       </div>
 
       <SeriesAreaCard
-        title="Last 10 Minutes"
-        subtitle="Net grid exchange based on the live bridge feed."
+        title="Live grid trend"
+        subtitle="Net grid exchange based on the live bridge feed. Switch between 10m, 6h, and 24h."
         data={series}
         dataKey="net_grid_w"
         stroke="#3b82f6"
         fill="#60a5fa"
         formatter={(value) => `${Math.round(value).toLocaleString()} W`}
+        defaultRange="6h"
       />
 
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
