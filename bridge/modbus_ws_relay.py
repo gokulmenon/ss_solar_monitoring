@@ -90,6 +90,7 @@ METER_SLAVE_ID = int(os.getenv("MODBUS_SLAVE_ID", "1"))
 METER_TOTAL_ACTIVE_POWER_REGISTER = int(os.getenv("METER_TOTAL_ACTIVE_POWER_REGISTER", "8210"))
 METER_PHASE_A_VOLTAGE_REGISTER = int(os.getenv("METER_PHASE_A_VOLTAGE_REGISTER", "8192"))
 METER_REGISTER_KIND = os.getenv("METER_REGISTER_KIND", "holding").strip().lower()
+METER_POWER_SCALE = float(os.getenv("METER_POWER_SCALE", "0.1"))
 METER_VOLTAGE_SCALE = float(os.getenv("METER_VOLTAGE_SCALE", "0.1"))
 
 # Hoymiles DTU via local WiFi/protobuf CLI
@@ -362,6 +363,7 @@ async def read_meter_snapshot(client) -> MeterSnapshot:
         address=METER_TOTAL_ACTIVE_POWER_REGISTER,
         register_kind=METER_REGISTER_KIND,
         label=f"Chint meter active power (slave {METER_SLAVE_ID}, reg {METER_TOTAL_ACTIVE_POWER_REGISTER})",
+        scale=METER_POWER_SCALE,
     )
     if power_error:
         errors.append(power_error)
