@@ -33,7 +33,7 @@ WebSockets are the best fit for the local telemetry bridge because they give you
 
 MQTT would also work, but it adds broker management. A database-first push model is better for history than for sub-second live telemetry.
 
-For the cloud path, the relay still samples the meter every second, but it batches those readings into a 15-minute window before inserting a single row into Supabase. That keeps the free tier usage low while still preserving useful trend data.
+For the cloud path, the relay samples the meter once per minute and batches those readings into a 15-minute window before inserting a single row into Supabase. That keeps local logging and cloud usage conservative while still preserving useful trend data.
 
 ### Current live payload shape
 
@@ -163,7 +163,7 @@ Optional environment variables:
 - `BRIDGE_PORT=8787`
 - `SERIAL_PORT=/dev/cu.usbserial-BH002YZD`
 - `MODBUS_BAUDRATE=9600`
-- `BRIDGE_POLL_INTERVAL_SECONDS=1`
+- `BRIDGE_POLL_INTERVAL_SECONDS=60`
 - `MODBUS_SLAVE_ID=1`
 - `METER_TOTAL_ACTIVE_POWER_REGISTER=8210`
 - `METER_PHASE_A_VOLTAGE_REGISTER=8192`
@@ -196,7 +196,7 @@ The relay automatically reads `bridge/.env` first, then falls back to your shell
 
 The cloud sync path uses the same relay process:
 
-- every second: poll the Chint meter and append to the local CSV backup
+- every 60 seconds: poll the Chint meter, broadcast to the UI, and append to the local CSV backup
 - every 15 minutes by default: refresh the Hoymiles JSON snapshot
 - every 15 minutes: flush one aggregated grid, voltage, and solar row to Supabase
 - every 15 minutes: update one relay-local daily energy summary row in Supabase
@@ -300,6 +300,43 @@ npm run relay
 3. Copy the tunnel's `wss://` URL into Vercel Project Settings as `NEXT_PUBLIC_LIVE_WS_URL`.
 
 4. Redeploy the Vercel app.
+
+### Permanent Cloudflare tunnel
+
+The current permanent tunnel is named `solar-monitor` and serves the relay through:
+
+```text
+solar-monitoring.gokulmenon.com
+```
+
+Run it with:
+
+```bash
+cloudflared tunnel run solar-monitor
+```
+
+Use this Vercel environment variable:
+
+```bash
+NEXT_PUBLIC_LIVE_WS_URL=wss://solar-monitoring.gokulmenon.com
+```
+
+The local Cloudflare config lives at `~/.cloudflare/config.yaml`:
+
+```yaml
+tunnel: 8f5854c2-be35-4e66-94c1-54c1b8833b3a
+credentials-file: ${HOME}/.cloudflared/8f5854c2-be35-4e66-94c1-54c1b8833b3a.json
+
+ingress:
+  - hostname: solar-monitoring.gokulmenon.com
+    service: http://127.0.0.1:8787
+
+  - service: http_status:404
+```
+
+Keep the origin service pointed at `http://127.0.0.1:8787`, not `http://localhost:8787`.
+On macOS, `localhost` can resolve to IPv6 `::1`, while the relay listens on IPv4
+`127.0.0.1` by default.
 
 ### Why this works
 

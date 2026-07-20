@@ -83,7 +83,7 @@ HOST = os.getenv("BRIDGE_HOST", "127.0.0.1")
 PORT = int(os.getenv("BRIDGE_PORT", "8787"))
 SERIAL_PORT = os.getenv("SERIAL_PORT", "/dev/cu.usbserial-BH002YZD")
 BAUDRATE = int(os.getenv("MODBUS_BAUDRATE", "9600"))
-POLL_INTERVAL_SECONDS = float(os.getenv("BRIDGE_POLL_INTERVAL_SECONDS", "1"))
+POLL_INTERVAL_SECONDS = float(os.getenv("BRIDGE_POLL_INTERVAL_SECONDS", "60"))
 
 # Chint DTSU666-CT
 METER_SLAVE_ID = int(os.getenv("MODBUS_SLAVE_ID", "1"))

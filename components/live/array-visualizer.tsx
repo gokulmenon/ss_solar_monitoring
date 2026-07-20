@@ -6,6 +6,7 @@ import type { HoymilesInverterReading, HoymilesPortReading } from "@/components/
 
 type ArrayVisualizerProps = {
   inverters?: HoymilesInverterReading[];
+  lastUpdatedAt?: string;
 };
 
 type RoofPlaneConfig = {
@@ -70,6 +71,15 @@ function powerTone(powerW: number | null | undefined) {
 function formatSerial(serialNumber: string | undefined) {
   if (!serialNumber) return "Awaiting inverter";
   return serialNumber.length > 6 ? `...${serialNumber.slice(-6)}` : serialNumber;
+}
+
+function formatTimestamp(timestamp: string | undefined) {
+  if (!timestamp) return "Awaiting refresh";
+
+  return new Date(timestamp).toLocaleTimeString([], {
+    hour: "numeric",
+    minute: "2-digit",
+  });
 }
 
 function findPort(inverter: HoymilesInverterReading | undefined, portNumber: number) {
@@ -159,7 +169,7 @@ function InverterGroup({
   );
 }
 
-export function ArrayVisualizer({ inverters = [] }: ArrayVisualizerProps) {
+export function ArrayVisualizer({ inverters = [], lastUpdatedAt }: ArrayVisualizerProps) {
   let inverterOffset = 0;
   const onlineInverters = inverters.filter((inverter) => inverter.serial_number);
   const totalPowerW = onlineInverters.reduce(
@@ -177,6 +187,9 @@ export function ArrayVisualizer({ inverters = [] }: ArrayVisualizerProps) {
             </CardTitle>
             <p className="mt-2 text-sm text-slate-400">
               45 panels across 12 Hoymiles microinverters and 4 roof planes.
+            </p>
+            <p className="mt-1 text-xs uppercase tracking-[0.18em] text-slate-500">
+              Last solar refresh {formatTimestamp(lastUpdatedAt)}
             </p>
           </div>
           <div className="rounded-full border border-amber-300/20 bg-amber-300/10 px-3 py-1 text-sm font-semibold text-amber-200">

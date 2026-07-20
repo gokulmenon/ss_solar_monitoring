@@ -1,6 +1,6 @@
 {
   "source": "csv",
-  "generated_at": "2026-07-20T00:17:18.965Z",
+  "generated_at": "2026-07-20T00:59:38.567Z",
   "window_hours": 24,
   "points": [
     {
@@ -152,20 +152,20 @@
     },
     {
       "timestamp": "2026-07-20T00:00:00.000Z",
-      "net_grid_w": 16265,
-      "solar_production_w": 192,
-      "phase_a_voltage_v": 246.61,
-      "sample_count": 968
+      "net_grid_w": 18679,
+      "solar_production_w": 66,
+      "phase_a_voltage_v": 246.06,
+      "sample_count": 3339
     }
   ],
   "summary": {
-    "imported_kwh": 427.48,
+    "imported_kwh": 440.44,
     "exported_kwh": 0,
-    "solar_kwh": 0.13,
-    "average_voltage_v": 247.09,
+    "solar_kwh": 0.14,
+    "average_voltage_v": 247.05,
     "peak_import_w": 120817,
     "peak_export_w": 0,
     "peak_solar_w": 424,
-    "sample_count": 67210
+    "sample_count": 69581
   }
 }

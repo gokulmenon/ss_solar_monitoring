@@ -20,6 +20,7 @@ export type HoymilesInverterReading = {
 };
 
 export type HoymilesTelemetry = {
+  timestamp?: string;
   status?: string;
   total_active_power_w?: number | null;
   inverter_count?: number;

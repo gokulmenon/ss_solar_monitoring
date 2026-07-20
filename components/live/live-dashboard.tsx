@@ -21,6 +21,15 @@ function formatCurrent(value: number) {
   return `${value.toFixed(1)} A`;
 }
 
+function formatTimestamp(timestamp: string | undefined) {
+  if (!timestamp) return "Awaiting update";
+
+  return new Date(timestamp).toLocaleTimeString([], {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
 export function LiveDashboard() {
   const { telemetry, series, bridgeState } = useLiveTelemetry();
   const homeLoadKw = telemetry.home_consumption_w / 1000;
@@ -45,6 +54,10 @@ export function LiveDashboard() {
           </h1>
           <p className="mt-1 text-sm text-slate-400">
             Real-time inverter telemetry, household load, and array-level diagnostics.
+          </p>
+          <p className="mt-2 text-xs uppercase tracking-[0.18em] text-slate-500">
+            Meter updated {formatTimestamp(telemetry.timestamp)} · Solar updated{" "}
+            {formatTimestamp(telemetry.hoymiles?.timestamp)}
           </p>
         </div>
         <Badge
@@ -136,7 +149,10 @@ export function LiveDashboard() {
         defaultRange="6h"
       />
 
-      <ArrayVisualizer inverters={telemetry.hoymiles?.inverters} />
+      <ArrayVisualizer
+        inverters={telemetry.hoymiles?.inverters}
+        lastUpdatedAt={telemetry.hoymiles?.timestamp}
+      />
 
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
         <Card className="border-white/10 bg-slate-950/80">

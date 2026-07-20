@@ -16,6 +16,15 @@ function formatVoltage(value: number) {
   return `${value.toFixed(1)} V`;
 }
 
+function formatTimestamp(timestamp: string | undefined) {
+  if (!timestamp) return "Awaiting update";
+
+  return new Date(timestamp).toLocaleTimeString([], {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
 export function HomeDashboard() {
   const { telemetry, series, bridgeState } = useLiveTelemetry();
 
@@ -40,6 +49,10 @@ export function HomeDashboard() {
           </h1>
           <p className="mt-1 text-sm text-slate-400">
             Executive summary from the meter, Hoymiles DTU, and local relay.
+          </p>
+          <p className="mt-2 text-xs uppercase tracking-[0.18em] text-slate-500">
+            Meter updated {formatTimestamp(telemetry.timestamp)} · Solar updated{" "}
+            {formatTimestamp(telemetry.hoymiles?.timestamp)}
           </p>
         </div>
         <Badge
