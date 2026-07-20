@@ -5,8 +5,35 @@ import useWebSocket, { ReadyState } from "react-use-websocket";
 
 import { createMockLiveTelemetry, type LiveTelemetry } from "@/lib/mock-data";
 
+export type HoymilesPortReading = {
+  serial_number: string;
+  port_number: number;
+  voltage_v?: number | null;
+  power_w?: number | null;
+};
+
+export type HoymilesInverterReading = {
+  serial_number: string;
+  active_power_w?: number | null;
+  temperature_c?: number | null;
+  ports?: HoymilesPortReading[];
+};
+
+export type HoymilesTelemetry = {
+  status?: string;
+  total_active_power_w?: number | null;
+  inverter_count?: number;
+  port_count?: number;
+  inverters?: HoymilesInverterReading[];
+};
+
 export type LiveBridgeTelemetry = Partial<LiveTelemetry> & {
   phase_a_voltage_v?: number;
+  hoymiles?: HoymilesTelemetry;
+  hoymiles_status?: string;
+  hoymiles_total_active_power_w?: number | null;
+  hoymiles_inverter_count?: number;
+  hoymiles_port_count?: number;
   status?: "HARDWARE_OFFLINE";
   failures?: number;
   message?: string;
@@ -14,6 +41,7 @@ export type LiveBridgeTelemetry = Partial<LiveTelemetry> & {
 
 export type LiveSeriesPoint = LiveTelemetry & {
   phase_a_voltage_v?: number;
+  hoymiles?: HoymilesTelemetry;
 };
 
 export type BridgeState = "mock" | "connected" | "hardware_offline";

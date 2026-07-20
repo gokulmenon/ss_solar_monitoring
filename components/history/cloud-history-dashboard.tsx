@@ -145,9 +145,9 @@ export function CloudHistoryDashboard() {
         tone: "text-emerald-300",
       },
       {
-        label: "Average voltage",
-        value: loading ? "..." : hasData ? formatVoltage(summary?.average_voltage_v ?? null) : "—",
-        tone: "text-sky-300",
+        label: "Solar yield",
+        value: loading ? "..." : hasData ? formatEnergy(summary?.solar_kwh ?? 0) : "—",
+        tone: "text-yellow-300",
       },
       {
         label: "Peak import",
@@ -302,9 +302,22 @@ export function CloudHistoryDashboard() {
                       if (name === "phase_a_voltage_v") {
                         return [`${Number(value).toFixed(1)} V`, "Phase A Voltage"];
                       }
+                      if (name === "solar_production_w") {
+                        return [formatWattage(value), "Solar Production"];
+                      }
 
                       return [formatWattage(value), "Net Grid Power"];
                     }}
+                  />
+                  <Area
+                    yAxisId="left"
+                    type="monotone"
+                    dataKey="solar_production_w"
+                    stroke="#facc15"
+                    fill="rgba(250, 204, 21, 0.16)"
+                    strokeWidth={3}
+                    connectNulls
+                    activeDot={{ r: 7, strokeWidth: 2, stroke: "#facc15", fill: "#0f172a" }}
                   />
                   <Area
                     yAxisId="left"

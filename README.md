@@ -173,7 +173,7 @@ Optional environment variables:
 - `HOYMILES_WIFI_COMMAND=hoymiles-wifi`
 - `HOYMILES_WIFI_COMMAND_ARG=get-real-data-new`
 - `HOYMILES_WIFI_TIMEOUT_SECONDS=20`
-- `HOYMILES_WIFI_REFRESH_SECONDS=30`
+- `HOYMILES_WIFI_REFRESH_SECONDS=900`
 - `BRIDGE_OFFLINE_THRESHOLD=10`
 - `CSV_BACKUP_DIR=./logs/meter-backups`
 - `CSV_BACKUP_PREFIX=meter`
@@ -181,6 +181,7 @@ Optional environment variables:
 - `SUPABASE_URL=https://ezxqlbdiwysuhabtnaxa.supabase.co`
 - `SUPABASE_SERVICE_ROLE_KEY=...`
 - `SUPABASE_TABLE_NAME=meter_readings`
+- `SUPABASE_DAILY_TABLE_NAME=daily_energy_summary`
 - `SUPABASE_BATCH_MINUTES=15`
 
 By default, the relay writes one CSV per day into `./logs/meter-backups`, for example:
@@ -196,8 +197,9 @@ The relay automatically reads `bridge/.env` first, then falls back to your shell
 The cloud sync path uses the same relay process:
 
 - every second: poll the Chint meter and append to the local CSV backup
-- every 30 seconds by default: refresh the Hoymiles JSON snapshot
-- every 15 minutes: flush one aggregated meter row to Supabase
+- every 15 minutes by default: refresh the Hoymiles JSON snapshot
+- every 15 minutes: flush one aggregated grid, voltage, and solar row to Supabase
+- every 15 minutes: update one relay-local daily energy summary row in Supabase
 - on startup/shutdown: close out any pending cloud batch
 
 The Hoymiles side now uses the local `hoymiles-wifi` CLI instead of RS-485.
@@ -207,6 +209,7 @@ The relay parses that JSON into:
 - inverter-level totals
 - per-port readings grouped by inverter serial number
 - an overall total of all inverter active-power totals
+- solar production values for the live charts, CSV history, and Supabase history
 
 If the DTU host IP changes, update `HOYMILES_WIFI_HOST`.
 If you want to inspect the raw JSON manually, run:
@@ -249,6 +252,36 @@ For the cloud history section, add these server-side environment variables in Ve
 - `SUPABASE_URL` = your Supabase project URL, for example `https://ezxqlbdiwysuhabtnaxa.supabase.co`
 - `SUPABASE_SERVICE_ROLE_KEY` = copy this from Supabase Dashboard -> Settings -> API -> Project API keys
 - `SUPABASE_TABLE_NAME` = `meter_readings`
+- `SUPABASE_DAILY_TABLE_NAME` = `daily_energy_summary`
+
+The cloud history now expects a nullable `solar_production_w` column. Run this once in
+Supabase Dashboard -> SQL Editor before restarting the relay with this version:
+
+```sql
+alter table public.meter_readings
+  add column if not exists solar_production_w integer;
+```
+
+The same SQL is tracked in `supabase/migrations/20260719001000_add_solar_production_to_meter_readings.sql`.
+
+For the long-term daily dashboard path, also create the one-row-per-day aggregate table:
+
+```sql
+create table if not exists public.daily_energy_summary (
+  day date primary key,
+  imported_kwh numeric(12, 3) not null default 0,
+  exported_kwh numeric(12, 3) not null default 0,
+  solar_kwh numeric(12, 3) not null default 0,
+  home_kwh numeric(12, 3) not null default 0,
+  sample_count integer not null default 0,
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists daily_energy_summary_day_idx
+  on public.daily_energy_summary (day desc);
+```
+
+The relay updates this daily row once per 15-minute Supabase flush, so long-term charts can query daily totals without scanning all interval rows.
 
 You do not need the raw Postgres password string for the app. If you ever want the direct database connection string for `psql` or a database client, open the Supabase Dashboard and click `Connect`. That is separate from the app runtime and is not required for the `/history` page to read Supabase.
 

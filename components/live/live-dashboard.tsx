@@ -1,13 +1,13 @@
 "use client";
 
-import { Activity, Flame, Gauge, SunMedium } from "lucide-react";
+import { Flame, Gauge, SunMedium } from "lucide-react";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { MetricCard } from "@/components/live/metric-card";
 import { SeriesAreaCard } from "@/components/charts/series-area-card";
 import { useLiveTelemetry } from "@/components/telemetry/use-live-telemetry";
-import { PowerFlowVisualizer } from "@/components/live/power-flow-visualizer";
+import { ArrayVisualizer } from "@/components/live/array-visualizer";
 
 function formatKw(value: number) {
   return `${(value / 1000).toFixed(2)} kW`;
@@ -41,10 +41,10 @@ export function LiveDashboard() {
         <div>
           <p className="text-[11px] uppercase tracking-[0.26em] text-slate-400">Live</p>
           <h1 className="mt-1 text-2xl font-semibold tracking-tight text-slate-50">
-            Consumption Detail
+            Technical Detail
           </h1>
           <p className="mt-1 text-sm text-slate-400">
-            Real-time household load and power exchange over the last 10 minutes.
+            Real-time inverter telemetry, household load, and array-level diagnostics.
           </p>
         </div>
         <Badge
@@ -125,6 +125,19 @@ export function LiveDashboard() {
         defaultRange="6h"
       />
 
+      <SeriesAreaCard
+        title="Live solar trend"
+        subtitle="Hoymiles production from the relay. Solar refreshes less often than grid readings."
+        data={series}
+        dataKey="solar_production_w"
+        stroke="#facc15"
+        fill="#fde047"
+        formatter={(value) => `${Math.round(value).toLocaleString()} W`}
+        defaultRange="6h"
+      />
+
+      <ArrayVisualizer inverters={telemetry.hoymiles?.inverters} />
+
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
         <Card className="border-white/10 bg-slate-950/80">
           <CardHeader className="pb-2">
@@ -161,11 +174,6 @@ export function LiveDashboard() {
         </Card>
       </div>
 
-      <PowerFlowVisualizer
-        solarProductionW={telemetry.solar_production_w}
-        netGridW={telemetry.net_grid_w}
-        homeConsumptionW={telemetry.home_consumption_w}
-      />
     </div>
   );
 }

@@ -123,7 +123,7 @@ export function PowerFlowVisualizer({
                 SOLAR
               </text>
               <text x="84" y="104" textAnchor="middle" className="fill-slate-400 text-[9px]">
-                {solarProductionW > 10 ? `${Math.round(solarProductionW / 1000)} kW` : "0 W"}
+                {solarProductionW > 10 ? `${(solarProductionW / 1000).toFixed(1)} kW` : "0 W"}
               </text>
 
               <rect x="252" y="20" width="88" height="80" rx="22" fill="rgba(14,165,233,0.18)" stroke="rgba(56,189,248,0.82)" />
@@ -132,7 +132,7 @@ export function PowerFlowVisualizer({
                 GRID
               </text>
               <text x="296" y="104" textAnchor="middle" className="fill-slate-400 text-[9px]">
-                {gridFlowW === 0 ? "0 W" : `${Math.round(gridFlowW / 1000)} kW`}
+                {gridFlowW === 0 ? "0 W" : `${(gridFlowW / 1000).toFixed(1)} kW`}
               </text>
 
               <path
@@ -151,7 +151,7 @@ export function PowerFlowVisualizer({
                 HOUSE
               </text>
               <text x="180" y="246" textAnchor="middle" className="fill-slate-400 text-[9px]">
-                {Math.round(homeConsumptionW / 1000)} kW
+                {(homeConsumptionW / 1000).toFixed(1)} kW
               </text>
             </g>
           </svg>

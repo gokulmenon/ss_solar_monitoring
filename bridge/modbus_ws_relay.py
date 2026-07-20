@@ -97,7 +97,7 @@ HOYMILES_WIFI_HOST = os.getenv("HOYMILES_WIFI_HOST", "192.168.1.8")
 HOYMILES_WIFI_COMMAND = os.getenv("HOYMILES_WIFI_COMMAND", "hoymiles-wifi")
 HOYMILES_WIFI_COMMAND_ARG = os.getenv("HOYMILES_WIFI_COMMAND_ARG", "get-real-data-new")
 HOYMILES_WIFI_TIMEOUT_SECONDS = float(os.getenv("HOYMILES_WIFI_TIMEOUT_SECONDS", "20"))
-HOYMILES_WIFI_REFRESH_SECONDS = float(os.getenv("HOYMILES_WIFI_REFRESH_SECONDS", "30"))
+HOYMILES_WIFI_REFRESH_SECONDS = float(os.getenv("HOYMILES_WIFI_REFRESH_SECONDS", "900"))
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 CSV_LOG_PATH = os.getenv("CSV_LOG_PATH")
@@ -108,6 +108,7 @@ OFFLINE_FAILURE_THRESHOLD = int(os.getenv("BRIDGE_OFFLINE_THRESHOLD", "10"))
 SUPABASE_URL = os.getenv("SUPABASE_URL", "").strip()
 SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "").strip()
 SUPABASE_TABLE_NAME = os.getenv("SUPABASE_TABLE_NAME", "meter_readings")
+SUPABASE_DAILY_TABLE_NAME = os.getenv("SUPABASE_DAILY_TABLE_NAME", "daily_energy_summary")
 SUPABASE_BATCH_MINUTES = int(os.getenv("SUPABASE_BATCH_MINUTES", "15"))
 SUPABASE_SYNC_TIMEOUT_SECONDS = float(os.getenv("SUPABASE_SYNC_TIMEOUT_SECONDS", "5"))
 
@@ -194,17 +195,38 @@ class RelayStatusPayload:
 @dataclass
 class CloudBatchState:
     bucket_start: str
+    local_day: str
     sample_count: int = 0
     net_grid_sum_w: int = 0
+    solar_sum_w: int = 0
+    solar_sample_count: int = 0
     voltage_sum_v: float = 0.0
     voltage_sample_count: int = 0
+    imported_wh: float = 0.0
+    exported_wh: float = 0.0
+    solar_wh: float = 0.0
+    home_wh: float = 0.0
 
-    def add_sample(self, net_grid_w: int, phase_a_voltage_v: Optional[float]) -> None:
+    def add_sample(
+        self,
+        net_grid_w: int,
+        phase_a_voltage_v: Optional[float],
+        solar_production_w: Optional[int],
+        home_consumption_w: Optional[int],
+    ) -> None:
         self.sample_count += 1
         self.net_grid_sum_w += net_grid_w
+        if solar_production_w is not None:
+            self.solar_sum_w += solar_production_w
+            self.solar_sample_count += 1
+            self.solar_wh += max(solar_production_w, 0) / 3600
         if phase_a_voltage_v is not None:
             self.voltage_sum_v += phase_a_voltage_v
             self.voltage_sample_count += 1
+        self.imported_wh += max(net_grid_w, 0) / 3600
+        self.exported_wh += max(-net_grid_w, 0) / 3600
+        if home_consumption_w is not None:
+            self.home_wh += max(home_consumption_w, 0) / 3600
 
 
 def decode_float32_be(registers: list[int]) -> float:
@@ -301,6 +323,12 @@ def bucket_start_for_timestamp(timestamp: str, bucket_minutes: int) -> str:
     return datetime.fromtimestamp(bucket_seconds, tz=timezone.utc).isoformat().replace(
         "+00:00", "Z"
     )
+
+
+def local_day_for_timestamp(timestamp: str) -> str:
+    """Return the relay-local calendar day for daily energy rollups."""
+    date = datetime.fromisoformat(timestamp.replace("Z", "+00:00")).astimezone()
+    return date.date().isoformat()
 
 
 def resolve_csv_sink() -> tuple[Path | None, bool]:
@@ -668,6 +696,7 @@ def build_unified_payload(
 
     solar_production_w = hoymiles_total_active_power_w if hoymiles_total_active_power_w is not None else 0
     net_grid_w = meter_total_active_power_w if meter_total_active_power_w is not None else 0
+    home_consumption_w = solar_production_w + net_grid_w
 
     return UnifiedRelayPayload(
         timestamp=datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
@@ -686,7 +715,7 @@ def build_unified_payload(
         net_grid_w=net_grid_w,
         phase_a_voltage_v=meter_phase_a_voltage_v,
         solar_production_w=solar_production_w,
-        home_consumption_w=None,
+        home_consumption_w=home_consumption_w,
     )
 
 
@@ -749,8 +778,82 @@ def build_supabase_batch_row(payload: UnifiedRelayPayload) -> dict[str, int | fl
         "timestamp": payload.timestamp,
         "sample_count": 1,
         "net_grid_w": payload.meter_total_active_power_w,
+        "solar_production_w": payload.solar_production_w,
         "phase_a_voltage_v": payload.meter_phase_a_voltage_v,
     }
+
+
+def supabase_request(
+    url: str,
+    *,
+    method: str,
+    body: dict[str, int | float | str | None] | None = None,
+    prefer: str = "return=representation",
+) -> urllib.request.Request:
+    encoded_body = json.dumps(body).encode("utf-8") if body is not None else None
+    return urllib.request.Request(
+        url,
+        data=encoded_body,
+        method=method,
+        headers={
+            "apikey": SUPABASE_SERVICE_ROLE_KEY,
+            "Authorization": f"Bearer {SUPABASE_SERVICE_ROLE_KEY}",
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+            "Prefer": prefer,
+        },
+    )
+
+
+def fetch_daily_summary(day: str) -> dict[str, Any] | None:
+    url = f"{SUPABASE_URL.rstrip('/')}/rest/v1/{SUPABASE_DAILY_TABLE_NAME}"
+    query = f"{url}?day=eq.{day}&select=day,imported_kwh,exported_kwh,solar_kwh,home_kwh,sample_count"
+    request = supabase_request(query, method="GET")
+
+    with urllib.request.urlopen(request, timeout=SUPABASE_SYNC_TIMEOUT_SECONDS) as response:
+        payload = json.loads(response.read().decode("utf-8"))
+
+    if isinstance(payload, list) and payload:
+        return payload[0]
+
+    return None
+
+
+def sync_supabase_daily_summary(batch: CloudBatchState) -> None:
+    """Update one relay-local daily aggregate row after each cloud batch flush."""
+    existing = fetch_daily_summary(batch.local_day)
+
+    def existing_number(key: str) -> float:
+        value = existing.get(key) if existing else None
+        parsed = coerce_float(value)
+        return parsed if parsed is not None else 0.0
+
+    def existing_int(key: str) -> int:
+        value = existing.get(key) if existing else None
+        parsed = coerce_int(value)
+        return parsed if parsed is not None else 0
+
+    row = {
+        "day": batch.local_day,
+        "imported_kwh": round(existing_number("imported_kwh") + batch.imported_wh / 1000, 3),
+        "exported_kwh": round(existing_number("exported_kwh") + batch.exported_wh / 1000, 3),
+        "solar_kwh": round(existing_number("solar_kwh") + batch.solar_wh / 1000, 3),
+        "home_kwh": round(existing_number("home_kwh") + batch.home_wh / 1000, 3),
+        "sample_count": existing_int("sample_count") + batch.sample_count,
+        "updated_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+    }
+
+    url = f"{SUPABASE_URL.rstrip('/')}/rest/v1/{SUPABASE_DAILY_TABLE_NAME}?on_conflict=day"
+    request = supabase_request(
+        url,
+        method="POST",
+        body=row,
+        prefer="resolution=merge-duplicates,return=minimal",
+    )
+
+    with urllib.request.urlopen(request, timeout=SUPABASE_SYNC_TIMEOUT_SECONDS) as response:
+        if response.status not in {200, 201, 204}:
+            raise RuntimeError(f"Unexpected Supabase daily summary status {response.status}")
 
 
 def sync_supabase_batch(batch: CloudBatchState) -> None:
@@ -759,6 +862,11 @@ def sync_supabase_batch(batch: CloudBatchState) -> None:
         return
 
     average_watts = int(round(batch.net_grid_sum_w / max(batch.sample_count, 1)))
+    average_solar_watts = (
+        int(round(batch.solar_sum_w / batch.solar_sample_count))
+        if batch.solar_sample_count > 0
+        else None
+    )
     average_voltage = (
         round(batch.voltage_sum_v / batch.voltage_sample_count, 1)
         if batch.voltage_sample_count > 0
@@ -769,21 +877,16 @@ def sync_supabase_batch(batch: CloudBatchState) -> None:
         "timestamp": batch.bucket_start,
         "sample_count": batch.sample_count,
         "net_grid_w": average_watts,
+        "solar_production_w": average_solar_watts,
         "phase_a_voltage_v": average_voltage,
     }
 
-    url = f"{SUPABASE_URL.rstrip('/')}/rest/v1/{SUPABASE_TABLE_NAME}?on_conflict=timestamp"
-    body = json.dumps(row).encode("utf-8")
-    request = urllib.request.Request(
-        url,
-        data=body,
+    batch_url = f"{SUPABASE_URL.rstrip('/')}/rest/v1/{SUPABASE_TABLE_NAME}?on_conflict=timestamp"
+    batch_request = supabase_request(
+        batch_url,
         method="POST",
-        headers={
-            "apikey": SUPABASE_SERVICE_ROLE_KEY,
-            "Authorization": f"Bearer {SUPABASE_SERVICE_ROLE_KEY}",
-            "Content-Type": "application/json",
-            "Prefer": "resolution=merge-duplicates,return=minimal",
-        },
+        body=row,
+        prefer="resolution=merge-duplicates,return=minimal",
     )
 
     try:
@@ -791,9 +894,10 @@ def sync_supabase_batch(batch: CloudBatchState) -> None:
             f"[{datetime.now().strftime('%H:%M:%S')}] "
             f"Supabase batch flush {batch.bucket_start} ({batch.sample_count} samples)..."
         )
-        with urllib.request.urlopen(request, timeout=SUPABASE_SYNC_TIMEOUT_SECONDS) as response:
+        with urllib.request.urlopen(batch_request, timeout=SUPABASE_SYNC_TIMEOUT_SECONDS) as response:
             if response.status not in {200, 201, 204}:
                 raise RuntimeError(f"Unexpected Supabase status {response.status}")
+        sync_supabase_daily_summary(batch)
         print(
             f"[{datetime.now().strftime('%H:%M:%S')}] "
             f"Supabase batch ok {batch.bucket_start} ({batch.sample_count} samples)"
@@ -875,12 +979,7 @@ async def advance_cloud_batch(
     current_batch: Optional[CloudBatchState],
     payload: UnifiedRelayPayload,
 ) -> CloudBatchState | None:
-    """
-    Aggregate the Chint meter readings into a cloud batch.
-
-    The cloud path intentionally stays meter-centric so the Supabase table can
-    keep its existing shape.
-    """
+    """Aggregate grid, voltage, and solar readings into a cloud batch."""
     if not SUPABASE_URL or not SUPABASE_SERVICE_ROLE_KEY:
         return current_batch
 
@@ -888,15 +987,21 @@ async def advance_cloud_batch(
         return current_batch
 
     bucket_start = bucket_start_for_timestamp(payload.timestamp, SUPABASE_BATCH_MINUTES)
+    local_day = local_day_for_timestamp(payload.timestamp)
     batch = current_batch
 
     if batch is None:
-        batch = CloudBatchState(bucket_start=bucket_start)
+        batch = CloudBatchState(bucket_start=bucket_start, local_day=local_day)
     elif batch.bucket_start != bucket_start:
         await flush_cloud_batch(batch)
-        batch = CloudBatchState(bucket_start=bucket_start)
+        batch = CloudBatchState(bucket_start=bucket_start, local_day=local_day)
 
-    batch.add_sample(payload.meter_total_active_power_w, payload.meter_phase_a_voltage_v)
+    batch.add_sample(
+        payload.meter_total_active_power_w,
+        payload.meter_phase_a_voltage_v,
+        payload.solar_production_w,
+        payload.home_consumption_w,
+    )
     return batch
 
 

@@ -4,6 +4,7 @@ import path from "path";
 export type HistoryPoint = {
   timestamp: string;
   net_grid_w: number;
+  solar_production_w: number | null;
   phase_a_voltage_v: number | null;
   sample_count: number;
 };
@@ -11,9 +12,11 @@ export type HistoryPoint = {
 export type HistorySummary = {
   imported_kwh: number;
   exported_kwh: number;
+  solar_kwh: number;
   average_voltage_v: number | null;
   peak_import_w: number;
   peak_export_w: number;
+  peak_solar_w: number;
   sample_count: number;
 };
 
@@ -30,6 +33,7 @@ export type HistorySource = "csv" | "supabase";
 type RawHistoryRow = {
   timestamp: string;
   net_grid_w: number;
+  solar_production_w: number | null;
   phase_a_voltage_v: number | null;
   sample_count: number;
 };
@@ -67,7 +71,7 @@ function parseRelayCsv(content: string): RawHistoryRow[] {
   if (rows.length <= 1) return [];
 
   return rows.slice(1).flatMap((line) => {
-    const [timestampRaw, gridRaw, voltageRaw] = line.split(",").map((value) => value.trim());
+    const [timestampRaw, gridRaw, voltageRaw, solarRaw] = line.split(",").map((value) => value.trim());
     const netGrid = parseNumber(gridRaw);
     if (!timestampRaw || netGrid === null) return [];
 
@@ -75,6 +79,7 @@ function parseRelayCsv(content: string): RawHistoryRow[] {
       {
         timestamp: timestampRaw,
         net_grid_w: netGrid,
+        solar_production_w: parseNumber(solarRaw),
         phase_a_voltage_v: parseNumber(voltageRaw),
         sample_count: 1,
       },
@@ -160,9 +165,11 @@ function buildEmptyHistoryResponse(source: HistorySource): HistoryResponse {
     summary: {
       imported_kwh: 0,
       exported_kwh: 0,
+      solar_kwh: 0,
       average_voltage_v: null,
       peak_import_w: 0,
       peak_export_w: 0,
+      peak_solar_w: 0,
       sample_count: 0,
     },
   };
@@ -188,6 +195,8 @@ function buildHistoryResponse(source: HistorySource, rows: RawHistoryRow[]): His
     {
       timestamp: string;
       netGridSum: number;
+      solarSum: number;
+      solarCount: number;
       voltageSum: number;
       voltageCount: number;
       sampleCount: number;
@@ -196,10 +205,12 @@ function buildHistoryResponse(source: HistorySource, rows: RawHistoryRow[]): His
 
   let importedKwh = 0;
   let exportedKwh = 0;
+  let solarKwh = 0;
   let voltageTotal = 0;
   let voltageCount = 0;
   let peakImportW = 0;
   let peakExportW = 0;
+  let peakSolarW = 0;
   let totalSampleCount = 0;
 
   for (const row of recentRows) {
@@ -209,6 +220,8 @@ function buildHistoryResponse(source: HistorySource, rows: RawHistoryRow[]): His
     const current = buckets.get(bucketStart) ?? {
       timestamp: new Date(bucketStart).toISOString(),
       netGridSum: 0,
+      solarSum: 0,
+      solarCount: 0,
       voltageSum: 0,
       voltageCount: 0,
       sampleCount: 0,
@@ -216,6 +229,11 @@ function buildHistoryResponse(source: HistorySource, rows: RawHistoryRow[]): His
 
     current.netGridSum += row.net_grid_w * rowWeight;
     current.sampleCount += rowWeight;
+
+    if (row.solar_production_w !== null) {
+      current.solarSum += row.solar_production_w * rowWeight;
+      current.solarCount += rowWeight;
+    }
 
     if (row.phase_a_voltage_v !== null) {
       current.voltageSum += row.phase_a_voltage_v * rowWeight;
@@ -226,11 +244,14 @@ function buildHistoryResponse(source: HistorySource, rows: RawHistoryRow[]): His
 
     const positiveW = Math.max(row.net_grid_w, 0);
     const negativeW = Math.max(-row.net_grid_w, 0);
+    const solarW = Math.max(row.solar_production_w ?? 0, 0);
 
     importedKwh += (positiveW * rowWeight) / 3_600_000;
     exportedKwh += (negativeW * rowWeight) / 3_600_000;
+    solarKwh += (solarW * rowWeight) / 3_600_000;
     peakImportW = Math.max(peakImportW, positiveW);
     peakExportW = Math.max(peakExportW, negativeW);
+    peakSolarW = Math.max(peakSolarW, solarW);
 
     if (row.phase_a_voltage_v !== null) {
       voltageTotal += row.phase_a_voltage_v * rowWeight;
@@ -243,6 +264,8 @@ function buildHistoryResponse(source: HistorySource, rows: RawHistoryRow[]): His
     .map((bucket) => ({
       timestamp: bucket.timestamp,
       net_grid_w: roundWholeWatts(bucket.netGridSum / bucket.sampleCount),
+      solar_production_w:
+        bucket.solarCount > 0 ? roundWholeWatts(bucket.solarSum / bucket.solarCount) : null,
       phase_a_voltage_v:
         bucket.voltageCount > 0 ? roundTwoDecimals(bucket.voltageSum / bucket.voltageCount) : null,
       sample_count: bucket.sampleCount,
@@ -256,9 +279,11 @@ function buildHistoryResponse(source: HistorySource, rows: RawHistoryRow[]): His
     summary: {
       imported_kwh: roundTwoDecimals(importedKwh),
       exported_kwh: roundTwoDecimals(exportedKwh),
+      solar_kwh: roundTwoDecimals(solarKwh),
       average_voltage_v: voltageCount > 0 ? roundTwoDecimals(voltageTotal / voltageCount) : null,
       peak_import_w: peakImportW,
       peak_export_w: peakExportW,
+      peak_solar_w: peakSolarW,
       sample_count: totalSampleCount,
     },
   };
@@ -287,7 +312,10 @@ async function loadHistoryFromSupabase(): Promise<HistoryResponse> {
 
   const cutoffIso = new Date(Date.now() - DEFAULT_WINDOW_HOURS * 60 * 60 * 1000).toISOString();
   const queryUrl = new URL(`/rest/v1/${SUPABASE_TABLE_NAME}`, supabaseUrl);
-  queryUrl.searchParams.set("select", "timestamp,net_grid_w,phase_a_voltage_v,sample_count");
+  queryUrl.searchParams.set(
+    "select",
+    "timestamp,net_grid_w,solar_production_w,phase_a_voltage_v,sample_count",
+  );
   queryUrl.searchParams.set("timestamp", `gte.${cutoffIso}`);
   queryUrl.searchParams.set("order", "timestamp.asc");
 
@@ -309,6 +337,7 @@ async function loadHistoryFromSupabase(): Promise<HistoryResponse> {
     const payload = (await response.json()) as Array<{
       timestamp?: string;
       net_grid_w?: number | string | null;
+      solar_production_w?: number | string | null;
       phase_a_voltage_v?: number | string | null;
       sample_count?: number | string | null;
     }>;
@@ -322,6 +351,7 @@ async function loadHistoryFromSupabase(): Promise<HistoryResponse> {
         {
           timestamp: row.timestamp,
           net_grid_w: netGrid,
+          solar_production_w: parseNumber(row.solar_production_w),
           phase_a_voltage_v: parseNumber(row.phase_a_voltage_v),
           sample_count: Math.max(1, Math.round(sampleCount ?? 1)),
         },

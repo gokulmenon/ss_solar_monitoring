@@ -94,9 +94,9 @@ export function HistoryDashboard() {
         tone: "text-emerald-300",
       },
       {
-        label: "Average voltage",
-        value: loading ? "..." : hasData ? formatVoltage(summary?.average_voltage_v ?? null) : "—",
-        tone: "text-sky-300",
+        label: "Solar yield",
+        value: loading ? "..." : hasData ? formatEnergy(summary?.solar_kwh ?? 0) : "—",
+        tone: "text-yellow-300",
       },
       {
         label: "Peak import",
@@ -203,9 +203,22 @@ export function HistoryDashboard() {
                       if (name === "phase_a_voltage_v") {
                         return [`${Number(value).toFixed(1)} V`, "Phase A Voltage"];
                       }
+                      if (name === "solar_production_w") {
+                        return [formatWattage(value), "Solar Production"];
+                      }
 
                       return [formatWattage(value), "Net Grid Power"];
                     }}
+                  />
+                  <Area
+                    yAxisId="left"
+                    type="monotone"
+                    dataKey="solar_production_w"
+                    stroke="#facc15"
+                    fill="rgba(250, 204, 21, 0.16)"
+                    strokeWidth={3}
+                    connectNulls
+                    activeDot={{ r: 7, strokeWidth: 2, stroke: "#facc15", fill: "#0f172a" }}
                   />
                   <Area
                     yAxisId="left"
@@ -246,9 +259,9 @@ export function HistoryDashboard() {
             </div>
           </div>
           <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-3">
-            <div className="text-slate-500">Samples</div>
+            <div className="text-slate-500">Peak solar</div>
             <div className="mt-1 text-lg font-semibold text-slate-100">
-              {loading ? "..." : hasData ? (summary?.sample_count ?? 0).toLocaleString() : "—"}
+              {loading ? "..." : hasData ? formatWattage(summary?.peak_solar_w ?? 0) : "—"}
             </div>
           </div>
           <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-3">

@@ -24,7 +24,7 @@ function parseRelayCsv(content) {
   if (rows.length <= 1) return [];
 
   return rows.slice(1).flatMap((line) => {
-    const [timestampRaw, gridRaw, voltageRaw] = line.split(",").map((value) => value.trim());
+    const [timestampRaw, gridRaw, voltageRaw, solarRaw] = line.split(",").map((value) => value.trim());
     const netGrid = parseNumber(gridRaw);
 
     if (!timestampRaw || netGrid === null) return [];
@@ -33,6 +33,7 @@ function parseRelayCsv(content) {
       {
         timestamp: timestampRaw,
         net_grid_w: netGrid,
+        solar_production_w: parseNumber(solarRaw),
         phase_a_voltage_v: parseNumber(voltageRaw),
         sample_count: 1,
       },
@@ -84,9 +85,11 @@ function buildEmptySnapshot() {
     summary: {
       imported_kwh: 0,
       exported_kwh: 0,
+      solar_kwh: 0,
       average_voltage_v: null,
       peak_import_w: 0,
       peak_export_w: 0,
+      peak_solar_w: 0,
       sample_count: 0,
     },
   };
@@ -116,10 +119,12 @@ function buildSnapshot(rows) {
 
   let importedKwh = 0;
   let exportedKwh = 0;
+  let solarKwh = 0;
   let voltageTotal = 0;
   let voltageCount = 0;
   let peakImportW = 0;
   let peakExportW = 0;
+  let peakSolarW = 0;
   let totalSampleCount = 0;
 
   for (const row of recentRows) {
@@ -129,6 +134,8 @@ function buildSnapshot(rows) {
     const current = buckets.get(bucketStart) ?? {
       timestamp: new Date(bucketStart).toISOString(),
       netGridSum: 0,
+      solarSum: 0,
+      solarCount: 0,
       voltageSum: 0,
       voltageCount: 0,
       sampleCount: 0,
@@ -136,6 +143,11 @@ function buildSnapshot(rows) {
 
     current.netGridSum += row.net_grid_w * rowWeight;
     current.sampleCount += rowWeight;
+
+    if (row.solar_production_w !== null) {
+      current.solarSum += row.solar_production_w * rowWeight;
+      current.solarCount += rowWeight;
+    }
 
     if (row.phase_a_voltage_v !== null) {
       current.voltageSum += row.phase_a_voltage_v * rowWeight;
@@ -146,11 +158,14 @@ function buildSnapshot(rows) {
 
     const positiveW = Math.max(row.net_grid_w, 0);
     const negativeW = Math.max(-row.net_grid_w, 0);
+    const solarW = Math.max(row.solar_production_w ?? 0, 0);
 
     importedKwh += (positiveW * rowWeight) / 3_600_000;
     exportedKwh += (negativeW * rowWeight) / 3_600_000;
+    solarKwh += (solarW * rowWeight) / 3_600_000;
     peakImportW = Math.max(peakImportW, positiveW);
     peakExportW = Math.max(peakExportW, negativeW);
+    peakSolarW = Math.max(peakSolarW, solarW);
 
     if (row.phase_a_voltage_v !== null) {
       voltageTotal += row.phase_a_voltage_v * rowWeight;
@@ -163,6 +178,8 @@ function buildSnapshot(rows) {
     .map((bucket) => ({
       timestamp: bucket.timestamp,
       net_grid_w: roundWholeWatts(bucket.netGridSum / bucket.sampleCount),
+      solar_production_w:
+        bucket.solarCount > 0 ? roundWholeWatts(bucket.solarSum / bucket.solarCount) : null,
       phase_a_voltage_v:
         bucket.voltageCount > 0 ? roundTwoDecimals(bucket.voltageSum / bucket.voltageCount) : null,
       sample_count: bucket.sampleCount,
@@ -176,9 +193,11 @@ function buildSnapshot(rows) {
     summary: {
       imported_kwh: roundTwoDecimals(importedKwh),
       exported_kwh: roundTwoDecimals(exportedKwh),
+      solar_kwh: roundTwoDecimals(solarKwh),
       average_voltage_v: voltageCount > 0 ? roundTwoDecimals(voltageTotal / voltageCount) : null,
       peak_import_w: peakImportW,
       peak_export_w: peakExportW,
+      peak_solar_w: peakSolarW,
       sample_count: totalSampleCount,
     },
   };
