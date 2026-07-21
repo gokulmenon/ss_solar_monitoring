@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useMemo, useState } from "react";
 import { Activity, Home, SunMedium, WifiHigh } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -7,9 +8,15 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SeriesAreaCard } from "@/components/charts/series-area-card";
 import { useLiveTelemetry } from "@/components/telemetry/use-live-telemetry";
 import { PowerFlowVisualizer } from "@/components/live/power-flow-visualizer";
+import type { DailyEnergySummaryPoint } from "@/lib/daily-energy";
 
 function formatKw(value: number) {
   return `${value.toFixed(2)} kW`;
+}
+
+function formatKwh(value: number | null | undefined) {
+  if (typeof value !== "number") return "-- kWh";
+  return `${value.toFixed(1)} kWh`;
 }
 
 function formatVoltage(value: number) {
@@ -27,11 +34,44 @@ function formatTimestamp(timestamp: string | undefined) {
 
 export function HomeDashboard() {
   const { telemetry, series, bridgeState } = useLiveTelemetry();
+  const [dailyEnergy, setDailyEnergy] = useState<DailyEnergySummaryPoint[]>([]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    async function loadDailyEnergy() {
+      try {
+        const response = await fetch("/api/daily-energy?days=7", {
+          signal: controller.signal,
+          cache: "no-store",
+        });
+
+        if (!response.ok) return;
+
+        const payload = (await response.json()) as { points: DailyEnergySummaryPoint[] };
+        setDailyEnergy(payload.points);
+      } catch (error) {
+        if ((error as Error).name !== "AbortError") {
+          console.error(error);
+        }
+      }
+    }
+
+    void loadDailyEnergy();
+
+    return () => controller.abort();
+  }, []);
 
   const activePowerKw = Math.abs(telemetry.net_grid_w) / 1000;
   const voltageV = telemetry.phase_a_voltage_v ?? 245;
   const homeLoadKw = telemetry.home_consumption_w / 1000;
   const solarKw = telemetry.solar_production_w / 1000;
+  const todayKey = useMemo(() => new Date().toLocaleDateString("en-CA"), []);
+  const todayEnergy = dailyEnergy.find((point) => point.day === todayKey);
+  const todaySolarYieldKwh =
+    (telemetry.hoymiles_daily_yield_wh ?? telemetry.hoymiles?.daily_yield_wh ?? null) !== null
+      ? (telemetry.hoymiles_daily_yield_wh ?? telemetry.hoymiles?.daily_yield_wh ?? 0) / 1000
+      : null;
   const bridgeLabel =
     bridgeState === "hardware_offline"
       ? "Bridge Disconnected"
@@ -85,7 +125,31 @@ export function HomeDashboard() {
         </Card>
       ) : null}
 
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
+        <Card className="border-white/10 bg-slate-950/80">
+          <CardHeader className="flex flex-row items-center justify-between gap-3 pb-2">
+            <CardTitle className="text-lg text-slate-400">Today&apos;s Solar Yield</CardTitle>
+            <SunMedium className="h-6 w-6 text-yellow-300" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-5xl font-semibold tracking-tight text-slate-50">
+              {formatKwh(todaySolarYieldKwh)}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-white/10 bg-slate-950/80">
+          <CardHeader className="flex flex-row items-center justify-between gap-3 pb-2">
+            <CardTitle className="text-lg text-slate-400">Today&apos;s Home</CardTitle>
+            <Home className="h-6 w-6 text-emerald-300" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-5xl font-semibold tracking-tight text-slate-50">
+              {formatKwh(todayEnergy?.daily_home_consumption_kwh)}
+            </div>
+          </CardContent>
+        </Card>
+
         <Card className="border-white/10 bg-slate-950/80">
           <CardHeader className="flex flex-row items-center justify-between gap-3 pb-2">
             <CardTitle className="text-lg text-slate-400">Home Load</CardTitle>

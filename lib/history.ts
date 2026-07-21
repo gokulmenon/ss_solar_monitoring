@@ -38,7 +38,7 @@ type RawHistoryRow = {
   sample_count: number;
 };
 
-const DEFAULT_WINDOW_HOURS = 24;
+const DEFAULT_WINDOW_HOURS = 30 * 24;
 const DEFAULT_BUCKET_MINUTES = 60;
 const SUPABASE_TABLE_NAME = process.env.SUPABASE_TABLE_NAME?.trim() || "meter_readings";
 const HISTORY_SNAPSHOT_PATH = path.join(process.cwd(), "public", "history-snapshot.json");
@@ -144,7 +144,7 @@ async function loadRelayCsvRows(): Promise<RawHistoryRow[]> {
   const csvFiles = files
     .filter((file) => file.startsWith(`${csvPrefix}_`) && file.endsWith(".csv"))
     .sort()
-    .slice(-2);
+    .slice(-35);
 
   const rows: RawHistoryRow[] = [];
 

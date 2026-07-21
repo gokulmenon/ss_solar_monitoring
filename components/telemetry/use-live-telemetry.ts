@@ -23,6 +23,7 @@ export type HoymilesTelemetry = {
   timestamp?: string;
   status?: string;
   total_active_power_w?: number | null;
+  daily_yield_wh?: number | null;
   inverter_count?: number;
   port_count?: number;
   inverters?: HoymilesInverterReading[];
@@ -33,6 +34,7 @@ export type LiveBridgeTelemetry = Partial<LiveTelemetry> & {
   hoymiles?: HoymilesTelemetry;
   hoymiles_status?: string;
   hoymiles_total_active_power_w?: number | null;
+  hoymiles_daily_yield_wh?: number | null;
   hoymiles_inverter_count?: number;
   hoymiles_port_count?: number;
   status?: "HARDWARE_OFFLINE";
@@ -43,6 +45,7 @@ export type LiveBridgeTelemetry = Partial<LiveTelemetry> & {
 export type LiveSeriesPoint = LiveTelemetry & {
   phase_a_voltage_v?: number;
   hoymiles?: HoymilesTelemetry;
+  hoymiles_daily_yield_wh?: number | null;
 };
 
 export type BridgeState = "mock" | "connected" | "hardware_offline";
@@ -51,7 +54,8 @@ type LiveSeriesBucket = LiveSeriesPoint & {
   sampleCount: number;
 };
 
-const SERIES_LIMIT = 24 * 60;
+const SERIES_LIMIT = 7 * 24 * 60;
+const SERIES_STORAGE_KEY = "ss-solar-live-series-v1";
 
 function hasTelemetryFields(message: LiveBridgeTelemetry) {
   return (
@@ -80,6 +84,24 @@ function mergeTelemetry(
   };
 }
 
+function loadStoredSeriesBuckets(): LiveSeriesBucket[] {
+  if (typeof window === "undefined") return [];
+
+  try {
+    const raw = window.localStorage.getItem(SERIES_STORAGE_KEY);
+    if (!raw) return [];
+
+    const parsed = JSON.parse(raw) as LiveSeriesBucket[];
+    if (!Array.isArray(parsed)) return [];
+
+    return parsed
+      .filter((point) => typeof point.timestamp === "string")
+      .slice(-SERIES_LIMIT);
+  } catch {
+    return [];
+  }
+}
+
 export function useLiveTelemetry() {
   const wsUrl = process.env.NEXT_PUBLIC_LIVE_WS_URL ?? "ws://127.0.0.1:8787";
   const { lastJsonMessage, readyState } = useWebSocket<LiveBridgeTelemetry>(wsUrl, {
@@ -93,7 +115,7 @@ export function useLiveTelemetry() {
   const [mockTelemetry, setMockTelemetry] = useState<LiveTelemetry>(() => createMockLiveTelemetry());
   const [bridgeTelemetry, setBridgeTelemetry] = useState<LiveBridgeTelemetry | null>(null);
   const [hardwareOffline, setHardwareOffline] = useState(false);
-  const [seriesBuckets, setSeriesBuckets] = useState<LiveSeriesBucket[]>(() => []);
+  const [seriesBuckets, setSeriesBuckets] = useState<LiveSeriesBucket[]>(() => loadStoredSeriesBuckets());
 
   useEffect(() => {
     if (readyState === ReadyState.OPEN) return undefined;
@@ -172,6 +194,14 @@ export function useLiveTelemetry() {
       return [...previous, nextPoint].slice(-SERIES_LIMIT);
     });
   }, [telemetry]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(SERIES_STORAGE_KEY, JSON.stringify(seriesBuckets.slice(-SERIES_LIMIT)));
+    } catch {
+      // Storage can be unavailable in private browsing or after quota pressure.
+    }
+  }, [seriesBuckets]);
 
   const series = useMemo<LiveSeriesPoint[]>(
     () =>

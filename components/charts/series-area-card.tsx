@@ -16,7 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { LiveSeriesPoint } from "@/components/telemetry/use-live-telemetry";
 
-type TimeRange = "10m" | "6h" | "24h";
+type TimeRange = "10m" | "6h" | "24h" | "7d";
 
 type SeriesAreaCardProps = {
   title: string;
@@ -33,12 +33,14 @@ const RANGE_OPTIONS: Array<{ label: string; value: TimeRange }> = [
   { label: "10m", value: "10m" },
   { label: "6h", value: "6h" },
   { label: "24h", value: "24h" },
+  { label: "7d", value: "7d" },
 ];
 
 const WINDOW_MINUTES: Record<TimeRange, number> = {
   "10m": 10,
   "6h": 6 * 60,
   "24h": 24 * 60,
+  "7d": 7 * 24 * 60,
 };
 
 function formatAxisTick(timestamp: string, range: TimeRange) {
@@ -51,9 +53,11 @@ function formatAxisTick(timestamp: string, range: TimeRange) {
     });
   }
 
-  if (range === "24h") {
+  if (range === "24h" || range === "7d") {
     return date.toLocaleTimeString([], {
-      hour: "numeric",
+      month: range === "7d" ? "short" : undefined,
+      day: range === "7d" ? "numeric" : undefined,
+      hour: range === "7d" ? undefined : "numeric",
     });
   }
 
@@ -66,8 +70,8 @@ function formatAxisTick(timestamp: string, range: TimeRange) {
 function formatTooltipLabel(timestamp: string, range: TimeRange) {
   return new Date(timestamp).toLocaleString([], {
     weekday: range === "24h" ? "short" : undefined,
-    month: range === "24h" ? "short" : undefined,
-    day: range === "24h" ? "numeric" : undefined,
+    month: range === "24h" || range === "7d" ? "short" : undefined,
+    day: range === "24h" || range === "7d" ? "numeric" : undefined,
     hour: "numeric",
     minute: "2-digit",
   });

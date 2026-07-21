@@ -127,6 +127,7 @@ class UnifiedRelayPayload:
     hoymiles_status: str
     hoymiles_error: Optional[str]
     hoymiles_total_active_power_w: Optional[int]
+    hoymiles_daily_yield_wh: Optional[float]
     hoymiles_inverter_count: int
     hoymiles_port_count: int
     net_grid_w: int
@@ -180,6 +181,7 @@ class HoymilesSnapshot:
     status: str
     error: Optional[str]
     total_active_power_w: Optional[int]
+    daily_yield_wh: Optional[float]
     inverter_count: int
     port_count: int
     inverters: list[HoymilesInverterReading] = field(default_factory=list)
@@ -564,6 +566,8 @@ def build_hoymiles_snapshot(payload: dict[str, Any]) -> HoymilesSnapshot:
 
     inverters: list[HoymilesInverterReading] = []
     total_active_power_w = 0
+    daily_yield_wh = 0.0
+    daily_yield_count = 0
     inverter_count = 0
     port_count = 0
 
@@ -582,6 +586,10 @@ def build_hoymiles_snapshot(payload: dict[str, Any]) -> HoymilesSnapshot:
         port_count += len(ports)
         if inverter.active_power_w is not None:
             total_active_power_w += inverter.active_power_w
+        for port in ports:
+            if port.energy_daily_raw is not None:
+                daily_yield_wh += port.energy_daily_raw / 10.0
+                daily_yield_count += 1
         inverters.append(inverter)
 
     # The DTU reports dtuPower in the same tenths-of-watts scale as inverter
@@ -604,6 +612,7 @@ def build_hoymiles_snapshot(payload: dict[str, Any]) -> HoymilesSnapshot:
         status=status,
         error=str(root_error) if root_error else (None if inverter_count > 0 else "Hoymiles response did not include inverter data"),
         total_active_power_w=total_active_power_w if inverter_count > 0 else None,
+        daily_yield_wh=round(daily_yield_wh, 1) if daily_yield_count > 0 else None,
         inverter_count=inverter_count,
         port_count=port_count,
         inverters=inverters,
@@ -617,6 +626,7 @@ def build_offline_hoymiles_snapshot(message: str) -> HoymilesSnapshot:
         status="OFFLINE",
         error=message,
         total_active_power_w=None,
+        daily_yield_wh=None,
         inverter_count=0,
         port_count=0,
         inverters=[],
@@ -712,6 +722,7 @@ def build_unified_payload(
         hoymiles_status=hoymiles_snapshot.status,
         hoymiles_error=hoymiles_snapshot.error,
         hoymiles_total_active_power_w=hoymiles_total_active_power_w,
+        hoymiles_daily_yield_wh=hoymiles_snapshot.daily_yield_wh,
         hoymiles_inverter_count=hoymiles_snapshot.inverter_count,
         hoymiles_port_count=hoymiles_snapshot.port_count,
         net_grid_w=net_grid_w,

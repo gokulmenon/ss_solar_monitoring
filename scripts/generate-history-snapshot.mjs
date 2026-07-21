@@ -1,7 +1,7 @@
 import { access, mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 
-const WINDOW_HOURS = 24;
+const WINDOW_HOURS = 30 * 24;
 const BUCKET_MINUTES = 60;
 const CSV_BACKUP_DIR = process.env.CSV_BACKUP_DIR?.trim() || "./logs/meter-backups";
 const CSV_BACKUP_PREFIX = process.env.CSV_BACKUP_PREFIX?.trim() || "meter";
@@ -64,7 +64,7 @@ async function loadRelayCsvRows() {
   const csvFiles = files
     .filter((file) => file.startsWith(`${CSV_BACKUP_PREFIX}_`) && file.endsWith(".csv"))
     .sort()
-    .slice(-2);
+    .slice(-35);
 
   const rows = [];
 

@@ -17,6 +17,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { HistoryResponse } from "@/lib/history";
 
 function formatTimeLabel(timestamp: string, windowHours: number) {
+  if (windowHours > 24) {
+    return new Date(timestamp).toLocaleDateString([], {
+      month: "short",
+      day: "numeric",
+    });
+  }
+
   return new Date(timestamp).toLocaleTimeString([], {
     hour: "numeric",
     minute: windowHours <= 6 ? "2-digit" : undefined,
@@ -34,6 +41,14 @@ function formatVoltage(value: number | null) {
 
 function formatEnergy(value: number) {
   return `${value.toFixed(2)} kWh`;
+}
+
+function formatWindowLabel(windowHours: number) {
+  if (windowHours >= 24 && windowHours % 24 === 0) {
+    return `${windowHours / 24}-day`;
+  }
+
+  return `${windowHours}-hour`;
 }
 
 export function HistoryDashboard() {
@@ -140,7 +155,7 @@ export function HistoryDashboard() {
       <Card className="overflow-hidden border-white/10 bg-slate-950/80">
         <CardHeader className="pb-2">
           <CardTitle className="text-[11px] uppercase tracking-[0.24em] text-slate-400">
-            {windowHours}-hour CSV history
+            {formatWindowLabel(windowHours)} CSV history
           </CardTitle>
         </CardHeader>
         <CardContent className="pt-0">
@@ -194,7 +209,9 @@ export function HistoryDashboard() {
                     }}
                     labelFormatter={(label) =>
                       new Date(String(label)).toLocaleString([], {
-                        weekday: windowHours === 24 ? "short" : undefined,
+                        weekday: windowHours >= 24 ? "short" : undefined,
+                        month: windowHours > 24 ? "short" : undefined,
+                        day: windowHours > 24 ? "numeric" : undefined,
                         hour: "numeric",
                         minute: "2-digit",
                       })
@@ -273,7 +290,7 @@ export function HistoryDashboard() {
           <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-3">
             <div className="text-slate-500">Window</div>
             <div className="mt-1 text-lg font-semibold text-slate-100">
-              {loading ? "..." : hasData ? `${windowHours} hours` : "—"}
+              {loading ? "..." : hasData ? formatWindowLabel(windowHours) : "—"}
             </div>
           </div>
         </CardContent>

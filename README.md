@@ -284,6 +284,45 @@ create index if not exists daily_energy_summary_day_idx
 
 The relay updates this daily row once per 15-minute Supabase flush, so long-term charts can query daily totals without scanning all interval rows.
 
+For daily historical summaries computed directly from the 15-minute `meter_readings`
+rows, create this RPC function as well:
+
+```sql
+create or replace function public.get_daily_energy_summary(
+  timezone_name text default 'America/New_York',
+  day_limit integer default 30
+)
+returns table (
+  day date,
+  daily_grid_import_kwh numeric,
+  daily_grid_export_kwh numeric,
+  daily_solar_kwh numeric,
+  daily_home_consumption_kwh numeric,
+  sample_count bigint
+)
+language sql
+stable
+as $$
+  select
+    (mr.timestamp at time zone timezone_name)::date as day,
+    round(sum(case when mr.net_grid_w > 0 then mr.net_grid_w * 0.25 / 1000.0 else 0 end), 3)
+      as daily_grid_import_kwh,
+    round(sum(case when mr.net_grid_w < 0 then abs(mr.net_grid_w) * 0.25 / 1000.0 else 0 end), 3)
+      as daily_grid_export_kwh,
+    round(sum(coalesce(mr.solar_production_w, 0) * 0.25 / 1000.0), 3)
+      as daily_solar_kwh,
+    round(sum((coalesce(mr.solar_production_w, 0) + mr.net_grid_w) * 0.25 / 1000.0), 3)
+      as daily_home_consumption_kwh,
+    count(*) as sample_count
+  from public.meter_readings mr
+  where mr.timestamp >= now() - make_interval(days => greatest(day_limit, 1))
+  group by (mr.timestamp at time zone timezone_name)::date
+  order by day desc;
+$$;
+```
+
+The same SQL is tracked in `supabase/migrations/20260720000000_create_get_daily_energy_summary.sql`.
+
 You do not need the raw Postgres password string for the app. If you ever want the direct database connection string for `psql` or a database client, open the Supabase Dashboard and click `Connect`. That is separate from the app runtime and is not required for the `/history` page to read Supabase.
 
 You also do not need the Supabase publishable/anon key for this implementation. The Next.js server route and the local relay use the service-role key server-side, so the cloud read path works even if you did not set up RLS policies yet. Supabase documents that service keys bypass RLS, and they should never be exposed to the browser. If you later want a browser-only Supabase client, then you would add the publishable key and enable RLS policies for that path.
