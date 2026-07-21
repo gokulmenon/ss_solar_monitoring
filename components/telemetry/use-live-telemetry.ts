@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import useWebSocket, { ReadyState } from "react-use-websocket";
 
 import { createMockLiveTelemetry, type LiveTelemetry } from "@/lib/mock-data";
+import type { HistoryResponse } from "@/lib/history";
 
 export type HoymilesPortReading = {
   serial_number: string;
@@ -56,6 +57,7 @@ type LiveSeriesBucket = LiveSeriesPoint & {
 
 const SERIES_LIMIT = 7 * 24 * 60;
 const SERIES_STORAGE_KEY = "ss-solar-live-series-v1";
+const SEED_SERIES_MIN_POINTS = 6;
 
 function hasTelemetryFields(message: LiveBridgeTelemetry) {
   return (
@@ -102,6 +104,20 @@ function loadStoredSeriesBuckets(): LiveSeriesBucket[] {
   }
 }
 
+function historyPointToSeriesBucket(point: HistoryResponse["points"][number]): LiveSeriesBucket {
+  const solarProductionW = point.solar_production_w ?? 0;
+  const netGridW = point.net_grid_w;
+
+  return {
+    timestamp: minuteBucketTimestamp(point.timestamp),
+    solar_production_w: solarProductionW,
+    net_grid_w: netGridW,
+    home_consumption_w: solarProductionW + netGridW,
+    phase_a_voltage_v: point.phase_a_voltage_v ?? undefined,
+    sampleCount: Math.max(1, Math.round(point.sample_count || 1)),
+  };
+}
+
 export function useLiveTelemetry() {
   const wsUrl = process.env.NEXT_PUBLIC_LIVE_WS_URL ?? "ws://127.0.0.1:8787";
   const { lastJsonMessage, readyState } = useWebSocket<LiveBridgeTelemetry>(wsUrl, {
@@ -116,6 +132,56 @@ export function useLiveTelemetry() {
   const [bridgeTelemetry, setBridgeTelemetry] = useState<LiveBridgeTelemetry | null>(null);
   const [hardwareOffline, setHardwareOffline] = useState(false);
   const [seriesBuckets, setSeriesBuckets] = useState<LiveSeriesBucket[]>(() => loadStoredSeriesBuckets());
+
+  useEffect(() => {
+    if (seriesBuckets.length >= SEED_SERIES_MIN_POINTS) return;
+
+    const controller = new AbortController();
+
+    async function seedFromSupabase() {
+      try {
+        const response = await fetch("/api/history?source=supabase", {
+          signal: controller.signal,
+          cache: "no-store",
+        });
+
+        if (!response.ok) return;
+
+        const payload = (await response.json()) as HistoryResponse;
+        const cutoff = Date.now() - 6 * 60 * 60 * 1000;
+        const seedPoints = payload.points
+          .filter((point) => new Date(point.timestamp).getTime() >= cutoff)
+          .map(historyPointToSeriesBucket)
+          .slice(-360);
+
+        if (seedPoints.length < 2) return;
+
+        setSeriesBuckets((previous) => {
+          if (previous.length >= SEED_SERIES_MIN_POINTS) return previous;
+
+          const merged = new Map<string, LiveSeriesBucket>();
+          for (const point of seedPoints) {
+            merged.set(point.timestamp, point);
+          }
+          for (const point of previous) {
+            merged.set(point.timestamp, point);
+          }
+
+          return Array.from(merged.values())
+            .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
+            .slice(-SERIES_LIMIT);
+        });
+      } catch (error) {
+        if ((error as Error).name !== "AbortError") {
+          console.error(error);
+        }
+      }
+    }
+
+    void seedFromSupabase();
+
+    return () => controller.abort();
+  }, [seriesBuckets.length]);
 
   useEffect(() => {
     if (readyState === ReadyState.OPEN) return undefined;

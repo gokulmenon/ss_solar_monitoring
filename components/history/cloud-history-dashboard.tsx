@@ -5,7 +5,6 @@ import {
   Area,
   CartesianGrid,
   ComposedChart,
-  Line,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -13,8 +12,18 @@ import {
 } from "recharts";
 
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import type { HistoryResponse } from "@/lib/history";
+import type { HistoryPoint, HistoryResponse } from "@/lib/history";
+
+type HistoryRange = "6h" | "1d" | "7d" | "30d";
+
+const RANGE_OPTIONS: Array<{ label: string; value: HistoryRange; hours: number }> = [
+  { label: "6h", value: "6h", hours: 6 },
+  { label: "1d", value: "1d", hours: 24 },
+  { label: "7d", value: "7d", hours: 7 * 24 },
+  { label: "30d", value: "30d", hours: 30 * 24 },
+];
 
 function formatTimeLabel(timestamp: string, windowHours: number) {
   if (windowHours > 24) {
@@ -32,11 +41,6 @@ function formatTimeLabel(timestamp: string, windowHours: number) {
 
 function formatWattage(value: number) {
   return `${value >= 0 ? "" : "-"}${Math.abs(Math.round(value)).toLocaleString()} W`;
-}
-
-function formatVoltage(value: number | null) {
-  if (value === null) return "—";
-  return `${value.toFixed(1)} V`;
 }
 
 function formatEnergy(value: number) {
@@ -66,6 +70,7 @@ function formatLastSynced(timestamp: string | null) {
 export function CloudHistoryDashboard() {
   const [history, setHistory] = useState<HistoryResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const [range, setRange] = useState<HistoryRange>("30d");
 
   useEffect(() => {
     const controller = new AbortController();
@@ -97,12 +102,19 @@ export function CloudHistoryDashboard() {
     return () => controller.abort();
   }, []);
 
-  const data = history?.points ?? [];
+  const rangeHours = RANGE_OPTIONS.find((option) => option.value === range)?.hours ?? 30 * 24;
+  const data = useMemo<HistoryPoint[]>(() => {
+    const points = history?.points ?? [];
+    const cutoff = Date.now() - rangeHours * 60 * 60 * 1000;
+
+    return points.filter((point) => new Date(point.timestamp).getTime() >= cutoff);
+  }, [history?.points, rangeHours]);
   const summary = history?.summary;
   const sourceLabel = "Supabase cloud";
-  const windowHours = history?.window_hours ?? 24;
+  const windowHours = rangeHours;
   const hasData = data.length > 0;
-  const latestTimestamp = data.at(-1)?.timestamp ?? null;
+  const hasCloudRows = (history?.points.length ?? 0) > 0;
+  const latestTimestamp = history?.points.at(-1)?.timestamp ?? null;
   const latestAgeMinutes = useMemo(() => {
     if (!latestTimestamp) return null;
 
@@ -121,7 +133,7 @@ export function CloudHistoryDashboard() {
       };
     }
 
-    if (!hasData) {
+    if (!hasCloudRows) {
       return {
         label: "Cloud sync idle",
         detail: "No Supabase batches have arrived yet.",
@@ -144,8 +156,8 @@ export function CloudHistoryDashboard() {
         : `Last cloud batch is ${latestAgeMinutes} minutes old.`,
       tone: "text-amber-300",
     };
-  }, [hasData, latestAgeMinutes, loading]);
-  const isCloudOffline = !loading && (!hasData || (latestAgeMinutes !== null && latestAgeMinutes > 60));
+  }, [hasCloudRows, latestAgeMinutes, loading]);
+  const isCloudOffline = !loading && !hasCloudRows;
 
   const stats = useMemo(
     () => [
@@ -253,10 +265,24 @@ export function CloudHistoryDashboard() {
       ) : null}
 
       <Card className="overflow-hidden border-white/10 bg-slate-950/80">
-        <CardHeader className="pb-2">
+        <CardHeader className="flex-row items-start justify-between gap-3 pb-2">
           <CardTitle className="text-[11px] uppercase tracking-[0.24em] text-slate-400">
             {formatWindowLabel(windowHours)} cloud history
           </CardTitle>
+          <div className="flex shrink-0 items-center gap-1 rounded-2xl border border-white/10 bg-white/[0.03] p-1">
+            {RANGE_OPTIONS.map((option) => (
+              <Button
+                key={option.value}
+                type="button"
+                size="sm"
+                variant={range === option.value ? "default" : "ghost"}
+                className="h-8 px-3 text-[11px]"
+                onClick={() => setRange(option.value)}
+              >
+                {option.label}
+              </Button>
+            ))}
+          </div>
         </CardHeader>
         <CardContent className="pt-0">
           {!loading && !hasData ? (
@@ -289,15 +315,6 @@ export function CloudHistoryDashboard() {
                     width={56}
                     tickFormatter={(value) => formatWattage(Number(value))}
                   />
-                  <YAxis
-                    yAxisId="right"
-                    orientation="right"
-                    tickLine={false}
-                    axisLine={false}
-                    tick={{ fill: "#94a3b8", fontSize: 11 }}
-                    width={48}
-                    tickFormatter={(value) => `${Number(value).toFixed(0)}V`}
-                  />
                   <Tooltip
                     contentStyle={{
                       background: "rgba(2, 6, 23, 0.96)",
@@ -316,9 +333,6 @@ export function CloudHistoryDashboard() {
                       })
                     }
                     formatter={(value: number, name: string) => {
-                      if (name === "phase_a_voltage_v") {
-                        return [`${Number(value).toFixed(1)} V`, "Phase A Voltage"];
-                      }
                       if (name === "solar_production_w") {
                         return [formatWattage(value), "Solar Production"];
                       }
@@ -344,15 +358,6 @@ export function CloudHistoryDashboard() {
                     fill="rgba(56, 189, 248, 0.20)"
                     strokeWidth={3}
                     activeDot={{ r: 7, strokeWidth: 2, stroke: "#38bdf8", fill: "#0f172a" }}
-                  />
-                  <Line
-                    yAxisId="right"
-                    type="monotone"
-                    dataKey="phase_a_voltage_v"
-                    stroke="#fbbf24"
-                    strokeWidth={2.5}
-                    dot={false}
-                    activeDot={{ r: 6 }}
                   />
                 </ComposedChart>
               </ResponsiveContainer>

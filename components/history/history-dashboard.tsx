@@ -5,7 +5,6 @@ import {
   Area,
   CartesianGrid,
   ComposedChart,
-  Line,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -13,8 +12,18 @@ import {
 } from "recharts";
 
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import type { HistoryResponse } from "@/lib/history";
+import type { HistoryPoint, HistoryResponse } from "@/lib/history";
+
+type HistoryRange = "6h" | "1d" | "7d" | "30d";
+
+const RANGE_OPTIONS: Array<{ label: string; value: HistoryRange; hours: number }> = [
+  { label: "6h", value: "6h", hours: 6 },
+  { label: "1d", value: "1d", hours: 24 },
+  { label: "7d", value: "7d", hours: 7 * 24 },
+  { label: "30d", value: "30d", hours: 30 * 24 },
+];
 
 function formatTimeLabel(timestamp: string, windowHours: number) {
   if (windowHours > 24) {
@@ -34,11 +43,6 @@ function formatWattage(value: number) {
   return `${value >= 0 ? "" : "-"}${Math.abs(Math.round(value)).toLocaleString()} W`;
 }
 
-function formatVoltage(value: number | null) {
-  if (value === null) return "—";
-  return `${value.toFixed(1)} V`;
-}
-
 function formatEnergy(value: number) {
   return `${value.toFixed(2)} kWh`;
 }
@@ -55,6 +59,7 @@ export function HistoryDashboard() {
   const [history, setHistory] = useState<HistoryResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [sourceLabel, setSourceLabel] = useState("Local CSV logs");
+  const [range, setRange] = useState<HistoryRange>("30d");
 
   useEffect(() => {
     const controller = new AbortController();
@@ -91,9 +96,15 @@ export function HistoryDashboard() {
     return () => controller.abort();
   }, []);
 
-  const data = history?.points ?? [];
+  const rangeHours = RANGE_OPTIONS.find((option) => option.value === range)?.hours ?? 30 * 24;
+  const data = useMemo<HistoryPoint[]>(() => {
+    const points = history?.points ?? [];
+    const cutoff = Date.now() - rangeHours * 60 * 60 * 1000;
+
+    return points.filter((point) => new Date(point.timestamp).getTime() >= cutoff);
+  }, [history?.points, rangeHours]);
   const summary = history?.summary;
-  const windowHours = history?.window_hours ?? 24;
+  const windowHours = rangeHours;
   const hasData = data.length > 0;
 
   const stats = useMemo(
@@ -153,10 +164,24 @@ export function HistoryDashboard() {
       </div>
 
       <Card className="overflow-hidden border-white/10 bg-slate-950/80">
-        <CardHeader className="pb-2">
+        <CardHeader className="flex-row items-start justify-between gap-3 pb-2">
           <CardTitle className="text-[11px] uppercase tracking-[0.24em] text-slate-400">
             {formatWindowLabel(windowHours)} CSV history
           </CardTitle>
+          <div className="flex shrink-0 items-center gap-1 rounded-2xl border border-white/10 bg-white/[0.03] p-1">
+            {RANGE_OPTIONS.map((option) => (
+              <Button
+                key={option.value}
+                type="button"
+                size="sm"
+                variant={range === option.value ? "default" : "ghost"}
+                className="h-8 px-3 text-[11px]"
+                onClick={() => setRange(option.value)}
+              >
+                {option.label}
+              </Button>
+            ))}
+          </div>
         </CardHeader>
         <CardContent className="pt-0">
           {!loading && !hasData ? (
@@ -190,15 +215,6 @@ export function HistoryDashboard() {
                     width={56}
                     tickFormatter={(value) => formatWattage(Number(value))}
                   />
-                  <YAxis
-                    yAxisId="right"
-                    orientation="right"
-                    tickLine={false}
-                    axisLine={false}
-                    tick={{ fill: "#94a3b8", fontSize: 11 }}
-                    width={48}
-                    tickFormatter={(value) => `${Number(value).toFixed(0)}V`}
-                  />
                   <Tooltip
                     contentStyle={{
                       background: "rgba(2, 6, 23, 0.96)",
@@ -217,9 +233,6 @@ export function HistoryDashboard() {
                       })
                     }
                     formatter={(value: number, name: string) => {
-                      if (name === "phase_a_voltage_v") {
-                        return [`${Number(value).toFixed(1)} V`, "Phase A Voltage"];
-                      }
                       if (name === "solar_production_w") {
                         return [formatWattage(value), "Solar Production"];
                       }
@@ -245,15 +258,6 @@ export function HistoryDashboard() {
                     fill="rgba(96, 165, 250, 0.20)"
                     strokeWidth={3}
                     activeDot={{ r: 7, strokeWidth: 2, stroke: "#60a5fa", fill: "#0f172a" }}
-                  />
-                  <Line
-                    yAxisId="right"
-                    type="monotone"
-                    dataKey="phase_a_voltage_v"
-                    stroke="#fbbf24"
-                    strokeWidth={2.5}
-                    dot={false}
-                    activeDot={{ r: 6 }}
                   />
                 </ComposedChart>
               </ResponsiveContainer>
