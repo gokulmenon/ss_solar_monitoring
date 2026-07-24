@@ -246,9 +246,11 @@ function buildHistoryResponse(source: HistorySource, rows: RawHistoryRow[]): His
     const negativeW = Math.max(-row.net_grid_w, 0);
     const solarW = Math.max(row.solar_production_w ?? 0, 0);
 
-    importedKwh += (positiveW * rowWeight) / 3_600_000;
-    exportedKwh += (negativeW * rowWeight) / 3_600_000;
-    solarKwh += (solarW * rowWeight) / 3_600_000;
+    // Multiply rowWeight by 60 because each sample represents 60 seconds.
+    const SECONDS_PER_SAMPLE = 60;
+    importedKwh += (positiveW * rowWeight * SECONDS_PER_SAMPLE) / 3_600_000;
+    exportedKwh += (negativeW * rowWeight * SECONDS_PER_SAMPLE) / 3_600_000;
+    solarKwh += (solarW * rowWeight * SECONDS_PER_SAMPLE) / 3_600_000;
     peakImportW = Math.max(peakImportW, positiveW);
     peakExportW = Math.max(peakExportW, negativeW);
     peakSolarW = Math.max(peakSolarW, solarW);

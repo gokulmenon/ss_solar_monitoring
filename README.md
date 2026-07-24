@@ -303,25 +303,49 @@ returns table (
 language sql
 stable
 as $$
+  with normalized_readings as (
+    select
+      (mr.timestamp at time zone timezone_name)::date as day,
+      mr.net_grid_w,
+      coalesce(mr.solar_production_w, 0) as solar_production_w,
+      greatest(coalesce(mr.sample_count, 1), 1) * 60.0 as sample_seconds
+    from public.meter_readings mr
+    where mr.timestamp >= now() - make_interval(days => greatest(day_limit, 1))
+  )
   select
-    (mr.timestamp at time zone timezone_name)::date as day,
-    round(sum(case when mr.net_grid_w > 0 then mr.net_grid_w * 0.25 / 1000.0 else 0 end), 3)
+    nr.day,
+    round(sum(case when nr.net_grid_w > 0 then nr.net_grid_w * nr.sample_seconds / 3600000.0 else 0 end), 3)
       as daily_grid_import_kwh,
-    round(sum(case when mr.net_grid_w < 0 then abs(mr.net_grid_w) * 0.25 / 1000.0 else 0 end), 3)
+    round(sum(case when nr.net_grid_w < 0 then abs(nr.net_grid_w) * nr.sample_seconds / 3600000.0 else 0 end), 3)
       as daily_grid_export_kwh,
-    round(sum(coalesce(mr.solar_production_w, 0) * 0.25 / 1000.0), 3)
+    round(sum(nr.solar_production_w * nr.sample_seconds / 3600000.0), 3)
       as daily_solar_kwh,
-    round(sum((coalesce(mr.solar_production_w, 0) + mr.net_grid_w) * 0.25 / 1000.0), 3)
+    round(sum(greatest(nr.solar_production_w + nr.net_grid_w, 0) * nr.sample_seconds / 3600000.0), 3)
       as daily_home_consumption_kwh,
-    count(*) as sample_count
-  from public.meter_readings mr
-  where mr.timestamp >= now() - make_interval(days => greatest(day_limit, 1))
-  group by (mr.timestamp at time zone timezone_name)::date
-  order by day desc;
+    sum(nr.sample_seconds / 60.0)::bigint as sample_count
+  from normalized_readings nr
+  group by nr.day
+  order by nr.day desc;
 $$;
 ```
 
 The same SQL is tracked in `supabase/migrations/20260720000000_create_get_daily_energy_summary.sql`.
+
+If the daily table shows home consumption at exactly `10x` while solar looks correct,
+you likely have old Supabase `meter_readings.net_grid_w` rows written before
+`METER_POWER_SCALE=0.1` was added to the relay. Repair only the affected historical
+window, replacing the timestamp below with the moment you deployed the relay scale fix:
+
+```sql
+update public.meter_readings
+set net_grid_w = round(net_grid_w * 0.1)::integer
+where timestamp < '2026-07-24T00:00:00Z'
+  and abs(net_grid_w) >= 10000;
+```
+
+After that update, rerun the `get_daily_energy_summary` function definition above in
+the Supabase SQL Editor so the frontend daily table integrates with the sample-aware
+calculation.
 
 You do not need the raw Postgres password string for the app. If you ever want the direct database connection string for `psql` or a database client, open the Supabase Dashboard and click `Connect`. That is separate from the app runtime and is not required for the `/history` page to read Supabase.
 

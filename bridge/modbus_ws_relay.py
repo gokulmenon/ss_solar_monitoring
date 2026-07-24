@@ -588,7 +588,7 @@ def build_hoymiles_snapshot(payload: dict[str, Any]) -> HoymilesSnapshot:
             total_active_power_w += inverter.active_power_w
         for port in ports:
             if port.energy_daily_raw is not None:
-                daily_yield_wh += port.energy_daily_raw / 10.0
+                daily_yield_wh += float(port.energy_daily_raw)
                 daily_yield_count += 1
         inverters.append(inverter)
 
