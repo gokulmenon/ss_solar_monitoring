@@ -37,7 +37,7 @@ export function LiveDashboard() {
   const solarKw = telemetry.solar_production_w / 1000;
   const gridKw = telemetry.net_grid_w / 1000;
   const voltageV = telemetry.phase_a_voltage_v ?? 245;
-  const estimatedCurrentA = Math.abs(telemetry.net_grid_w) / Math.max(voltageV, 1);
+  const estimatedCurrentA = telemetry.home_consumption_w / Math.max(voltageV, 1);
   const bridgeLabel =
     bridgeState === "hardware_offline"
       ? "Bridge Disconnected"
@@ -111,7 +111,13 @@ export function LiveDashboard() {
         <MetricCard
           label="Grid exchange"
           value={formatKw(Math.abs(gridKw) * 1000)}
-          detail={gridKw < 0 ? "Exporting to the grid" : "Importing from the grid"}
+          detail={
+            gridKw < 0
+              ? "Exporting solar surplus to the grid"
+              : gridKw > 0
+                ? "Importing the remaining home load"
+                : "Solar is exactly covering the home load"
+          }
           tone={gridKw < 0 ? "green" : "red"}
         />
         <MetricCard
@@ -123,7 +129,7 @@ export function LiveDashboard() {
         <MetricCard
           label="Estimated current"
           value={formatCurrent(estimatedCurrentA)}
-          detail={`Approximate breaker current based on ${voltageV.toFixed(1)} V and total wattage.`}
+          detail={`Approximate load current from measured home consumption at ${voltageV.toFixed(1)} V.`}
           tone="blue"
         />
       </div>

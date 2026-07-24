@@ -32,7 +32,6 @@ export function PowerFlowVisualizer({
 }: PowerFlowVisualizerProps) {
   const exporting = netGridW < 0;
   const importing = netGridW > 0;
-  const surplusW = Math.max(0, solarProductionW - homeConsumptionW);
   const gridFlowW = Math.abs(netGridW);
   const hasSolarGeneration = solarProductionW > 10;
 
@@ -107,10 +106,7 @@ export function PowerFlowVisualizer({
             />
 
             {hasSolarGeneration ? (
-              <>
-                <FlowPulse pathId="solarToHouse" tint="#fde047" />
-                {surplusW > 0 ? <FlowPulse pathId="houseToGrid" tint="#34d399" delay="0.75s" /> : null}
-              </>
+              <FlowPulse pathId="solarToHouse" tint="#fde047" />
             ) : null}
             {importing ? <FlowPulse pathId="gridToHouse" tint="#38bdf8" delay="0.35s" /> : null}
             {exporting ? <FlowPulse pathId="houseToGrid" tint="#34d399" delay="0.35s" /> : null}
@@ -164,8 +160,8 @@ export function PowerFlowVisualizer({
             <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] px-3 py-2 text-center">
               <div className="text-slate-200">Grid</div>
               <div className={cn(exporting ? "text-emerald-300" : importing ? "text-rose-300" : "text-slate-300")}>
-                {netGridW > 0 ? "+" : ""}
-                {Math.round(netGridW).toLocaleString()} W
+                {importing ? "Import " : exporting ? "Export " : ""}
+                {Math.round(gridFlowW).toLocaleString()} W
               </div>
             </div>
             <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] px-3 py-2 text-center">

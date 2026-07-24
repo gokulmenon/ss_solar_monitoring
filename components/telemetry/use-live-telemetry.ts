@@ -56,7 +56,7 @@ type LiveSeriesBucket = LiveSeriesPoint & {
 };
 
 const SERIES_LIMIT = 7 * 24 * 60;
-const SERIES_STORAGE_KEY = "ss-solar-live-series-v1";
+const SERIES_STORAGE_KEY = "ss-solar-live-series-v2";
 const SEED_SERIES_MIN_POINTS = 6;
 
 function hasTelemetryFields(message: LiveBridgeTelemetry) {
@@ -79,10 +79,21 @@ function mergeTelemetry(
   mockTelemetry: LiveTelemetry,
   bridgeTelemetry: LiveBridgeTelemetry | null,
 ): LiveSeriesPoint {
+  if (!bridgeTelemetry) {
+    return mockTelemetry;
+  }
+
+  const solarProductionW = bridgeTelemetry.solar_production_w ?? mockTelemetry.solar_production_w;
+  const homeConsumptionW = bridgeTelemetry.net_grid_w ?? mockTelemetry.home_consumption_w;
+  const netGridW = homeConsumptionW - solarProductionW;
+
   return {
     ...mockTelemetry,
-    ...(bridgeTelemetry ?? {}),
+    ...bridgeTelemetry,
     timestamp: bridgeTelemetry?.timestamp ?? mockTelemetry.timestamp,
+    solar_production_w: solarProductionW,
+    net_grid_w: netGridW,
+    home_consumption_w: homeConsumptionW,
   };
 }
 
@@ -106,13 +117,14 @@ function loadStoredSeriesBuckets(): LiveSeriesBucket[] {
 
 function historyPointToSeriesBucket(point: HistoryResponse["points"][number]): LiveSeriesBucket {
   const solarProductionW = point.solar_production_w ?? 0;
-  const netGridW = point.net_grid_w;
+  const homeConsumptionW = point.net_grid_w;
+  const netGridW = homeConsumptionW - solarProductionW;
 
   return {
     timestamp: minuteBucketTimestamp(point.timestamp),
     solar_production_w: solarProductionW,
     net_grid_w: netGridW,
-    home_consumption_w: solarProductionW + netGridW,
+    home_consumption_w: homeConsumptionW,
     phase_a_voltage_v: point.phase_a_voltage_v ?? undefined,
     sampleCount: Math.max(1, Math.round(point.sample_count || 1)),
   };
