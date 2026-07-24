@@ -183,7 +183,12 @@ Optional environment variables:
 - `SUPABASE_SERVICE_ROLE_KEY=...`
 - `SUPABASE_TABLE_NAME=meter_readings`
 - `SUPABASE_DAILY_TABLE_NAME=daily_energy_summary`
+- `SUPABASE_WEATHER_TABLE_NAME=weather_snapshots`
 - `SUPABASE_BATCH_MINUTES=15`
+- `WEATHER_LATITUDE=...`
+- `WEATHER_LONGITUDE=...`
+- `WEATHER_POLL_SECONDS=900`
+- `WEATHER_HTTP_TIMEOUT_SECONDS=10`
 
 By default, the relay writes one CSV per day into `./logs/meter-backups`, for example:
 
@@ -199,6 +204,7 @@ The cloud sync path uses the same relay process:
 
 - every 60 seconds: poll the Chint meter, broadcast to the UI, and append to the local CSV backup
 - every 15 minutes by default: refresh the Hoymiles JSON snapshot
+- every 15 minutes by default: fetch Open-Meteo current weather and upsert it into Supabase
 - every 15 minutes: flush one aggregated grid, voltage, and solar row to Supabase
 - every 15 minutes: update one relay-local daily energy summary row in Supabase
 - on startup/shutdown: close out any pending cloud batch
@@ -254,6 +260,7 @@ For the cloud history section, add these server-side environment variables in Ve
 - `SUPABASE_SERVICE_ROLE_KEY` = copy this from Supabase Dashboard -> Settings -> API -> Project API keys
 - `SUPABASE_TABLE_NAME` = `meter_readings`
 - `SUPABASE_DAILY_TABLE_NAME` = `daily_energy_summary`
+- `SUPABASE_WEATHER_TABLE_NAME` = `weather_snapshots`
 
 The cloud history now expects a nullable `solar_production_w` column. Run this once in
 Supabase Dashboard -> SQL Editor before restarting the relay with this version:
@@ -264,6 +271,45 @@ alter table public.meter_readings
 ```
 
 The same SQL is tracked in `supabase/migrations/20260719001000_add_solar_production_to_meter_readings.sql`.
+
+For weather history and solar correlation, create the weather catalog table:
+
+```sql
+create table if not exists public.weather_snapshots (
+  timestamp timestamptz primary key,
+  temperature_2m numeric(6, 2),
+  cloud_cover numeric(5, 2),
+  cloud_cover_low numeric(5, 2),
+  cloud_cover_mid numeric(5, 2),
+  cloud_cover_high numeric(5, 2),
+  shortwave_radiation numeric(8, 2),
+  direct_radiation numeric(8, 2),
+  diffuse_radiation numeric(8, 2),
+  wind_speed_10m numeric(6, 2),
+  precipitation numeric(8, 3),
+  created_at timestamptz not null default now()
+);
+
+create index if not exists weather_snapshots_timestamp_idx
+  on public.weather_snapshots (timestamp desc);
+```
+
+The same SQL is tracked in `supabase/migrations/20260724001000_create_weather_snapshots.sql`.
+
+Add these only to the local relay environment in `bridge/.env`; the Vercel frontend
+does not need your latitude/longitude because it reads the already-stored Supabase rows:
+
+```bash
+WEATHER_LATITUDE=40.xxxxxx
+WEATHER_LONGITUDE=-74.xxxxxx
+WEATHER_POLL_SECONDS=900
+SUPABASE_WEATHER_TABLE_NAME=weather_snapshots
+```
+
+The relay uses Open-Meteo's free forecast API and polls current conditions every
+15 minutes in a separate `asyncio` task, so weather fetches do not block Chint meter
+polling, Hoymiles polling, WebSocket broadcasts, CSV backups, or Supabase energy
+batches.
 
 For the long-term daily dashboard path, also create the one-row-per-day aggregate table:
 

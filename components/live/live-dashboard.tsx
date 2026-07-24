@@ -8,6 +8,7 @@ import { MetricCard } from "@/components/live/metric-card";
 import { SeriesAreaCard } from "@/components/charts/series-area-card";
 import { useLiveTelemetry } from "@/components/telemetry/use-live-telemetry";
 import { ArrayVisualizer } from "@/components/live/array-visualizer";
+import { LiveWeatherPanel } from "@/components/weather/live-weather-panel";
 
 function formatKw(value: number) {
   return `${(value / 1000).toFixed(2)} kW`;
@@ -138,16 +139,7 @@ export function LiveDashboard() {
         defaultRange="6h"
       />
 
-      <SeriesAreaCard
-        title="Live solar trend"
-        subtitle="Hoymiles production from the relay. Solar refreshes less often than grid readings."
-        data={series}
-        dataKey="solar_production_w"
-        stroke="#facc15"
-        fill="#fde047"
-        formatter={(value) => `${Math.round(value).toLocaleString()} W`}
-        defaultRange="6h"
-      />
+      <LiveWeatherPanel series={series} />
 
       <ArrayVisualizer
         inverters={telemetry.hoymiles?.inverters}

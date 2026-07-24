@@ -39,6 +39,7 @@ from pathlib import Path
 from typing import Any, Optional
 from urllib.parse import urlparse
 
+import aiohttp
 import websockets
 from websockets.server import WebSocketServerProtocol
 
@@ -110,8 +111,18 @@ SUPABASE_URL = os.getenv("SUPABASE_URL", "").strip()
 SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "").strip()
 SUPABASE_TABLE_NAME = os.getenv("SUPABASE_TABLE_NAME", "meter_readings")
 SUPABASE_DAILY_TABLE_NAME = os.getenv("SUPABASE_DAILY_TABLE_NAME", "daily_energy_summary")
+SUPABASE_WEATHER_TABLE_NAME = os.getenv("SUPABASE_WEATHER_TABLE_NAME", "weather_snapshots")
 SUPABASE_BATCH_MINUTES = int(os.getenv("SUPABASE_BATCH_MINUTES", "15"))
 SUPABASE_SYNC_TIMEOUT_SECONDS = float(os.getenv("SUPABASE_SYNC_TIMEOUT_SECONDS", "5"))
+
+WEATHER_LATITUDE = os.getenv("WEATHER_LATITUDE", "").strip()
+WEATHER_LONGITUDE = os.getenv("WEATHER_LONGITUDE", "").strip()
+WEATHER_POLL_SECONDS = float(os.getenv("WEATHER_POLL_SECONDS", "900"))
+WEATHER_HTTP_TIMEOUT_SECONDS = float(os.getenv("WEATHER_HTTP_TIMEOUT_SECONDS", "10"))
+OPEN_METEO_CURRENT_FIELDS = (
+    "temperature_2m,cloud_cover,cloud_cover_low,cloud_cover_mid,cloud_cover_high,"
+    "shortwave_radiation,direct_radiation,diffuse_radiation,wind_speed_10m,precipitation"
+)
 
 
 @dataclass
@@ -818,6 +829,134 @@ def supabase_request(
     )
 
 
+def build_open_meteo_url() -> str:
+    """Create the Open-Meteo current weather URL from local env coordinates."""
+    return (
+        "https://api.open-meteo.com/v1/forecast"
+        f"?latitude={WEATHER_LATITUDE}"
+        f"&longitude={WEATHER_LONGITUDE}"
+        f"&current={OPEN_METEO_CURRENT_FIELDS}"
+        "&timezone=UTC"
+    )
+
+
+def normalize_open_meteo_timestamp(value: Any) -> str:
+    """Return a UTC ISO timestamp suitable for the Supabase primary key."""
+    if not value:
+        return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
+    text = str(value)
+    if text.endswith("Z"):
+        return text
+
+    try:
+        parsed = datetime.fromisoformat(text.replace("Z", "+00:00"))
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=timezone.utc)
+        return parsed.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
+    except ValueError:
+        return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+def build_weather_row(payload: dict[str, Any]) -> dict[str, int | float | str | None]:
+    """Map Open-Meteo's current payload into the weather_snapshots row shape."""
+    current = payload.get("current")
+    if not isinstance(current, dict):
+        raise ValueError("Open-Meteo response did not include current weather data")
+
+    return {
+        "timestamp": normalize_open_meteo_timestamp(current.get("time")),
+        "temperature_2m": coerce_float(current.get("temperature_2m")),
+        "cloud_cover": coerce_float(current.get("cloud_cover")),
+        "cloud_cover_low": coerce_float(current.get("cloud_cover_low")),
+        "cloud_cover_mid": coerce_float(current.get("cloud_cover_mid")),
+        "cloud_cover_high": coerce_float(current.get("cloud_cover_high")),
+        "shortwave_radiation": coerce_float(current.get("shortwave_radiation")),
+        "direct_radiation": coerce_float(current.get("direct_radiation")),
+        "diffuse_radiation": coerce_float(current.get("diffuse_radiation")),
+        "wind_speed_10m": coerce_float(current.get("wind_speed_10m")),
+        "precipitation": coerce_float(current.get("precipitation")),
+    }
+
+
+async def upsert_weather_snapshot(session: aiohttp.ClientSession, row: dict[str, int | float | str | None]) -> None:
+    """Persist a single weather snapshot into Supabase without blocking Modbus reads."""
+    if not SUPABASE_URL or not SUPABASE_SERVICE_ROLE_KEY:
+        return
+
+    url = (
+        f"{SUPABASE_URL.rstrip('/')}/rest/v1/{SUPABASE_WEATHER_TABLE_NAME}"
+        "?on_conflict=timestamp"
+    )
+    headers = {
+        "apikey": SUPABASE_SERVICE_ROLE_KEY,
+        "Authorization": f"Bearer {SUPABASE_SERVICE_ROLE_KEY}",
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+        "Prefer": "resolution=merge-duplicates,return=minimal",
+    }
+
+    async with session.post(
+        url,
+        json=row,
+        headers=headers,
+        timeout=aiohttp.ClientTimeout(total=SUPABASE_SYNC_TIMEOUT_SECONDS),
+    ) as response:
+        if response.status not in {200, 201, 204}:
+            detail = await response.text()
+            raise RuntimeError(f"Supabase weather upsert failed with {response.status}: {detail}")
+
+
+async def poll_weather_once(session: aiohttp.ClientSession) -> dict[str, int | float | str | None]:
+    """Fetch current weather from Open-Meteo and store it in Supabase."""
+    if not WEATHER_LATITUDE or not WEATHER_LONGITUDE:
+        raise RuntimeError("WEATHER_LATITUDE and WEATHER_LONGITUDE must be set to enable weather polling")
+
+    async with session.get(
+        build_open_meteo_url(),
+        timeout=aiohttp.ClientTimeout(total=WEATHER_HTTP_TIMEOUT_SECONDS),
+    ) as response:
+        if response.status != 200:
+            detail = await response.text()
+            raise RuntimeError(f"Open-Meteo returned {response.status}: {detail}")
+        payload = await response.json()
+
+    row = build_weather_row(payload)
+    await upsert_weather_snapshot(session, row)
+    return row
+
+
+async def weather_poll_loop() -> None:
+    """Poll Open-Meteo every 15 minutes in a fully independent asyncio task."""
+    if not WEATHER_LATITUDE or not WEATHER_LONGITUDE:
+        print(
+            f"[{datetime.now().strftime('%H:%M:%S')}] "
+            "Weather polling disabled -> set WEATHER_LATITUDE and WEATHER_LONGITUDE"
+        )
+        return
+
+    if not SUPABASE_URL or not SUPABASE_SERVICE_ROLE_KEY:
+        print(
+            f"[{datetime.now().strftime('%H:%M:%S')}] "
+            "Weather polling disabled -> Supabase credentials are missing"
+        )
+        return
+
+    async with aiohttp.ClientSession() as session:
+        while True:
+            try:
+                row = await poll_weather_once(session)
+                print(
+                    f"[{datetime.now().strftime('%H:%M:%S')}] "
+                    f"Weather sync ok {row['timestamp']} -> "
+                    f"{row['temperature_2m']} C, clouds {row['cloud_cover']}%"
+                )
+            except Exception as exc:
+                print(f"[{datetime.now().strftime('%H:%M:%S')}] Weather sync failed: {exc}")
+
+            await asyncio.sleep(WEATHER_POLL_SECONDS)
+
+
 def fetch_daily_summary(day: str) -> dict[str, Any] | None:
     url = f"{SUPABASE_URL.rstrip('/')}/rest/v1/{SUPABASE_DAILY_TABLE_NAME}"
     query = f"{url}?day=eq.{day}&select=day,imported_kwh,exported_kwh,solar_kwh,home_kwh,sample_count"
@@ -1064,6 +1203,19 @@ def describe_csv_logging() -> str:
     return f"CSV backup enabled -> single file {path}"
 
 
+def describe_weather_sync() -> str:
+    """Return a short human-readable weather sync status for startup logs."""
+    if not WEATHER_LATITUDE or not WEATHER_LONGITUDE:
+        return "Weather sync disabled -> set WEATHER_LATITUDE and WEATHER_LONGITUDE"
+    if not SUPABASE_URL or not SUPABASE_SERVICE_ROLE_KEY:
+        return "Weather sync disabled -> Supabase credentials are missing"
+
+    return (
+        f"Weather sync enabled -> provider api.open-meteo.com, "
+        f"table {SUPABASE_WEATHER_TABLE_NAME}, poll {WEATHER_POLL_SECONDS:.0f}s"
+    )
+
+
 async def broadcast(clients: set[WebSocketServerProtocol], message: str) -> None:
     """Push the latest payload to every connected browser client."""
     stale_clients: list[WebSocketServerProtocol] = []
@@ -1130,6 +1282,7 @@ async def main() -> None:
         )
         print(f"[{datetime.now().strftime('%H:%M:%S')}] {describe_cloud_sync()}")
         print(f"[{datetime.now().strftime('%H:%M:%S')}] {describe_csv_logging()}")
+        print(f"[{datetime.now().strftime('%H:%M:%S')}] {describe_weather_sync()}")
 
         hoymiles_task = asyncio.create_task(
             hoymiles_refresh_loop(
@@ -1140,6 +1293,7 @@ async def main() -> None:
                 latest_hoymiles_snapshot=latest_hoymiles_snapshot,
             )
         )
+        weather_task = asyncio.create_task(weather_poll_loop())
 
         try:
             while True:
@@ -1209,8 +1363,11 @@ async def main() -> None:
                 await asyncio.sleep(POLL_INTERVAL_SECONDS)
         finally:
             hoymiles_task.cancel()
+            weather_task.cancel()
             with contextlib.suppress(asyncio.CancelledError):
                 await hoymiles_task
+            with contextlib.suppress(asyncio.CancelledError):
+                await weather_task
             await flush_cloud_batch(pending_cloud_batch)
             try:
                 client.close()

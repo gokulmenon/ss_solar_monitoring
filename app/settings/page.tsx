@@ -1,6 +1,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { WeatherStatusCard } from "@/components/weather/weather-status-card";
 
 export default function SettingsPage() {
   return (
@@ -47,6 +48,8 @@ export default function SettingsPage() {
           </Button>
         </CardContent>
       </Card>
+
+      <WeatherStatusCard />
     </div>
   );
 }
