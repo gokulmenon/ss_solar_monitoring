@@ -28,6 +28,7 @@ import csv
 import contextlib
 import gc
 import importlib.util
+import inspect
 import json
 import os
 import shutil
@@ -305,6 +306,28 @@ def decode_float32_be(registers: list[int]) -> float:
     return struct.unpack(">f", raw)[0]
 
 
+def build_modbus_read_kwargs(reader, *, address: int, count: int, slave_id: int) -> dict[str, int]:
+    """
+    Pick the Modbus unit-id keyword accepted by the installed pymodbus version.
+
+    Newer pymodbus releases use `device_id`, while older releases use `slave`
+    and some older code paths still accept `unit`.
+    """
+    parameters = inspect.signature(reader).parameters
+    kwargs = {"address": address, "count": count}
+
+    if "device_id" in parameters:
+        kwargs["device_id"] = slave_id
+    elif "slave" in parameters:
+        kwargs["slave"] = slave_id
+    elif "unit" in parameters:
+        kwargs["unit"] = slave_id
+    else:
+        kwargs["device_id"] = slave_id
+
+    return kwargs
+
+
 def create_modbus_client():
     if AsyncModbusSerialClient is None:
         raise RuntimeError(
@@ -371,7 +394,14 @@ async def read_float_register(
     reader = client.read_input_registers if register_kind == "input" else client.read_holding_registers
 
     try:
-        response = await reader(address=address, count=2, slave=slave_id)
+        response = await reader(
+            **build_modbus_read_kwargs(
+                reader,
+                address=address,
+                count=2,
+                slave_id=slave_id,
+            )
+        )
         if response is None:
             raise RuntimeError(f"{label} returned no response")
         if response.isError():
