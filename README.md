@@ -108,7 +108,7 @@ Default value:
 - `SUPABASE_URL=` if you are syncing the relay to Supabase locally
 - `SUPABASE_SERVICE_ROLE_KEY=` if you are syncing the relay to Supabase locally
 
-The Python relay also auto-loads `bridge/.env` on startup. Fill that file once and you can run `npm run relay` without re-exporting variables every time.
+The Python relay also auto-loads `bridge/.env` on startup. Fill that file once and you can run `npm run relay` on macOS or `npm run win-relay` on Windows without re-exporting variables every time.
 
 ## CSV history by environment
 
@@ -157,11 +157,21 @@ source .venv/bin/activate
 npm run relay
 ```
 
+On Windows, use:
+
+```powershell
+npm run win-relay
+```
+
+That Windows script passes `--os windows` to the relay. With no `--os` flag, the relay defaults to the macOS profile.
+
 Optional environment variables:
 
 - `BRIDGE_HOST=127.0.0.1`
 - `BRIDGE_PORT=8787`
-- `SERIAL_PORT=/dev/cu.usbserial-BH002YZD`
+- `SERIAL_PORT=/dev/cu.usbserial-BH002YZD` as a one-off override on any platform
+- `SERIAL_PORT_MACOS=/dev/cu.usbserial-BH002YZD`
+- `SERIAL_PORT_WINDOWS=COM3`
 - `MODBUS_BAUDRATE=9600`
 - `BRIDGE_POLL_INTERVAL_SECONDS=60`
 - `MODBUS_SLAVE_ID=1`
@@ -198,7 +208,7 @@ By default, the relay writes one CSV per day into `./logs/meter-backups`, for ex
 
 If you want the old append-only single file behavior, set `CSV_LOG_PATH`.
 
-The relay automatically reads `bridge/.env` first, then falls back to your shell exports if you set them manually. That means you can keep the local relay config in one place and just run `npm run relay`.
+The relay automatically reads `bridge/.env` first, then falls back to your shell exports if you set them manually. `SERIAL_PORT` wins if set; otherwise `--os windows` selects `SERIAL_PORT_WINDOWS`, while `--os mac` or any other value uses `SERIAL_PORT_MACOS`. With no CLI flag, the relay defaults to the macOS profile.
 
 The cloud sync path uses the same relay process:
 
@@ -229,6 +239,12 @@ Example:
 
 ```bash
 npm run relay:csv
+```
+
+Windows CSV example:
+
+```powershell
+npm run win-relay:csv
 ```
 
 ## Deploying to Vercel

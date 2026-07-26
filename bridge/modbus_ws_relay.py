@@ -22,14 +22,17 @@ Hoymiles mapping notes:
 
 from __future__ import annotations
 
+import argparse
 import asyncio
 import csv
 import contextlib
 import gc
+import importlib.util
 import json
 import os
 import shutil
 import struct
+import sys
 import urllib.error
 import urllib.request
 from collections import defaultdict
@@ -80,9 +83,62 @@ def load_env_file(path: Path) -> None:
 load_env_file(Path(__file__).with_name(".env"))
 
 
+def parse_cli_args(argv: list[str]) -> argparse.Namespace:
+    """Parse relay CLI flags without rejecting unrelated wrapper arguments."""
+    parser = argparse.ArgumentParser(description="Local Modbus + Hoymiles relay")
+    parser.add_argument(
+        "--os",
+        dest="target_os",
+        default="mac",
+        help='Serial-port profile to use. "windows" selects SERIAL_PORT_WINDOWS; anything else uses SERIAL_PORT_MACOS.',
+    )
+    args, _ = parser.parse_known_args(argv)
+    return args
+
+
+def normalize_target_os(value: str) -> str:
+    """Collapse any non-Windows value into the macOS profile."""
+    return "windows" if value.strip().lower() == "windows" else "mac"
+
+
+def first_env_value(*keys: str) -> tuple[Optional[str], Optional[str]]:
+    """Return the first non-empty environment variable value plus its key."""
+    for key in keys:
+        value = os.getenv(key, "").strip()
+        if value:
+            return value, key
+    return None, None
+
+
+CLI_ARGS = parse_cli_args(sys.argv[1:])
+TARGET_OS = normalize_target_os(CLI_ARGS.target_os)
+
+
+def resolve_serial_port(target_os: str) -> tuple[str, str]:
+    """
+    Pick the serial port from env vars using the requested relay profile.
+
+    Precedence:
+    1. SERIAL_PORT for a one-off override on any platform
+    2. SERIAL_PORT_WINDOWS when --os windows is selected
+    3. SERIAL_PORT_MACOS for macOS and every other value
+    """
+    explicit_port, explicit_key = first_env_value("SERIAL_PORT")
+    if explicit_port is not None and explicit_key is not None:
+        return explicit_port, explicit_key
+
+    if target_os == "windows":
+        return first_env_value("SERIAL_PORT_WINDOWS")[0] or "COM3", "SERIAL_PORT_WINDOWS"
+
+    return (
+        first_env_value("SERIAL_PORT_MACOS")[0] or "/dev/cu.usbserial-BH002YZD",
+        "SERIAL_PORT_MACOS",
+    )
+
+
 HOST = os.getenv("BRIDGE_HOST", "127.0.0.1")
 PORT = int(os.getenv("BRIDGE_PORT", "8787"))
-SERIAL_PORT = os.getenv("SERIAL_PORT", "/dev/cu.usbserial-BH002YZD")
+SERIAL_PORT, SERIAL_PORT_SOURCE = resolve_serial_port(TARGET_OS)
 BAUDRATE = int(os.getenv("MODBUS_BAUDRATE", "9600"))
 POLL_INTERVAL_SECONDS = float(os.getenv("BRIDGE_POLL_INTERVAL_SECONDS", "60"))
 
@@ -483,20 +539,30 @@ def extract_json_payload(text: str) -> dict[str, Any]:
     return loaded
 
 
-def resolve_hoymiles_command() -> Optional[str]:
+def resolve_hoymiles_invocation() -> Optional[list[str]]:
     """
-    Resolve hoymiles-wifi from PATH, then from the project virtualenv.
+    Resolve the Hoymiles CLI invocation.
 
-    npm scripts do not always preserve an activated shell's PATH exactly, so
-    this keeps `npm run relay` working after `pip install -r bridge/requirements.txt`.
+    Prefer `python -m hoymiles_wifi` when the package is importable in the
+    current interpreter. That survives copied or moved virtualenv folders,
+    where Windows console-script launchers often keep the old absolute Python
+    path baked into the generated `.exe`.
     """
+    if HOYMILES_WIFI_COMMAND == "hoymiles-wifi" and importlib.util.find_spec("hoymiles_wifi") is not None:
+        return [sys.executable, "-m", "hoymiles_wifi"]
+
     executable = shutil.which(HOYMILES_WIFI_COMMAND)
     if executable is not None:
-        return executable
+        return [executable]
 
-    local_venv_executable = PROJECT_ROOT / ".venv" / "bin" / HOYMILES_WIFI_COMMAND
-    if local_venv_executable.exists():
-        return str(local_venv_executable)
+    local_venv_candidates = (
+        PROJECT_ROOT / ".venv" / "bin" / HOYMILES_WIFI_COMMAND,
+        PROJECT_ROOT / ".venv" / "Scripts" / f"{HOYMILES_WIFI_COMMAND}.exe",
+        PROJECT_ROOT / ".venv" / "Scripts" / f"{HOYMILES_WIFI_COMMAND}.cmd",
+    )
+    for local_venv_executable in local_venv_candidates:
+        if local_venv_executable.exists():
+            return [str(local_venv_executable)]
 
     return None
 
@@ -531,6 +597,30 @@ def parse_hoymiles_port(raw_port: Any) -> HoymilesPortReading | None:
     )
 
 
+def parse_legacy_hoymiles_port(raw_port: Any) -> HoymilesPortReading | None:
+    """Parse one port row from the older get-real-data payload shape."""
+    if not isinstance(raw_port, dict):
+        return None
+
+    serial_number = normalize_serial(first_present(raw_port, "pv_sn", "pvSn"))
+    port_number = coerce_int(first_present(raw_port, "pv_port", "pvPort"))
+    if port_number is None:
+        return None
+
+    raw_power = coerce_float(first_present(raw_port, "pv_power", "pvPower"))
+
+    return HoymilesPortReading(
+        serial_number=serial_number,
+        port_number=port_number,
+        voltage_v=scale_tenths(first_present(raw_port, "pv_vol", "pvVol")),
+        current_a=scale_hundredths(first_present(raw_port, "pv_cur", "pvCur")),
+        power_w=int(round(raw_power / 10.0)) if raw_power is not None else None,
+        energy_total_raw=coerce_int(first_present(raw_port, "pv_energy_total", "pvEnergyTotal")),
+        energy_daily_raw=coerce_int(first_present(raw_port, "pv_energy", "pvEnergy")),
+        error_code=coerce_int(first_present(raw_port, "pv_fault_num", "pvFaultNum")),
+    )
+
+
 def parse_hoymiles_inverter(raw_inverter: Any, ports: list[HoymilesPortReading]) -> HoymilesInverterReading | None:
     if not isinstance(raw_inverter, dict):
         return None
@@ -557,9 +647,96 @@ def parse_hoymiles_inverter(raw_inverter: Any, ports: list[HoymilesPortReading])
     )
 
 
+def build_legacy_hoymiles_snapshot(payload: dict[str, Any]) -> HoymilesSnapshot:
+    """Build a snapshot from the older get-real-data payload shape."""
+    raw_ports = first_present(payload, "pv_data", "pvData") or []
+    if not isinstance(raw_ports, list):
+        raw_ports = []
+
+    ports_by_serial: dict[str, list[HoymilesPortReading]] = defaultdict(list)
+    port_sources_by_serial: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    for raw_port in raw_ports:
+        port = parse_legacy_hoymiles_port(raw_port)
+        if port is None:
+            continue
+        ports_by_serial[port.serial_number].append(port)
+        if isinstance(raw_port, dict):
+            port_sources_by_serial[port.serial_number].append(raw_port)
+
+    inverters: list[HoymilesInverterReading] = []
+    total_active_power_w = 0
+    daily_yield_wh = 0.0
+    daily_yield_count = 0
+
+    for serial_number, ports in ports_by_serial.items():
+        ordered_ports = sorted(ports, key=lambda item: item.port_number)
+        source_rows = port_sources_by_serial[serial_number]
+
+        inverter_power_w = sum(port.power_w or 0 for port in ordered_ports)
+        first_row = source_rows[0] if source_rows else {}
+        warning_number = coerce_int(first_present(first_row, "pv_warning_cnt", "pvWarningCnt"))
+        link_status = coerce_int(first_present(first_row, "pv_link_status", "pvLinkStatus"))
+        grid_voltage_v = scale_tenths(first_present(first_row, "grid_vol", "gridVol"))
+        grid_current_a = scale_hundredths(first_present(first_row, "grid_i", "gridI"))
+        grid_frequency_hz = scale_hundredths(first_present(first_row, "grid_freq", "gridFreq"))
+        grid_power_factor = scale_thousandths(first_present(first_row, "grid_pf", "gridPf"))
+        pv_temperature_c = scale_tenths(first_present(first_row, "pv_temp", "pvTemp"))
+        reactive_power_var = coerce_int(first_present(first_row, "grid_q", "gridQ"))
+        modulation_index_signal = coerce_int(first_present(first_row, "mi_signal", "miSignal"))
+
+        for port in ordered_ports:
+            if port.energy_daily_raw is not None:
+                daily_yield_wh += float(port.energy_daily_raw)
+                daily_yield_count += 1
+
+        inverters.append(
+            HoymilesInverterReading(
+                serial_number=serial_number,
+                active_power_w=inverter_power_w if inverter_power_w > 0 else None,
+                reactive_power_var=reactive_power_var,
+                voltage_v=grid_voltage_v,
+                current_a=grid_current_a,
+                frequency_hz=grid_frequency_hz,
+                power_factor=grid_power_factor,
+                temperature_c=pv_temperature_c,
+                warning_number=warning_number,
+                link_status=link_status,
+                power_limit_w=None,
+                modulation_index_signal=modulation_index_signal,
+                ports=ordered_ports,
+            )
+        )
+        total_active_power_w += inverter_power_w
+
+    timestamp_value = coerce_float(first_present(payload, "timestamp", "time"))
+    timestamp = (
+        datetime.fromtimestamp(timestamp_value, tz=timezone.utc).isoformat().replace("+00:00", "Z")
+        if timestamp_value is not None
+        else datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    )
+    device_serial_number = first_present(payload, "dtu_sn", "dtuSn")
+    inverter_count = len(inverters)
+    port_count = sum(len(inverter.ports) for inverter in inverters)
+    root_error = payload.get("error")
+
+    return HoymilesSnapshot(
+        timestamp=timestamp,
+        device_serial_number=str(device_serial_number) if device_serial_number is not None else None,
+        status="OK" if inverter_count > 0 else "OFFLINE",
+        error=str(root_error) if root_error else (None if inverter_count > 0 else "Hoymiles response did not include pvData"),
+        total_active_power_w=total_active_power_w if inverter_count > 0 else None,
+        daily_yield_wh=round(daily_yield_wh, 1) if daily_yield_count > 0 else None,
+        inverter_count=inverter_count,
+        port_count=port_count,
+        inverters=inverters,
+    )
+
+
 def build_hoymiles_snapshot(payload: dict[str, Any]) -> HoymilesSnapshot:
     raw_inverters = first_present(payload, "sgs_data", "sgsData") or []
     raw_ports = first_present(payload, "pv_data", "pvData") or []
+    if not raw_inverters and raw_ports:
+        return build_legacy_hoymiles_snapshot(payload)
     if not isinstance(raw_inverters, list):
         raw_inverters = []
     if not isinstance(raw_ports, list):
@@ -646,8 +823,7 @@ def build_offline_hoymiles_snapshot(message: str) -> HoymilesSnapshot:
 
 async def read_hoymiles_snapshot() -> HoymilesSnapshot:
     """Run hoymiles-wifi as JSON and convert its response into a structured snapshot."""
-    command = [
-        HOYMILES_WIFI_COMMAND,
+    command_args = [
         "--host",
         HOYMILES_WIFI_HOST,
         "--as-json",
@@ -656,19 +832,19 @@ async def read_hoymiles_snapshot() -> HoymilesSnapshot:
 
     timeout_value = int(round(HOYMILES_WIFI_TIMEOUT_SECONDS))
     if timeout_value > 0:
-        command.extend(["--timeout", str(timeout_value)])
-    command.append(HOYMILES_WIFI_COMMAND_ARG)
+        command_args.extend(["--timeout", str(timeout_value)])
+    command_args.append(HOYMILES_WIFI_COMMAND_ARG)
 
-    executable = resolve_hoymiles_command()
-    if executable is None:
+    invocation = resolve_hoymiles_invocation()
+    if invocation is None:
         return build_offline_hoymiles_snapshot(
-            f"{HOYMILES_WIFI_COMMAND} command was not found on PATH"
+            f"{HOYMILES_WIFI_COMMAND} command was not found or importable"
         )
 
     try:
         process = await asyncio.create_subprocess_exec(
-            executable,
-            *command[1:],
+            *invocation,
+            *command_args,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
@@ -685,9 +861,11 @@ async def read_hoymiles_snapshot() -> HoymilesSnapshot:
         return build_offline_hoymiles_snapshot(f"Hoymiles CLI failed to start: {exc}")
 
     if process.returncode != 0:
+        stdout_text = stdout.decode("utf-8", errors="replace").strip()
         stderr_text = stderr.decode("utf-8", errors="replace").strip()
         return build_offline_hoymiles_snapshot(
-            f"Hoymiles CLI exited with {process.returncode}: {stderr_text or 'no stderr'}"
+            "Hoymiles CLI exited with "
+            f"{process.returncode}: {stderr_text or stdout_text or 'no stdout/stderr'}"
         )
 
     try:
@@ -1267,7 +1445,7 @@ async def main() -> None:
     async with websockets.serve(handler, HOST, PORT):
         print(
             f"Modbus relay listening on ws://{HOST}:{PORT} "
-            f"(serial: {SERIAL_PORT}, baud: {BAUDRATE})"
+            f"(profile: {TARGET_OS}, serial: {SERIAL_PORT} via {SERIAL_PORT_SOURCE}, baud: {BAUDRATE})"
         )
         print(
             f"[{datetime.now().strftime('%H:%M:%S')}] "
