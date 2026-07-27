@@ -247,6 +247,28 @@ Windows CSV example:
 npm run win-relay:csv
 ```
 
+## Monitoring Setup
+
+Reference links:
+
+- Next.js app uptime monitor: [UptimeRobot monitor 803597394](https://dashboard.uptimerobot.com/monitors/803597394)
+- Relay heartbeat monitor: [Healthchecks relay check](https://healthchecks.io/checks/27ce5d97-4e40-40c9-9576-5545b911141f/details/)
+- Public status page: [UptimeRobot public status](https://stats.uptimerobot.com/nS4Sm3g9El)
+
+Current monitoring design:
+
+- The Python relay sends a heartbeat ping to `https://hc-ping.com/27ce5d97-4e40-40c9-9576-5545b911141f` after each successful poll/publish cycle.
+- The Next.js app exposes `GET /api/health`, which returns a non-OK status when the newest `meter_readings.timestamp` is older than 5 minutes.
+- The home dashboard embeds the UptimeRobot public status page so the monitor state is visible in the UI.
+
+If you need to recreate monitoring on a new machine or deployment:
+
+1. Make sure the relay environment has `requests` installed from `bridge/requirements.txt`.
+2. Confirm the relay is running the heartbeat-enabled `bridge/modbus_ws_relay.py`.
+3. Create or update an UptimeRobot HTTP monitor that targets the deployed Next.js health endpoint, for example `https://your-site.example.com/api/health`.
+4. Reuse the existing Healthchecks URL for the relay heartbeat, or create a new check and replace the `hc-ping.com` URL in `bridge/modbus_ws_relay.py`.
+5. If you create a new public status page in UptimeRobot, update the home page embed URL in `components/home/home-dashboard.tsx`.
+
 ## Deploying to Vercel
 
 ### Does the first deploy need an environment variable?

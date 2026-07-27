@@ -4,11 +4,13 @@ import { useEffect, useMemo, useState } from "react";
 import { Activity, Home, SunMedium, WifiHigh } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { SeriesAreaCard } from "@/components/charts/series-area-card";
 import { useLiveTelemetry } from "@/components/telemetry/use-live-telemetry";
 import { PowerFlowVisualizer } from "@/components/live/power-flow-visualizer";
 import type { DailyEnergySummaryPoint } from "@/lib/daily-energy";
+
+const UPTIME_STATUS_URL = "https://stats.uptimerobot.com/nS4Sm3g9El";
 
 function formatKw(value: number) {
   return `${value.toFixed(2)} kW`;
@@ -241,6 +243,38 @@ export function HomeDashboard() {
           </CardContent>
         </Card>
       </div>
+
+      <Card className="border-white/10 bg-slate-950/80">
+        <CardHeader>
+          <CardTitle className="text-[11px] uppercase tracking-[0.24em] text-slate-400">
+            External uptime monitoring
+          </CardTitle>
+          <CardDescription>
+            Public UptimeRobot status page for the relay and tunnel monitors.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="overflow-hidden rounded-2xl border border-white/10 bg-slate-900/80">
+            <iframe
+              title="UptimeRobot status page"
+              src={UPTIME_STATUS_URL}
+              className="h-[520px] w-full"
+              loading="lazy"
+            />
+          </div>
+          <p className="text-sm text-slate-400">
+            If the embedded page is blocked by your browser, open the public status page directly:{" "}
+            <a
+              href={UPTIME_STATUS_URL}
+              target="_blank"
+              rel="noreferrer"
+              className="text-sky-300 underline decoration-sky-400/40 underline-offset-4 transition hover:text-sky-200"
+            >
+              stats.uptimerobot.com/nS4Sm3g9El
+            </a>
+          </p>
+        </CardContent>
+      </Card>
     </div>
   );
 }

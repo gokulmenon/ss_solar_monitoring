@@ -44,6 +44,7 @@ from typing import Any, Optional
 from urllib.parse import urlparse
 
 import aiohttp
+import requests
 import websockets
 from websockets.server import WebSocketServerProtocol
 
@@ -180,6 +181,8 @@ OPEN_METEO_CURRENT_FIELDS = (
     "temperature_2m,cloud_cover,cloud_cover_low,cloud_cover_mid,cloud_cover_high,"
     "shortwave_radiation,direct_radiation,diffuse_radiation,wind_speed_10m,precipitation"
 )
+DEAD_MANS_SNITCH_URL = "https://hc-ping.com/27ce5d97-4e40-40c9-9576-5545b911141f"
+DEAD_MANS_SNITCH_TIMEOUT_SECONDS = float(os.getenv("DEAD_MANS_SNITCH_TIMEOUT_SECONDS", "3"))
 
 
 @dataclass
@@ -1165,6 +1168,14 @@ async def weather_poll_loop() -> None:
             await asyncio.sleep(WEATHER_POLL_SECONDS)
 
 
+def ping_dead_mans_snitch() -> None:
+    """Best-effort heartbeat ping for the local relay process."""
+    try:
+        requests.get(DEAD_MANS_SNITCH_URL, timeout=DEAD_MANS_SNITCH_TIMEOUT_SECONDS)
+    except Exception as exc:
+        print(f"[{datetime.now().strftime('%H:%M:%S')}] Dead Man's Snitch ping failed: {exc}")
+
+
 def fetch_daily_summary(day: str) -> dict[str, Any] | None:
     url = f"{SUPABASE_URL.rstrip('/')}/rest/v1/{SUPABASE_DAILY_TABLE_NAME}"
     query = f"{url}?day=eq.{day}&select=day,imported_kwh,exported_kwh,solar_kwh,home_kwh,sample_count"
@@ -1546,6 +1557,7 @@ async def main() -> None:
                             else ""
                         )
                     )
+                    await asyncio.to_thread(ping_dead_mans_snitch)
 
                     if payload.bridge_status == "HARDWARE_OFFLINE" and failure_count >= OFFLINE_FAILURE_THRESHOLD:
                         offline_message = status_payload_to_json(
