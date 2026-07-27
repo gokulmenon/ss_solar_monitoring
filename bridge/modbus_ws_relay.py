@@ -1331,7 +1331,7 @@ def ping_dead_mans_snitch() -> None:
 
 
 def fetch_daily_summary(day: str) -> dict[str, Any] | None:
-    url = f"{SUPABASE_URL.rstrip('/')}/rest/v1/{SUPABASE_DAILY_TABLE_NAME}"
+    url = f"{NEXT_PUBLIC_SUPABASE_URL.rstrip('/')}/rest/v1/{SUPABASE_DAILY_TABLE_NAME}"
     query = f"{url}?day=eq.{day}&select=day,imported_kwh,exported_kwh,solar_kwh,home_kwh,sample_count"
     request = supabase_request(query, method="GET")
 
@@ -1368,7 +1368,7 @@ def sync_supabase_daily_summary(batch: CloudBatchState) -> None:
         "updated_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
     }
 
-    url = f"{SUPABASE_URL.rstrip('/')}/rest/v1/{SUPABASE_DAILY_TABLE_NAME}?on_conflict=day"
+    url = f"{NEXT_PUBLIC_SUPABASE_URL.rstrip('/')}/rest/v1/{SUPABASE_DAILY_TABLE_NAME}?on_conflict=day"
     request = supabase_request(
         url,
         method="POST",
