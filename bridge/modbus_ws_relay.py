@@ -180,7 +180,7 @@ CSV_BACKUP_DIR = os.getenv("CSV_BACKUP_DIR", "./logs/meter-backups")
 CSV_BACKUP_PREFIX = os.getenv("CSV_BACKUP_PREFIX", "meter")
 OFFLINE_FAILURE_THRESHOLD = int(os.getenv("BRIDGE_OFFLINE_THRESHOLD", "10"))
 
-SUPABASE_URL = os.getenv("SUPABASE_URL", "").strip()
+NEXT_PUBLIC_SUPABASE_URL = os.getenv("NEXT_PUBLIC_SUPABASE_URL", "").strip()
 SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "").strip()
 SUPABASE_TABLE_NAME = os.getenv("SUPABASE_TABLE_NAME", "meter_readings")
 SUPABASE_DAILY_TABLE_NAME = os.getenv("SUPABASE_DAILY_TABLE_NAME", "daily_energy_summary")
@@ -1246,11 +1246,11 @@ def build_weather_row(payload: dict[str, Any]) -> dict[str, int | float | str | 
 
 async def upsert_weather_snapshot(session: aiohttp.ClientSession, row: dict[str, int | float | str | None]) -> None:
     """Persist a single weather snapshot into Supabase without blocking Modbus reads."""
-    if not SUPABASE_URL or not SUPABASE_SERVICE_ROLE_KEY:
+    if not NEXT_PUBLIC_SUPABASE_URL or not SUPABASE_SERVICE_ROLE_KEY:
         return
 
     url = (
-        f"{SUPABASE_URL.rstrip('/')}/rest/v1/{SUPABASE_WEATHER_TABLE_NAME}"
+        f"{NEXT_PUBLIC_SUPABASE_URL.rstrip('/')}/rest/v1/{SUPABASE_WEATHER_TABLE_NAME}"
         "?on_conflict=timestamp"
     )
     headers = {
@@ -1300,7 +1300,7 @@ async def weather_poll_loop() -> None:
         )
         return
 
-    if not SUPABASE_URL or not SUPABASE_SERVICE_ROLE_KEY:
+    if not NEXT_PUBLIC_SUPABASE_URL or not SUPABASE_SERVICE_ROLE_KEY:
         print(
             f"[{datetime.now().strftime('%H:%M:%S')}] "
             "Weather polling disabled -> Supabase credentials are missing"
@@ -1383,7 +1383,7 @@ def sync_supabase_daily_summary(batch: CloudBatchState) -> None:
 
 def sync_supabase_batch(batch: CloudBatchState) -> None:
     """POST one aggregated batch row to Supabase."""
-    if not SUPABASE_URL or not SUPABASE_SERVICE_ROLE_KEY:
+    if not NEXT_PUBLIC_SUPABASE_URL or not SUPABASE_SERVICE_ROLE_KEY:
         return
 
     average_watts = int(round(batch.net_grid_sum_w / max(batch.sample_count, 1)))
@@ -1406,7 +1406,7 @@ def sync_supabase_batch(batch: CloudBatchState) -> None:
         "phase_a_voltage_v": average_voltage,
     }
 
-    batch_url = f"{SUPABASE_URL.rstrip('/')}/rest/v1/{SUPABASE_TABLE_NAME}?on_conflict=timestamp"
+    batch_url = f"{NEXT_PUBLIC_SUPABASE_URL.rstrip('/')}/rest/v1/{SUPABASE_TABLE_NAME}?on_conflict=timestamp"
     batch_request = supabase_request(
         batch_url,
         method="POST",
@@ -1505,7 +1505,7 @@ async def advance_cloud_batch(
     payload: UnifiedRelayPayload,
 ) -> CloudBatchState | None:
     """Aggregate grid, voltage, and solar readings into a cloud batch."""
-    if not SUPABASE_URL or not SUPABASE_SERVICE_ROLE_KEY:
+    if not NEXT_PUBLIC_SUPABASE_URL or not SUPABASE_SERVICE_ROLE_KEY:
         return current_batch
 
     if payload.meter_total_active_power_w is None:
@@ -1554,10 +1554,10 @@ def build_offline_status_payload(failures: int) -> RelayStatusPayload:
 
 def describe_cloud_sync() -> str:
     """Return a short human-readable cloud sync status for startup logs."""
-    if not SUPABASE_URL or not SUPABASE_SERVICE_ROLE_KEY:
+    if not NEXT_PUBLIC_SUPABASE_URL or not SUPABASE_SERVICE_ROLE_KEY:
         return "Cloud sync disabled"
 
-    host = urlparse(SUPABASE_URL).netloc or SUPABASE_URL
+    host = urlparse(NEXT_PUBLIC_SUPABASE_URL).netloc or NEXT_PUBLIC_SUPABASE_URL
     return (
         f"Cloud sync enabled -> host {host}, table {SUPABASE_TABLE_NAME}, "
         f"batch {SUPABASE_BATCH_MINUTES}m"
@@ -1580,7 +1580,7 @@ def describe_weather_sync() -> str:
     """Return a short human-readable weather sync status for startup logs."""
     if not WEATHER_LATITUDE or not WEATHER_LONGITUDE:
         return "Weather sync disabled -> set WEATHER_LATITUDE and WEATHER_LONGITUDE"
-    if not SUPABASE_URL or not SUPABASE_SERVICE_ROLE_KEY:
+    if not NEXT_PUBLIC_SUPABASE_URL or not SUPABASE_SERVICE_ROLE_KEY:
         return "Weather sync disabled -> Supabase credentials are missing"
 
     return (

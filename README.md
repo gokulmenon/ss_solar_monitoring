@@ -117,7 +117,7 @@ cp .env.example .env.local
 Default value:
 
 - `NEXT_PUBLIC_LIVE_WS_URL=ws://127.0.0.1:8787`
-- `SUPABASE_URL=` if you are syncing the relay to Supabase locally
+- `NEXT_PUBLIC_SUPABASE_URL=` if you are syncing the relay to Supabase locally
 - `SUPABASE_SERVICE_ROLE_KEY=` if you are syncing the relay to Supabase locally
 
 The Python relay also auto-loads `bridge/.env` on startup. Fill that file once and you can run `npm run relay` on macOS or `npm run win-relay` on Windows without re-exporting variables every time.
@@ -201,7 +201,7 @@ Optional environment variables:
 - `CSV_BACKUP_DIR=./logs/meter-backups`
 - `CSV_BACKUP_PREFIX=meter`
 - `CSV_LOG_PATH=./logs/meter_data.csv` for legacy single-file logging
-- `SUPABASE_URL=https://ezxqlbdiwysuhabtnaxa.supabase.co`
+- `NEXT_PUBLIC_SUPABASE_URL=https://ezxqlbdiwysuhabtnaxa.supabase.co`
 - `SUPABASE_SERVICE_ROLE_KEY=...`
 - `SUPABASE_TABLE_NAME=meter_readings`
 - `SUPABASE_DAILY_TABLE_NAME=daily_energy_summary`
@@ -302,7 +302,7 @@ Because this is a `NEXT_PUBLIC_` variable, it is bundled into the client build. 
 
 For the cloud history section, add these server-side environment variables in Vercel:
 
-- `SUPABASE_URL` = your Supabase project URL, for example `https://ezxqlbdiwysuhabtnaxa.supabase.co`
+- `NEXT_PUBLIC_SUPABASE_URL` = your Supabase project URL, for example `https://ezxqlbdiwysuhabtnaxa.supabase.co`
 - `SUPABASE_SERVICE_ROLE_KEY` = copy this from Supabase Dashboard -> Settings -> API -> Project API keys
 - `SUPABASE_TABLE_NAME` = `meter_readings`
 - `SUPABASE_DAILY_TABLE_NAME` = `daily_energy_summary`
