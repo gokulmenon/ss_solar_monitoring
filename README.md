@@ -13,6 +13,13 @@ The app is split into two data paths:
 
 The dashboard runs immediately in mock mode, but the relay is ready to connect to your verified Modbus RTU poller.
 
+The app now also uses invite-only Supabase auth:
+
+- Returning users can log in with Google or GitHub without entering an invite code.
+- New users must enter a valid invite code before starting OAuth.
+- The callback creates the profile row and rejects unauthorized first-time signups.
+- The admin invite-code manager lives in Settings and lets admins create or revoke codes.
+
 ## Architecture
 
 ### Why the relay exists
@@ -58,11 +65,16 @@ Example payload:
 - `app/live/page.tsx`: live telemetry screen.
 - `app/history/page.tsx`: chart screen.
 - `app/settings/page.tsx`: bridge and deployment placeholders.
+- `app/(auth)/login/page.tsx`: invite-only login entry point for returning users and new signups.
+- `app/auth/callback/route.ts`: OAuth callback that validates invite codes for first-time signups.
 - `app/api/history/route.ts`: history endpoint that prefers CSV logs and falls back to mock data.
+- `app/api/admin/invite-codes/*`: admin-only invite code management endpoints.
 - `components/history/cloud-history-dashboard.tsx`: cloud-backed history subcomponent.
 - `components/live/*`: live dashboard cards and power flow visualizer.
 - `components/history/*`: history dashboard and chart.
+- `components/admin/invite-code-manager.tsx`: Settings-page UI for admins to manage invite codes.
 - `lib/mock-data.ts`: reusable mock generators for both paths.
+- `lib/supabase/*`: SSR auth, admin client, and role helpers for Supabase login.
 - `scripts/mock-live-ws.ts`: mock local WebSocket publisher for development.
 - `bridge/modbus_ws_relay.py`: Python relay for the real meter.
 - `supabase/migrations/*`: table schema for the batched cloud history.

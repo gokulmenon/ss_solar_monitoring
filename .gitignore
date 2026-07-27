@@ -5,6 +5,7 @@ test-results
 coverage
 .DS_Store
 .env.local
+.env.development
 .env.*.local
 .env
 .venv

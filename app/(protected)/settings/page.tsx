@@ -1,9 +1,30 @@
+import { redirect } from "next/navigation";
+
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { InviteCodeManager } from "@/components/admin/invite-code-manager";
 import { WeatherStatusCard } from "@/components/weather/weather-status-card";
+import { createClient } from "@/lib/supabase/server";
 
-export default function SettingsPage() {
+export default async function SettingsPage() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/login");
+  }
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("is_admin")
+    .eq("id", user.id)
+    .maybeSingle<{ is_admin: boolean }>();
+
+  const isAdmin = profile?.is_admin ?? false;
+
   return (
     <div className="space-y-4">
       <div>
@@ -41,13 +62,21 @@ export default function SettingsPage() {
         <CardContent className="space-y-3">
           <p className="text-sm leading-6 text-slate-300">
             The dashboard is ready for Vercel deployment. Keep the hardware bridge on the same LAN
-            as the meter, then point the app at the relay with <code className="rounded bg-white/10 px-1.5 py-0.5 text-slate-100">NEXT_PUBLIC_LIVE_WS_URL</code>.
+            as the meter, then point the app at the relay with{" "}
+            <code className="rounded bg-white/10 px-1.5 py-0.5 text-slate-100">
+              NEXT_PUBLIC_LIVE_WS_URL
+            </code>
+            .
           </p>
           <Button asChild className="w-full">
-            <a href="mailto:you@example.com?subject=Solar%20Monitor%20bridge%20status">Share bridge status</a>
+            <a href="mailto:you@example.com?subject=Solar%20Monitor%20bridge%20status">
+              Share bridge status
+            </a>
           </Button>
         </CardContent>
       </Card>
+
+      {isAdmin ? <InviteCodeManager /> : null}
 
       <WeatherStatusCard />
     </div>
