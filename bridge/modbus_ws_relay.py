@@ -1,23 +1,22 @@
 """
-Local Modbus RTU + Hoymiles WiFi relay.
+Local Modbus RTU + Hoymiles Modbus TCP relay.
 
 This bridge keeps the Chint DTSU666-CT meter on the shared RS-485 bus and
-reads the Hoymiles DTU over its local WiFi/HTTP protocol using the
-``hoymiles-wifi`` CLI.
+reads the Hoymiles DTU over Ethernet using Modbus TCP on port 502.
 
 Important behavior:
 - RS-485 reads remain sequential and use one shared AsyncModbusSerialClient.
-- Hoymiles is polled separately with ``hoymiles-wifi --as-json``.
+- Hoymiles is polled separately over Modbus TCP.
 - If one side fails, the relay keeps broadcasting with null/0 values for that
   device instead of exiting.
 - The Chint meter reading still feeds the existing CSV backup and Supabase
   history flow.
 
 Hoymiles mapping notes:
-- The relay keeps the Hoymiles payload flexible and parses the JSON response
-  from ``hoymiles-wifi`` into inverter totals and per-port readings.
-- If you want to inspect or change the device address, polling interval, or
-  command path, see the HOYMILES_WIFI_* env vars below.
+- The relay reads the DTU's inverter blocks directly over Modbus TCP and
+  converts them into inverter totals and per-port readings.
+- If you want to inspect or change the DTU host, port, or polling interval,
+  see the HOYMILES_MODBUS_* env vars below.
 """
 
 from __future__ import annotations
@@ -50,8 +49,12 @@ from websockets.server import WebSocketServerProtocol
 
 try:
     from pymodbus.client import AsyncModbusSerialClient
+    from pymodbus.client import ModbusTcpClient
+    from pymodbus.pdu.register_message import ReadHoldingRegistersResponse
 except ImportError:  # pragma: no cover - resolved when bridge deps are installed
     AsyncModbusSerialClient = None
+    ModbusTcpClient = None
+    ReadHoldingRegistersResponse = None
 
 
 def load_env_file(path: Path) -> None:
@@ -152,12 +155,24 @@ METER_REGISTER_KIND = os.getenv("METER_REGISTER_KIND", "holding").strip().lower(
 METER_POWER_SCALE = float(os.getenv("METER_POWER_SCALE", "0.1"))
 METER_VOLTAGE_SCALE = float(os.getenv("METER_VOLTAGE_SCALE", "0.1"))
 
-# Hoymiles DTU via local WiFi/protobuf CLI
-HOYMILES_WIFI_HOST = os.getenv("HOYMILES_WIFI_HOST", "192.168.1.8")
-HOYMILES_WIFI_COMMAND = os.getenv("HOYMILES_WIFI_COMMAND", "hoymiles-wifi")
-HOYMILES_WIFI_COMMAND_ARG = os.getenv("HOYMILES_WIFI_COMMAND_ARG", "get-real-data-new")
-HOYMILES_WIFI_TIMEOUT_SECONDS = float(os.getenv("HOYMILES_WIFI_TIMEOUT_SECONDS", "20"))
-HOYMILES_WIFI_REFRESH_SECONDS = float(os.getenv("HOYMILES_WIFI_REFRESH_SECONDS", "900"))
+# Hoymiles DTU via Ethernet / Modbus TCP
+HOYMILES_MODBUS_HOST = first_env_value("HOYMILES_MODBUS_HOST", "HOYMILES_WIFI_HOST")[0] or "192.168.1.242"
+HOYMILES_MODBUS_PORT = int(os.getenv("HOYMILES_MODBUS_PORT", "502"))
+HOYMILES_MODBUS_UNIT_ID = int(os.getenv("HOYMILES_MODBUS_UNIT_ID", "1"))
+HOYMILES_MODBUS_TIMEOUT_SECONDS = float(os.getenv("HOYMILES_MODBUS_TIMEOUT_SECONDS", "20"))
+HOYMILES_MODBUS_REFRESH_SECONDS = float(os.getenv("HOYMILES_MODBUS_REFRESH_SECONDS", "900"))
+HOYMILES_INVERTER_BASE_ADDRESS = 0x1000
+HOYMILES_INVERTER_REGISTER_COUNT = 20
+HOYMILES_INVERTER_REGISTER_STRIDE = 40
+HOYMILES_DTU_SERIAL_ADDRESS = 0x2000
+HOYMILES_DTU_SERIAL_REGISTER_COUNT = 3
+
+# Backward-compatible aliases for older log paths and helper functions below.
+HOYMILES_WIFI_HOST = HOYMILES_MODBUS_HOST
+HOYMILES_WIFI_TIMEOUT_SECONDS = HOYMILES_MODBUS_TIMEOUT_SECONDS
+HOYMILES_WIFI_REFRESH_SECONDS = HOYMILES_MODBUS_REFRESH_SECONDS
+HOYMILES_WIFI_COMMAND = "hoymiles-wifi"
+HOYMILES_WIFI_COMMAND_ARG = "get-real-data-new"
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 CSV_LOG_PATH = os.getenv("CSV_LOG_PATH")
@@ -309,6 +324,41 @@ def decode_float32_be(registers: list[int]) -> float:
     return struct.unpack(">f", raw)[0]
 
 
+if ReadHoldingRegistersResponse is not None:
+    class HoymilesReadHoldingRegistersResponse(ReadHoldingRegistersResponse):
+        @staticmethod
+        def _data_size_fixer(packet: bytes):
+            fixed_packet = list(packet)
+            fixed_packet[0] = len(fixed_packet[1:])
+            return bytes(fixed_packet)
+
+        def decode(self, data: bytes):
+            fixed = self._data_size_fixer(data)
+            return super().decode(fixed)
+else:  # pragma: no cover - only hit when pymodbus is unavailable
+    HoymilesReadHoldingRegistersResponse = None
+
+
+def create_hoymiles_modbus_client():
+    if ModbusTcpClient is None:
+        raise RuntimeError(
+            "pymodbus is not installed. Run: python3 -m pip install -r bridge/requirements.txt"
+        )
+
+    client = ModbusTcpClient(
+        host=HOYMILES_MODBUS_HOST,
+        port=HOYMILES_MODBUS_PORT,
+        timeout=HOYMILES_MODBUS_TIMEOUT_SECONDS,
+        retries=3,
+    )
+
+    if HoymilesReadHoldingRegistersResponse is not None:
+        with contextlib.suppress(Exception):
+            client.framer.decoder.register(HoymilesReadHoldingRegistersResponse)
+
+    return client
+
+
 def build_modbus_read_kwargs(reader, *, address: int, count: int, slave_id: int) -> dict[str, int]:
     """
     Pick the Modbus unit-id keyword accepted by the installed pymodbus version.
@@ -329,6 +379,75 @@ def build_modbus_read_kwargs(reader, *, address: int, count: int, slave_id: int)
         kwargs["device_id"] = slave_id
 
     return kwargs
+
+
+def read_hoymiles_registers(client, *, start_address: int, count: int, unit_id: int) -> list[int]:
+    reader = client.read_holding_registers
+    response = reader(**build_modbus_read_kwargs(reader, address=start_address, count=count, slave_id=unit_id))
+
+    if response is None:
+        raise RuntimeError(f"read_holding_registers returned no response for address {start_address}")
+    if response.isError():
+        raise RuntimeError(f"read_holding_registers returned Modbus error: {response}")
+
+    registers = getattr(response, "registers", None)
+    if not registers or len(registers) < count:
+        raise RuntimeError(f"read_holding_registers returned incomplete register data for address {start_address}")
+
+    return registers[:count]
+
+
+def decode_hoymiles_inverter_block(registers: list[int]) -> HoymilesInverterReading | None:
+    if len(registers) < HOYMILES_INVERTER_REGISTER_COUNT:
+        return None
+
+    raw_bytes = b"".join(struct.pack(">H", register & 0xFFFF) for register in registers[:HOYMILES_INVERTER_REGISTER_COUNT])
+
+    serial_number = raw_bytes[1:7].hex()
+    if serial_number == "000000000000":
+        return None
+
+    port_number = raw_bytes[7]
+    pv_current_raw = int.from_bytes(raw_bytes[10:12], byteorder="big", signed=False)
+    grid_voltage_raw = int.from_bytes(raw_bytes[12:14], byteorder="big", signed=False)
+    grid_frequency_raw = int.from_bytes(raw_bytes[14:16], byteorder="big", signed=False)
+    pv_power_raw = int.from_bytes(raw_bytes[16:18], byteorder="big", signed=False)
+    today_production = int.from_bytes(raw_bytes[18:20], byteorder="big", signed=False)
+    total_production = int.from_bytes(raw_bytes[20:24], byteorder="big", signed=False)
+    temperature_raw = int.from_bytes(raw_bytes[24:26], byteorder="big", signed=True)
+    alarm_code = int.from_bytes(raw_bytes[28:30], byteorder="big", signed=False)
+    alarm_count = int.from_bytes(raw_bytes[30:32], byteorder="big", signed=False)
+    link_status = raw_bytes[32]
+
+    current_scale = 10.0 if serial_number.startswith("10") else 100.0
+    power_w = int(round(pv_power_raw / 10.0))
+
+    return HoymilesInverterReading(
+        serial_number=serial_number,
+        active_power_w=power_w,
+        reactive_power_var=None,
+        voltage_v=grid_voltage_raw / 10.0,
+        current_a=pv_current_raw / current_scale,
+        frequency_hz=grid_frequency_raw / 100.0,
+        power_factor=None,
+        temperature_c=temperature_raw / 10.0,
+        warning_number=alarm_code,
+        link_status=link_status,
+        power_limit_w=None,
+        modulation_index_signal=None,
+        ports=[
+            HoymilesPortReading(
+                serial_number=serial_number,
+                port_number=port_number,
+                voltage_v=grid_voltage_raw / 10.0,
+                current_a=pv_current_raw / current_scale,
+                power_w=power_w,
+                energy_total_raw=total_production,
+                energy_daily_raw=today_production,
+                error_code=alarm_code,
+            )
+        ],
+    )
 
 
 def create_modbus_client():
@@ -854,59 +973,94 @@ def build_offline_hoymiles_snapshot(message: str) -> HoymilesSnapshot:
     )
 
 
-async def read_hoymiles_snapshot() -> HoymilesSnapshot:
-    """Run hoymiles-wifi as JSON and convert its response into a structured snapshot."""
-    command_args = [
-        "--host",
-        HOYMILES_WIFI_HOST,
-        "--as-json",
-        "--disable-interactive",
-    ]
-
-    timeout_value = int(round(HOYMILES_WIFI_TIMEOUT_SECONDS))
-    if timeout_value > 0:
-        command_args.extend(["--timeout", str(timeout_value)])
-    command_args.append(HOYMILES_WIFI_COMMAND_ARG)
-
-    invocation = resolve_hoymiles_invocation()
-    if invocation is None:
-        return build_offline_hoymiles_snapshot(
-            f"{HOYMILES_WIFI_COMMAND} command was not found or importable"
-        )
-
+def read_hoymiles_snapshot_sync() -> HoymilesSnapshot:
+    """Read the Hoymiles DTU directly over Modbus TCP and build a structured snapshot."""
+    client = create_hoymiles_modbus_client()
     try:
-        process = await asyncio.create_subprocess_exec(
-            *invocation,
-            *command_args,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
+        if not client.connect() or not getattr(client, "connected", False):
+            return build_offline_hoymiles_snapshot(
+                f"Unable to connect to Hoymiles DTU at {HOYMILES_MODBUS_HOST}:{HOYMILES_MODBUS_PORT}"
+            )
+
+        errors: list[str] = []
+        device_serial_number: Optional[str] = None
+
+        try:
+            dtu_registers = read_hoymiles_registers(
+                client,
+                start_address=HOYMILES_DTU_SERIAL_ADDRESS,
+                count=HOYMILES_DTU_SERIAL_REGISTER_COUNT,
+                unit_id=HOYMILES_MODBUS_UNIT_ID,
+            )
+            device_serial_number = b"".join(
+                struct.pack(">H", register & 0xFFFF) for register in dtu_registers
+            ).hex()
+        except Exception as exc:
+            errors.append(f"Hoymiles DTU serial read failed: {exc}")
+
+        inverters: list[HoymilesInverterReading] = []
+        total_active_power_w = 0
+        daily_yield_wh = 0.0
+        daily_yield_count = 0
+
+        for inverter_index in range(100):
+            start_address = HOYMILES_INVERTER_BASE_ADDRESS + inverter_index * HOYMILES_INVERTER_REGISTER_STRIDE
+            try:
+                registers = read_hoymiles_registers(
+                    client,
+                    start_address=start_address,
+                    count=HOYMILES_INVERTER_REGISTER_COUNT,
+                    unit_id=HOYMILES_MODBUS_UNIT_ID,
+                )
+            except Exception as exc:
+                if inverter_index == 0:
+                    return build_offline_hoymiles_snapshot(
+                        f"Hoymiles Modbus read failed at 0x{start_address:04X}: {exc}"
+                    )
+                errors.append(f"Hoymiles Modbus read stopped at inverter {inverter_index + 1}: {exc}")
+                break
+
+            inverter = decode_hoymiles_inverter_block(registers)
+            if inverter is None:
+                if inverter_index == 0:
+                    return build_offline_hoymiles_snapshot(
+                        "Hoymiles Modbus response did not include inverter data"
+                    )
+                break
+
+            inverters.append(inverter)
+            if inverter.link_status:
+                if inverter.active_power_w is not None:
+                    total_active_power_w += inverter.active_power_w
+                for port in inverter.ports:
+                    if port.energy_daily_raw is not None:
+                        daily_yield_wh += float(port.energy_daily_raw)
+                        daily_yield_count += 1
+
+        inverter_count = len(inverters)
+        port_count = sum(len(inverter.ports) for inverter in inverters)
+        error_message = "; ".join(errors) if errors else None
+
+        return HoymilesSnapshot(
+            timestamp=datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+            device_serial_number=device_serial_number,
+            status="OK" if inverter_count > 0 else "OFFLINE",
+            error=error_message if inverter_count > 0 else (
+                error_message or "Hoymiles Modbus response did not include inverter data"
+            ),
+            total_active_power_w=total_active_power_w if inverter_count > 0 else None,
+            daily_yield_wh=round(daily_yield_wh, 1) if daily_yield_count > 0 else None,
+            inverter_count=inverter_count,
+            port_count=port_count,
+            inverters=inverters,
         )
-        stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=HOYMILES_WIFI_TIMEOUT_SECONDS + 5)
-    except asyncio.TimeoutError:
-        with contextlib.suppress(ProcessLookupError):
-            process.kill()
+    finally:
         with contextlib.suppress(Exception):
-            await process.wait()
-        return build_offline_hoymiles_snapshot(
-            f"Hoymiles CLI timed out after {HOYMILES_WIFI_TIMEOUT_SECONDS} seconds"
-        )
-    except Exception as exc:
-        return build_offline_hoymiles_snapshot(f"Hoymiles CLI failed to start: {exc}")
+            client.close()
 
-    if process.returncode != 0:
-        stdout_text = stdout.decode("utf-8", errors="replace").strip()
-        stderr_text = stderr.decode("utf-8", errors="replace").strip()
-        return build_offline_hoymiles_snapshot(
-            "Hoymiles CLI exited with "
-            f"{process.returncode}: {stderr_text or stdout_text or 'no stdout/stderr'}"
-        )
 
-    try:
-        payload = extract_json_payload(stdout.decode("utf-8", errors="replace"))
-        snapshot = build_hoymiles_snapshot(payload)
-        return snapshot
-    except Exception as exc:
-        return build_offline_hoymiles_snapshot(f"Failed to parse Hoymiles JSON: {exc}")
+async def read_hoymiles_snapshot() -> HoymilesSnapshot:
+    return await asyncio.to_thread(read_hoymiles_snapshot_sync)
 
 
 def build_unified_payload(
@@ -1325,13 +1479,13 @@ async def hoymiles_refresh_loop(
         if snapshot.status == "OK":
             print(
                 f"[{datetime.now().strftime('%H:%M:%S')}] "
-                f"Hoymiles refresh ok -> {snapshot.total_active_power_w} W, "
+                f"Hoymiles Modbus refresh ok -> {snapshot.total_active_power_w} W, "
                 f"{snapshot.inverter_count} inverters, {snapshot.port_count} ports"
             )
         else:
             print(
                 f"[{datetime.now().strftime('%H:%M:%S')}] "
-                f"Hoymiles refresh offline -> {snapshot.error or 'unknown error'}"
+                f"Hoymiles Modbus refresh offline -> {snapshot.error or 'unknown error'}"
             )
         async with state_lock:
             latest_hoymiles_snapshot["value"] = snapshot
@@ -1343,7 +1497,7 @@ async def hoymiles_refresh_loop(
             meter_snapshot=meter_snapshot,
             hoymiles_snapshot=snapshot,
         )
-        await asyncio.sleep(HOYMILES_WIFI_REFRESH_SECONDS)
+        await asyncio.sleep(HOYMILES_MODBUS_REFRESH_SECONDS)
 
 
 async def advance_cloud_batch(
@@ -1464,7 +1618,7 @@ async def client_handler(
 
 
 async def main() -> None:
-    if AsyncModbusSerialClient is None:
+    if AsyncModbusSerialClient is None or ModbusTcpClient is None:
         raise RuntimeError("pymodbus is missing. Install bridge dependencies first.")
 
     client = create_modbus_client()
@@ -1496,8 +1650,8 @@ async def main() -> None:
         )
         print(
             f"[{datetime.now().strftime('%H:%M:%S')}] "
-            f"Hoymiles WiFi -> host {HOYMILES_WIFI_HOST}, command {HOYMILES_WIFI_COMMAND} "
-            f"{HOYMILES_WIFI_COMMAND_ARG}, refresh {HOYMILES_WIFI_REFRESH_SECONDS:.0f}s"
+            f"Hoymiles Modbus TCP -> host {HOYMILES_MODBUS_HOST}:{HOYMILES_MODBUS_PORT}, "
+            f"unit {HOYMILES_MODBUS_UNIT_ID}, refresh {HOYMILES_MODBUS_REFRESH_SECONDS:.0f}s"
         )
         print(f"[{datetime.now().strftime('%H:%M:%S')}] {describe_cloud_sync()}")
         print(f"[{datetime.now().strftime('%H:%M:%S')}] {describe_csv_logging()}")

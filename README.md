@@ -192,11 +192,11 @@ Optional environment variables:
 - `METER_REGISTER_KIND=holding`
 - `METER_POWER_SCALE=0.1`
 - `METER_VOLTAGE_SCALE=0.1`
-- `HOYMILES_WIFI_HOST=192.168.1.8`
-- `HOYMILES_WIFI_COMMAND=hoymiles-wifi`
-- `HOYMILES_WIFI_COMMAND_ARG=get-real-data-new`
-- `HOYMILES_WIFI_TIMEOUT_SECONDS=20`
-- `HOYMILES_WIFI_REFRESH_SECONDS=900`
+- `HOYMILES_MODBUS_HOST=192.168.1.242`
+- `HOYMILES_MODBUS_PORT=502`
+- `HOYMILES_MODBUS_UNIT_ID=1`
+- `HOYMILES_MODBUS_TIMEOUT_SECONDS=20`
+- `HOYMILES_MODBUS_REFRESH_SECONDS=900`
 - `BRIDGE_OFFLINE_THRESHOLD=10`
 - `CSV_BACKUP_DIR=./logs/meter-backups`
 - `CSV_BACKUP_PREFIX=meter`
@@ -225,27 +225,23 @@ The relay automatically reads `bridge/.env` first, then falls back to your shell
 The cloud sync path uses the same relay process:
 
 - every 60 seconds: poll the Chint meter, broadcast to the UI, and append to the local CSV backup
-- every 15 minutes by default: refresh the Hoymiles JSON snapshot
+- every 15 minutes by default: refresh the Hoymiles Modbus snapshot
 - every 15 minutes by default: fetch Open-Meteo current weather and upsert it into Supabase
 - every 15 minutes: flush one aggregated grid, voltage, and solar row to Supabase
 - every 15 minutes: update one relay-local daily energy summary row in Supabase
 - on startup/shutdown: close out any pending cloud batch
 
-The Hoymiles side now uses the local `hoymiles-wifi` CLI instead of RS-485.
-That gives you inverter totals plus per-port readings in one JSON response.
-The relay parses that JSON into:
+The Hoymiles side now uses Modbus TCP over port `502` instead of the old WiFi CLI path.
+That gives you inverter totals plus per-port readings directly from the DTU registers.
+The relay decodes those Modbus blocks into:
 
 - inverter-level totals
 - per-port readings grouped by inverter serial number
 - an overall total of all inverter active-power totals
 - solar production values for the live charts, CSV history, and Supabase history
 
-If the DTU host IP changes, update `HOYMILES_WIFI_HOST`.
-If you want to inspect the raw JSON manually, run:
-
-```bash
-hoymiles-wifi --host 192.168.1.8 --as-json get-real-data-new
-```
+If the DTU host IP changes, update `HOYMILES_MODBUS_HOST`.
+If you want to inspect the raw registers manually, point a Modbus client at `HOYMILES_MODBUS_HOST:HOYMILES_MODBUS_PORT`.
 
 Example:
 
