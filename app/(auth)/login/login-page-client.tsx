@@ -14,6 +14,21 @@ const providerLabels: Record<Provider, string> = {
   github: "GitHub",
 };
 
+async function readLoginResponse(response: Response) {
+  const contentType = response.headers.get("content-type") ?? "";
+
+  if (contentType.includes("application/json")) {
+    return (await response.json()) as { url?: string; error?: string };
+  }
+
+  const text = await response.text().catch(() => "");
+  if (!text.trim()) {
+    return {};
+  }
+
+  return { error: text.trim() };
+}
+
 export function LoginPageClient() {
   const searchParams = useSearchParams();
   const routeError = searchParams.get("error");
@@ -40,7 +55,7 @@ export function LoginPageClient() {
         }),
       });
 
-      const payload = (await response.json()) as { url?: string; error?: string };
+      const payload = await readLoginResponse(response);
 
       if (!response.ok) {
         throw new Error(payload.error ?? "Failed to start login.");
