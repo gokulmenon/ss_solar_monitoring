@@ -40,7 +40,7 @@ WebSockets are the best fit for the local telemetry bridge because they give you
 
 MQTT would also work, but it adds broker management. A database-first push model is better for history than for sub-second live telemetry.
 
-For the cloud path, the relay samples the meter once per minute and batches those readings into a 15-minute window before inserting a single row into Supabase. That keeps local logging and cloud usage conservative while still preserving useful trend data.
+For the cloud path, the relay samples the meter every 5 seconds and batches those readings into a 10-minute window before inserting a single row into Supabase. That keeps local logging and cloud usage conservative while still preserving useful trend data.
 
 ### Current live payload shape
 
@@ -206,7 +206,7 @@ Optional environment variables:
 - `SUPABASE_TABLE_NAME=meter_readings`
 - `SUPABASE_DAILY_TABLE_NAME=daily_energy_summary`
 - `SUPABASE_WEATHER_TABLE_NAME=weather_snapshots`
-- `SUPABASE_BATCH_MINUTES=15`
+- `SUPABASE_BATCH_MINUTES=10`
 - `WEATHER_LATITUDE=...`
 - `WEATHER_LONGITUDE=...`
 - `WEATHER_POLL_SECONDS=900`
@@ -224,11 +224,11 @@ The relay automatically reads `bridge/.env` first, then falls back to your shell
 
 The cloud sync path uses the same relay process:
 
-- every 60 seconds: poll the Chint meter, broadcast to the UI, and append to the local CSV backup
+- every 5 seconds: poll the Chint meter, broadcast to the UI, and append to the local CSV backup
 - every 15 minutes by default: refresh the Hoymiles Modbus snapshot
 - every 15 minutes by default: fetch Open-Meteo current weather and upsert it into Supabase
-- every 15 minutes: flush one aggregated grid, voltage, and solar row to Supabase
-- every 15 minutes: update one relay-local daily energy summary row in Supabase
+- every 10 minutes: flush one aggregated grid, voltage, and solar row to Supabase
+- every 10 minutes: update one relay-local daily energy summary row in Supabase
 - on startup/shutdown: close out any pending cloud batch
 
 The Hoymiles side now uses Modbus TCP over port `502` instead of the old WiFi CLI path.
@@ -374,9 +374,9 @@ create index if not exists daily_energy_summary_day_idx
   on public.daily_energy_summary (day desc);
 ```
 
-The relay updates this daily row once per 15-minute Supabase flush, so long-term charts can query daily totals without scanning all interval rows.
+The relay updates this daily row once per 10-minute Supabase flush, so long-term charts can query daily totals without scanning all interval rows.
 
-For daily historical summaries computed directly from the 15-minute `meter_readings`
+For daily historical summaries computed directly from the 10-minute `meter_readings`
 rows, create this RPC function as well:
 
 ```sql
