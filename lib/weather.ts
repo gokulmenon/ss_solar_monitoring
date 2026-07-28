@@ -23,7 +23,7 @@ export type DailyWeatherSummary = {
   sample_count: number;
 };
 
-const SUPABASE_URL = process.env.SUPABASE_URL?.trim();
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
 const SUPABASE_WEATHER_TABLE_NAME =
   process.env.SUPABASE_WEATHER_TABLE_NAME?.trim() || "weather_snapshots";

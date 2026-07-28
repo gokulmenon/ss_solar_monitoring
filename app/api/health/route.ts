@@ -5,8 +5,7 @@ export const runtime = "nodejs";
 export const revalidate = 0;
 
 const MAX_STALE_SECONDS = 300;
-const SUPABASE_URL =
-  process.env.SUPABASE_URL?.trim() || process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() || "";
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() || "";
 const SUPABASE_API_KEY =
   process.env.SUPABASE_SERVICE_ROLE_KEY?.trim() ||
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim() ||

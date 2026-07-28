@@ -304,7 +304,7 @@ async function loadHistoryFromCsv(mode: CsvHistoryMode = "live"): Promise<Histor
 }
 
 async function loadHistoryFromSupabase(): Promise<HistoryResponse> {
-  const supabaseUrl = process.env.SUPABASE_URL?.trim();
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
 
   if (!supabaseUrl || !serviceRoleKey) {
