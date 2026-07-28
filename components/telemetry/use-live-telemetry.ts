@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import useWebSocket, { ReadyState } from "react-use-websocket";
 
 import { createMockLiveTelemetry, type LiveTelemetry } from "@/lib/mock-data";
@@ -57,6 +57,7 @@ type LiveSeriesBucket = LiveSeriesPoint & {
 
 const SERIES_LIMIT = 7 * 24 * 60;
 const SERIES_STORAGE_KEY = "ss-solar-live-series-v2";
+const SERIES_STORAGE_WRITE_INTERVAL_MS = 30_000;
 const SEED_SERIES_MIN_POINTS = 6;
 
 function hasTelemetryFields(message: LiveBridgeTelemetry) {
@@ -144,6 +145,11 @@ export function useLiveTelemetry() {
   const [bridgeTelemetry, setBridgeTelemetry] = useState<LiveBridgeTelemetry | null>(null);
   const [hardwareOffline, setHardwareOffline] = useState(false);
   const [seriesBuckets, setSeriesBuckets] = useState<LiveSeriesBucket[]>(() => loadStoredSeriesBuckets());
+  const seriesBucketsRef = useRef(seriesBuckets);
+
+  useEffect(() => {
+    seriesBucketsRef.current = seriesBuckets;
+  }, [seriesBuckets]);
 
   useEffect(() => {
     if (seriesBuckets.length >= SEED_SERIES_MIN_POINTS) return;
@@ -274,12 +280,25 @@ export function useLiveTelemetry() {
   }, [telemetry]);
 
   useEffect(() => {
-    try {
-      window.localStorage.setItem(SERIES_STORAGE_KEY, JSON.stringify(seriesBuckets.slice(-SERIES_LIMIT)));
-    } catch {
-      // Storage can be unavailable in private browsing or after quota pressure.
+    function persistSeriesBuckets() {
+      try {
+        window.localStorage.setItem(
+          SERIES_STORAGE_KEY,
+          JSON.stringify(seriesBucketsRef.current.slice(-SERIES_LIMIT)),
+        );
+      } catch {
+        // Storage can be unavailable in private browsing or after quota pressure.
+      }
     }
-  }, [seriesBuckets]);
+
+    persistSeriesBuckets();
+    const interval = window.setInterval(persistSeriesBuckets, SERIES_STORAGE_WRITE_INTERVAL_MS);
+
+    return () => {
+      window.clearInterval(interval);
+      persistSeriesBuckets();
+    };
+  }, []);
 
   const series = useMemo<LiveSeriesPoint[]>(
     () =>
