@@ -33,8 +33,6 @@ import os
 import shutil
 import struct
 import sys
-import urllib.error
-import urllib.request
 from collections import defaultdict
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
@@ -1172,26 +1170,15 @@ def build_supabase_batch_row(payload: UnifiedRelayPayload) -> dict[str, int | fl
     }
 
 
-def supabase_request(
-    url: str,
-    *,
-    method: str,
-    body: dict[str, int | float | str | None] | None = None,
-    prefer: str = "return=representation",
-) -> urllib.request.Request:
-    encoded_body = json.dumps(body).encode("utf-8") if body is not None else None
-    return urllib.request.Request(
-        url,
-        data=encoded_body,
-        method=method,
-        headers={
-            "apikey": SUPABASE_SERVICE_ROLE_KEY,
-            "Authorization": f"Bearer {SUPABASE_SERVICE_ROLE_KEY}",
-            "Content-Type": "application/json",
-            "Accept": "application/json",
-            "Prefer": prefer,
-        },
-    )
+def supabase_headers(prefer: str = "return=representation") -> dict[str, str]:
+    """Return the common headers used by every Supabase REST request."""
+    return {
+        "apikey": SUPABASE_SERVICE_ROLE_KEY,
+        "Authorization": f"Bearer {SUPABASE_SERVICE_ROLE_KEY}",
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+        "Prefer": prefer,
+    }
 
 
 def build_open_meteo_url() -> str:
@@ -1253,18 +1240,10 @@ async def upsert_weather_snapshot(session: aiohttp.ClientSession, row: dict[str,
         f"{NEXT_PUBLIC_SUPABASE_URL.rstrip('/')}/rest/v1/{SUPABASE_WEATHER_TABLE_NAME}"
         "?on_conflict=timestamp"
     )
-    headers = {
-        "apikey": SUPABASE_SERVICE_ROLE_KEY,
-        "Authorization": f"Bearer {SUPABASE_SERVICE_ROLE_KEY}",
-        "Content-Type": "application/json",
-        "Accept": "application/json",
-        "Prefer": "resolution=merge-duplicates,return=minimal",
-    }
-
     async with session.post(
         url,
         json=row,
-        headers=headers,
+        headers=supabase_headers("resolution=merge-duplicates,return=minimal"),
         timeout=aiohttp.ClientTimeout(total=SUPABASE_SYNC_TIMEOUT_SECONDS),
     ) as response:
         if response.status not in {200, 201, 204}:
@@ -1291,7 +1270,7 @@ async def poll_weather_once(session: aiohttp.ClientSession) -> dict[str, int | f
     return row
 
 
-async def weather_poll_loop() -> None:
+async def weather_poll_loop(session: aiohttp.ClientSession) -> None:
     """Poll Open-Meteo every 15 minutes in a fully independent asyncio task."""
     if not WEATHER_LATITUDE or not WEATHER_LONGITUDE:
         print(
@@ -1307,19 +1286,18 @@ async def weather_poll_loop() -> None:
         )
         return
 
-    async with aiohttp.ClientSession() as session:
-        while True:
-            try:
-                row = await poll_weather_once(session)
-                print(
-                    f"[{datetime.now().strftime('%H:%M:%S')}] "
-                    f"Weather sync ok {row['timestamp']} -> "
-                    f"{row['temperature_2m']} C, clouds {row['cloud_cover']}%"
-                )
-            except Exception as exc:
-                print(f"[{datetime.now().strftime('%H:%M:%S')}] Weather sync failed: {exc}")
+    while True:
+        try:
+            row = await poll_weather_once(session)
+            print(
+                f"[{datetime.now().strftime('%H:%M:%S')}] "
+                f"Weather sync ok {row['timestamp']} -> "
+                f"{row['temperature_2m']} C, clouds {row['cloud_cover']}%"
+            )
+        except Exception as exc:
+            print(f"[{datetime.now().strftime('%H:%M:%S')}] Weather sync failed: {exc}")
 
-            await asyncio.sleep(WEATHER_POLL_SECONDS)
+        await asyncio.sleep(WEATHER_POLL_SECONDS)
 
 
 def ping_dead_mans_snitch() -> None:
@@ -1330,13 +1308,18 @@ def ping_dead_mans_snitch() -> None:
         print(f"[{datetime.now().strftime('%H:%M:%S')}] Dead Man's Snitch ping failed: {exc}")
 
 
-def fetch_daily_summary(day: str) -> dict[str, Any] | None:
+async def fetch_daily_summary(session: aiohttp.ClientSession, day: str) -> dict[str, Any] | None:
     url = f"{NEXT_PUBLIC_SUPABASE_URL.rstrip('/')}/rest/v1/{SUPABASE_DAILY_TABLE_NAME}"
     query = f"{url}?day=eq.{day}&select=day,imported_kwh,exported_kwh,solar_kwh,home_kwh,sample_count"
-    request = supabase_request(query, method="GET")
-
-    with urllib.request.urlopen(request, timeout=SUPABASE_SYNC_TIMEOUT_SECONDS) as response:
-        payload = json.loads(response.read().decode("utf-8"))
+    async with session.get(
+        query,
+        headers=supabase_headers(),
+        timeout=aiohttp.ClientTimeout(total=SUPABASE_SYNC_TIMEOUT_SECONDS),
+    ) as response:
+        if response.status != 200:
+            detail = await response.text()
+            raise RuntimeError(f"Supabase daily summary lookup failed with {response.status}: {detail}")
+        payload = await response.json()
 
     if isinstance(payload, list) and payload:
         return payload[0]
@@ -1344,9 +1327,9 @@ def fetch_daily_summary(day: str) -> dict[str, Any] | None:
     return None
 
 
-def sync_supabase_daily_summary(batch: CloudBatchState) -> None:
+async def sync_supabase_daily_summary(session: aiohttp.ClientSession, batch: CloudBatchState) -> None:
     """Update one relay-local daily aggregate row after each cloud batch flush."""
-    existing = fetch_daily_summary(batch.local_day)
+    existing = await fetch_daily_summary(session, batch.local_day)
 
     def existing_number(key: str) -> float:
         value = existing.get(key) if existing else None
@@ -1369,19 +1352,18 @@ def sync_supabase_daily_summary(batch: CloudBatchState) -> None:
     }
 
     url = f"{NEXT_PUBLIC_SUPABASE_URL.rstrip('/')}/rest/v1/{SUPABASE_DAILY_TABLE_NAME}?on_conflict=day"
-    request = supabase_request(
+    async with session.post(
         url,
-        method="POST",
-        body=row,
-        prefer="resolution=merge-duplicates,return=minimal",
-    )
-
-    with urllib.request.urlopen(request, timeout=SUPABASE_SYNC_TIMEOUT_SECONDS) as response:
+        json=row,
+        headers=supabase_headers("resolution=merge-duplicates,return=minimal"),
+        timeout=aiohttp.ClientTimeout(total=SUPABASE_SYNC_TIMEOUT_SECONDS),
+    ) as response:
         if response.status not in {200, 201, 204}:
-            raise RuntimeError(f"Unexpected Supabase daily summary status {response.status}")
+            detail = await response.text()
+            raise RuntimeError(f"Supabase daily summary upsert failed with {response.status}: {detail}")
 
 
-def sync_supabase_batch(batch: CloudBatchState) -> None:
+async def sync_supabase_batch(session: aiohttp.ClientSession, batch: CloudBatchState) -> None:
     """POST one aggregated batch row to Supabase."""
     if not NEXT_PUBLIC_SUPABASE_URL or not SUPABASE_SERVICE_ROLE_KEY:
         return
@@ -1407,38 +1389,49 @@ def sync_supabase_batch(batch: CloudBatchState) -> None:
     }
 
     batch_url = f"{NEXT_PUBLIC_SUPABASE_URL.rstrip('/')}/rest/v1/{SUPABASE_TABLE_NAME}?on_conflict=timestamp"
-    batch_request = supabase_request(
-        batch_url,
-        method="POST",
-        body=row,
-        prefer="resolution=merge-duplicates,return=minimal",
-    )
 
     try:
         print(
             f"[{datetime.now().strftime('%H:%M:%S')}] "
             f"Supabase batch flush {batch.bucket_start} ({batch.sample_count} samples)..."
         )
-        with urllib.request.urlopen(batch_request, timeout=SUPABASE_SYNC_TIMEOUT_SECONDS) as response:
+        async with session.post(
+            batch_url,
+            json=row,
+            headers=supabase_headers("resolution=merge-duplicates,return=minimal"),
+            timeout=aiohttp.ClientTimeout(total=SUPABASE_SYNC_TIMEOUT_SECONDS),
+        ) as response:
             if response.status not in {200, 201, 204}:
-                raise RuntimeError(f"Unexpected Supabase status {response.status}")
-        sync_supabase_daily_summary(batch)
+                detail = await response.text()
+                raise RuntimeError(f"Supabase batch upsert failed with {response.status}: {detail}")
+        await sync_supabase_daily_summary(session, batch)
         print(
             f"[{datetime.now().strftime('%H:%M:%S')}] "
             f"Supabase batch ok {batch.bucket_start} ({batch.sample_count} samples)"
         )
-    except urllib.error.URLError as exc:
+    except (aiohttp.ClientError, asyncio.TimeoutError, RuntimeError) as exc:
         print(
             f"[{datetime.now().strftime('%H:%M:%S')}] "
             f"Supabase batch failed {batch.bucket_start}: {exc}"
         )
 
 
-async def flush_cloud_batch(batch: Optional[CloudBatchState]) -> None:
+async def flush_cloud_batch(session: aiohttp.ClientSession, batch: Optional[CloudBatchState]) -> None:
     if batch is None or batch.sample_count == 0:
         return
 
-    await asyncio.to_thread(sync_supabase_batch, batch)
+    await sync_supabase_batch(session, batch)
+
+
+def queue_cloud_batch_flush(
+    session: aiohttp.ClientSession,
+    batch: CloudBatchState,
+    pending_tasks: set[asyncio.Task[None]],
+) -> None:
+    """Upload a completed batch without delaying the Modbus polling loop."""
+    task = asyncio.create_task(flush_cloud_batch(session, batch))
+    pending_tasks.add(task)
+    task.add_done_callback(pending_tasks.discard)
 
 
 def build_payload_message(
@@ -1500,9 +1493,11 @@ async def hoymiles_refresh_loop(
         await asyncio.sleep(HOYMILES_MODBUS_REFRESH_SECONDS)
 
 
-async def advance_cloud_batch(
+def advance_cloud_batch(
+    session: aiohttp.ClientSession,
     current_batch: Optional[CloudBatchState],
     payload: UnifiedRelayPayload,
+    pending_sync_tasks: set[asyncio.Task[None]],
 ) -> CloudBatchState | None:
     """Aggregate grid, voltage, and solar readings into a cloud batch."""
     if not NEXT_PUBLIC_SUPABASE_URL or not SUPABASE_SERVICE_ROLE_KEY:
@@ -1518,7 +1513,7 @@ async def advance_cloud_batch(
     if batch is None:
         batch = CloudBatchState(bucket_start=bucket_start, local_day=local_day)
     elif batch.bucket_start != bucket_start:
-        await flush_cloud_batch(batch)
+        queue_cloud_batch_flush(session, batch, pending_sync_tasks)
         batch = CloudBatchState(bucket_start=bucket_start, local_day=local_day)
 
     batch.add_sample(
@@ -1628,6 +1623,7 @@ async def main() -> None:
     latest_message: dict[str, str | None] = {"value": None}
     failure_count = 0
     pending_cloud_batch: Optional[CloudBatchState] = None
+    pending_cloud_sync_tasks: set[asyncio.Task[None]] = set()
     state_lock = asyncio.Lock()
     latest_meter_snapshot: dict[str, MeterSnapshot | None] = {"value": None}
     latest_hoymiles_snapshot: dict[str, HoymilesSnapshot | None] = {
@@ -1638,6 +1634,7 @@ async def main() -> None:
         await client_handler(websocket, connected_clients, latest_message)
 
     async with websockets.serve(handler, HOST, PORT):
+        http_session = aiohttp.ClientSession()
         print(
             f"Modbus relay listening on ws://{HOST}:{PORT} "
             f"(profile: {TARGET_OS}, serial: {SERIAL_PORT} via {SERIAL_PORT_SOURCE}, baud: {BAUDRATE})"
@@ -1666,7 +1663,7 @@ async def main() -> None:
                 latest_hoymiles_snapshot=latest_hoymiles_snapshot,
             )
         )
-        weather_task = asyncio.create_task(weather_poll_loop())
+        weather_task = asyncio.create_task(weather_poll_loop(http_session))
 
         try:
             while True:
@@ -1686,7 +1683,12 @@ async def main() -> None:
                         continue
 
                     write_csv_row(payload)
-                    pending_cloud_batch = await advance_cloud_batch(pending_cloud_batch, payload)
+                    pending_cloud_batch = advance_cloud_batch(
+                        http_session,
+                        pending_cloud_batch,
+                        payload,
+                        pending_cloud_sync_tasks,
+                    )
 
                     if payload.bridge_status == "HARDWARE_OFFLINE":
                         failure_count += 1
@@ -1742,7 +1744,10 @@ async def main() -> None:
                 await hoymiles_task
             with contextlib.suppress(asyncio.CancelledError):
                 await weather_task
-            await flush_cloud_batch(pending_cloud_batch)
+            if pending_cloud_sync_tasks:
+                await asyncio.gather(*pending_cloud_sync_tasks)
+            await flush_cloud_batch(http_session, pending_cloud_batch)
+            await http_session.close()
             try:
                 client.close()
             finally:
