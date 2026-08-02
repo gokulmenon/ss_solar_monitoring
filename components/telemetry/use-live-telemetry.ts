@@ -43,6 +43,15 @@ export type LiveBridgeTelemetry = Partial<LiveTelemetry> & {
   message?: string;
 };
 
+export type ServerLog = {
+  type: "server_log";
+  timestamp: string;
+  level: string;
+  message: string;
+};
+
+type LiveSocketMessage = LiveBridgeTelemetry | ServerLog;
+
 export type LiveSeriesPoint = LiveTelemetry & {
   phase_a_voltage_v?: number;
   hoymiles?: HoymilesTelemetry;
@@ -133,7 +142,7 @@ function historyPointToSeriesBucket(point: HistoryResponse["points"][number]): L
 
 export function useLiveTelemetry() {
   const wsUrl = process.env.NEXT_PUBLIC_LIVE_WS_URL ?? "ws://127.0.0.1:8787";
-  const { lastJsonMessage, readyState } = useWebSocket<LiveBridgeTelemetry>(wsUrl, {
+  const { lastJsonMessage, readyState } = useWebSocket<LiveSocketMessage>(wsUrl, {
     shouldReconnect: () => true,
     reconnectAttempts: Infinity,
     reconnectInterval: 1500,
@@ -143,6 +152,7 @@ export function useLiveTelemetry() {
 
   const [mockTelemetry, setMockTelemetry] = useState<LiveTelemetry>(() => createMockLiveTelemetry());
   const [bridgeTelemetry, setBridgeTelemetry] = useState<LiveBridgeTelemetry | null>(null);
+  const [serverLogs, setServerLogs] = useState<ServerLog[]>([]);
   const [hardwareOffline, setHardwareOffline] = useState(false);
   const [seriesBuckets, setSeriesBuckets] = useState<LiveSeriesBucket[]>(() => loadStoredSeriesBuckets());
   const seriesBucketsRef = useRef(seriesBuckets);
@@ -216,16 +226,23 @@ export function useLiveTelemetry() {
   useEffect(() => {
     if (!lastJsonMessage) return;
 
-    if (lastJsonMessage.status === "HARDWARE_OFFLINE") {
+    if ("type" in lastJsonMessage && lastJsonMessage.type === "server_log") {
+      setServerLogs((previous) => [...previous, lastJsonMessage].slice(-50));
+      return;
+    }
+
+    const telemetryMessage = lastJsonMessage as LiveBridgeTelemetry;
+
+    if (telemetryMessage.status === "HARDWARE_OFFLINE") {
       setHardwareOffline(true);
       return;
     }
 
-    if (hasTelemetryFields(lastJsonMessage)) {
+    if (hasTelemetryFields(telemetryMessage)) {
       setHardwareOffline(false);
     }
 
-    setBridgeTelemetry(lastJsonMessage);
+    setBridgeTelemetry(telemetryMessage);
   }, [lastJsonMessage]);
 
   const telemetry = useMemo(
@@ -312,5 +329,6 @@ export function useLiveTelemetry() {
     bridgeState: hardwareOffline ? "hardware_offline" : readyState === ReadyState.OPEN ? "connected" : "mock",
     readyState,
     wsUrl,
+    serverLogs,
   };
 }

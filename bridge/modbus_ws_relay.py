@@ -29,6 +29,7 @@ import gc
 import importlib.util
 import inspect
 import json
+import logging
 import os
 import shutil
 import struct
@@ -54,6 +55,70 @@ except ImportError:  # pragma: no cover - resolved when bridge deps are installe
     AsyncModbusSerialClient = None
     ModbusTcpClient = None
     ReadHoldingRegistersResponse = None
+
+
+relay_logger = logging.getLogger("solar_relay")
+
+
+class AsyncLogQueueHandler(logging.Handler):
+    """Copy relay log records into an asyncio queue for live WebSocket clients."""
+
+    def __init__(self, loop: asyncio.AbstractEventLoop, queue: asyncio.Queue[dict[str, str]]) -> None:
+        super().__init__(level=logging.INFO)
+        self.loop = loop
+        self.queue = queue
+
+    def emit(self, record: logging.LogRecord) -> None:
+        payload = {
+            "type": "server_log",
+            "timestamp": datetime.fromtimestamp(record.created, tz=timezone.utc)
+            .isoformat()
+            .replace("+00:00", "Z"),
+            "level": record.levelname,
+            "message": record.getMessage(),
+        }
+        try:
+            self.loop.call_soon_threadsafe(self._enqueue, payload)
+        except RuntimeError:
+            # The event loop is shutting down; there is no client to notify.
+            return
+
+    def _enqueue(self, payload: dict[str, str]) -> None:
+        if self.queue.full():
+            try:
+                self.queue.get_nowait()
+                self.queue.task_done()
+            except asyncio.QueueEmpty:
+                pass
+        try:
+            self.queue.put_nowait(payload)
+        except asyncio.QueueFull:
+            pass
+
+
+def configure_logging(loop: asyncio.AbstractEventLoop, queue: asyncio.Queue[dict[str, str]]) -> None:
+    """Keep service_out output and add a structured live-log sink."""
+    relay_logger.setLevel(logging.INFO)
+    relay_logger.propagate = False
+    relay_logger.handlers.clear()
+
+    console_handler = logging.StreamHandler()
+    console_handler.setFormatter(logging.Formatter("[%(asctime)s] %(message)s", datefmt="%H:%M:%S"))
+    relay_logger.addHandler(console_handler)
+    relay_logger.addHandler(AsyncLogQueueHandler(loop, queue))
+
+
+async def broadcast_logs(
+    log_queue: asyncio.Queue[dict[str, str]],
+    clients: set[WebSocketServerProtocol],
+) -> None:
+    """Broadcast structured relay logs without changing telemetry messages."""
+    while True:
+        payload = await log_queue.get()
+        try:
+            await broadcast(clients, json.dumps(payload))
+        finally:
+            log_queue.task_done()
 
 
 def load_env_file(path: Path) -> None:
@@ -518,15 +583,9 @@ async def ensure_modbus_connected(client) -> None:
             if await client.connect() and client.connected:
                 return
         except Exception as exc:
-            print(
-                f"[{datetime.now().strftime('%H:%M:%S')}] "
-                f"Modbus connect failed: {exc}"
-            )
+            relay_logger.error("Modbus connect failed: %s", exc)
 
-        print(
-            f"[{datetime.now().strftime('%H:%M:%S')}] "
-            f"Modbus reconnect retry in 1s..."
-        )
+        relay_logger.warning("Modbus reconnect retry in 1s...")
         await asyncio.sleep(1)
 
 
@@ -1367,29 +1426,24 @@ async def poll_weather_once(session: aiohttp.ClientSession) -> dict[str, int | f
 async def weather_poll_loop(session: aiohttp.ClientSession) -> None:
     """Poll Open-Meteo every 15 minutes in a fully independent asyncio task."""
     if not WEATHER_LATITUDE or not WEATHER_LONGITUDE:
-        print(
-            f"[{datetime.now().strftime('%H:%M:%S')}] "
-            "Weather polling disabled -> set WEATHER_LATITUDE and WEATHER_LONGITUDE"
-        )
+        relay_logger.warning("Weather polling disabled -> set WEATHER_LATITUDE and WEATHER_LONGITUDE")
         return
 
     if not NEXT_PUBLIC_SUPABASE_URL or not SUPABASE_SERVICE_ROLE_KEY:
-        print(
-            f"[{datetime.now().strftime('%H:%M:%S')}] "
-            "Weather polling disabled -> Supabase credentials are missing"
-        )
+        relay_logger.warning("Weather polling disabled -> Supabase credentials are missing")
         return
 
     while True:
         try:
             row = await poll_weather_once(session)
-            print(
-                f"[{datetime.now().strftime('%H:%M:%S')}] "
-                f"Weather sync ok {row['timestamp']} -> "
-                f"{row['temperature_2m']} C, clouds {row['cloud_cover']}%"
+            relay_logger.info(
+                "Weather sync ok %s -> %s C, clouds %s%%",
+                row["timestamp"],
+                row["temperature_2m"],
+                row["cloud_cover"],
             )
         except Exception as exc:
-            print(f"[{datetime.now().strftime('%H:%M:%S')}] Weather sync failed: {exc}")
+            relay_logger.error("Weather sync failed: %s", exc)
 
         await asyncio.sleep(WEATHER_POLL_SECONDS)
 
@@ -1399,7 +1453,7 @@ def ping_dead_mans_snitch() -> None:
     try:
         requests.get(DEAD_MANS_SNITCH_URL, timeout=DEAD_MANS_SNITCH_TIMEOUT_SECONDS)
     except Exception as exc:
-        print(f"[{datetime.now().strftime('%H:%M:%S')}] Dead Man's Snitch ping failed: {exc}")
+        relay_logger.error("Dead Man's Snitch ping failed: %s", exc)
 
 
 async def fetch_daily_summary(session: aiohttp.ClientSession, day: str) -> dict[str, Any] | None:
@@ -1485,9 +1539,10 @@ async def sync_supabase_batch(session: aiohttp.ClientSession, batch: CloudBatchS
     batch_url = f"{NEXT_PUBLIC_SUPABASE_URL.rstrip('/')}/rest/v1/{SUPABASE_TABLE_NAME}?on_conflict=timestamp"
 
     try:
-        print(
-            f"[{datetime.now().strftime('%H:%M:%S')}] "
-            f"Supabase batch flush {batch.bucket_start} ({batch.sample_count} samples)..."
+        relay_logger.info(
+            "Supabase batch flush %s (%s samples)...",
+            batch.bucket_start,
+            batch.sample_count,
         )
         async with session.post(
             batch_url,
@@ -1499,15 +1554,13 @@ async def sync_supabase_batch(session: aiohttp.ClientSession, batch: CloudBatchS
                 detail = await response.text()
                 raise RuntimeError(f"Supabase batch upsert failed with {response.status}: {detail}")
         await sync_supabase_daily_summary(session, batch)
-        print(
-            f"[{datetime.now().strftime('%H:%M:%S')}] "
-            f"Supabase batch ok {batch.bucket_start} ({batch.sample_count} samples)"
+        relay_logger.info(
+            "Supabase batch ok %s (%s samples)",
+            batch.bucket_start,
+            batch.sample_count,
         )
     except (aiohttp.ClientError, asyncio.TimeoutError, RuntimeError) as exc:
-        print(
-            f"[{datetime.now().strftime('%H:%M:%S')}] "
-            f"Supabase batch failed {batch.bucket_start}: {exc}"
-        )
+        relay_logger.error("Supabase batch failed %s: %s", batch.bucket_start, exc)
 
 
 async def sync_supabase_port_rows(
@@ -1536,12 +1589,9 @@ async def sync_supabase_port_rows(
                     f"Supabase port telemetry upsert failed with status {response.status}: {detail}"
                 )
 
-        print(
-            f"[{datetime.now().strftime('%H:%M:%S')}] "
-            f"Supabase port telemetry ok ({len(rows)} rows)"
-        )
+        relay_logger.info("Supabase port telemetry ok (%s rows)", len(rows))
     except (aiohttp.ClientError, asyncio.TimeoutError, RuntimeError) as exc:
-        print(f"[{datetime.now().strftime('%H:%M:%S')}] Supabase port telemetry failed: {exc}")
+        relay_logger.error("Supabase port telemetry failed: %s", exc)
 
 
 async def flush_cloud_batch(session: aiohttp.ClientSession, batch: Optional[CloudBatchState]) -> None:
@@ -1600,15 +1650,16 @@ async def hoymiles_refresh_loop(
     while True:
         snapshot = await read_hoymiles_snapshot()
         if snapshot.status == "OK":
-            print(
-                f"[{datetime.now().strftime('%H:%M:%S')}] "
-                f"Hoymiles Modbus refresh ok -> {snapshot.total_active_power_w} W, "
-                f"{snapshot.inverter_count} inverters, {snapshot.port_count} ports"
+            relay_logger.info(
+                "Hoymiles Modbus refresh ok -> %s W, %s inverters, %s ports",
+                snapshot.total_active_power_w,
+                snapshot.inverter_count,
+                snapshot.port_count,
             )
         else:
-            print(
-                f"[{datetime.now().strftime('%H:%M:%S')}] "
-                f"Hoymiles Modbus refresh offline -> {snapshot.error or 'unknown error'}"
+            relay_logger.warning(
+                "Hoymiles Modbus refresh offline -> %s",
+                snapshot.error or "unknown error",
             )
         async with state_lock:
             latest_hoymiles_snapshot["value"] = snapshot
@@ -1749,10 +1800,13 @@ async def main() -> None:
     if AsyncModbusSerialClient is None or ModbusTcpClient is None:
         raise RuntimeError("pymodbus is missing. Install bridge dependencies first.")
 
+    connected_clients: set[WebSocketServerProtocol] = set()
+    log_queue: asyncio.Queue[dict[str, str]] = asyncio.Queue(maxsize=100)
+    configure_logging(asyncio.get_running_loop(), log_queue)
+
     client = create_modbus_client()
     await ensure_modbus_connected(client)
 
-    connected_clients: set[WebSocketServerProtocol] = set()
     latest_message: dict[str, str | None] = {"value": None}
     failure_count = 0
     pending_cloud_batch: Optional[CloudBatchState] = None
@@ -1768,25 +1822,35 @@ async def main() -> None:
 
     async with websockets.serve(handler, HOST, PORT):
         http_session = aiohttp.ClientSession()
-        print(
-            f"Modbus relay listening on ws://{HOST}:{PORT} "
-            f"(profile: {TARGET_OS}, serial: {SERIAL_PORT} via {SERIAL_PORT_SOURCE}, baud: {BAUDRATE})"
+        relay_logger.info(
+            "Modbus relay listening on ws://%s:%s (profile: %s, serial: %s via %s, baud: %s)",
+            HOST,
+            PORT,
+            TARGET_OS,
+            SERIAL_PORT,
+            SERIAL_PORT_SOURCE,
+            BAUDRATE,
         )
-        print(
-            f"[{datetime.now().strftime('%H:%M:%S')}] "
-            f"Chint meter -> slave {METER_SLAVE_ID}, power reg {METER_TOTAL_ACTIVE_POWER_REGISTER} "
-            f"({METER_REGISTER_KIND}), voltage reg {METER_PHASE_A_VOLTAGE_REGISTER} "
-            f"({METER_REGISTER_KIND})"
+        relay_logger.info(
+            "Chint meter -> slave %s, power reg %s (%s), voltage reg %s (%s)",
+            METER_SLAVE_ID,
+            METER_TOTAL_ACTIVE_POWER_REGISTER,
+            METER_REGISTER_KIND,
+            METER_PHASE_A_VOLTAGE_REGISTER,
+            METER_REGISTER_KIND,
         )
-        print(
-            f"[{datetime.now().strftime('%H:%M:%S')}] "
-            f"Hoymiles Modbus TCP -> host {HOYMILES_MODBUS_HOST}:{HOYMILES_MODBUS_PORT}, "
-            f"unit {HOYMILES_MODBUS_UNIT_ID}, refresh {HOYMILES_MODBUS_REFRESH_SECONDS:.0f}s"
+        relay_logger.info(
+            "Hoymiles Modbus TCP -> host %s:%s, unit %s, refresh %.0fs",
+            HOYMILES_MODBUS_HOST,
+            HOYMILES_MODBUS_PORT,
+            HOYMILES_MODBUS_UNIT_ID,
+            HOYMILES_MODBUS_REFRESH_SECONDS,
         )
-        print(f"[{datetime.now().strftime('%H:%M:%S')}] {describe_cloud_sync()}")
-        print(f"[{datetime.now().strftime('%H:%M:%S')}] {describe_csv_logging()}")
-        print(f"[{datetime.now().strftime('%H:%M:%S')}] {describe_weather_sync()}")
+        relay_logger.info(describe_cloud_sync())
+        relay_logger.info(describe_csv_logging())
+        relay_logger.info(describe_weather_sync())
 
+        log_task = asyncio.create_task(broadcast_logs(log_queue, connected_clients))
         hoymiles_task = asyncio.create_task(
             hoymiles_refresh_loop(
                 latest_message=latest_message,
@@ -1828,24 +1892,24 @@ async def main() -> None:
                         failure_count += 1
                     else:
                         failure_count = 0
-                    print(
-                        f"[{datetime.now().strftime('%H:%M:%S')}] "
-                        f"meter {payload.net_grid_w} W"
-                        + (
+                    relay_logger.info(
+                        "meter %s W%s%s%s",
+                        payload.net_grid_w,
+                        (
                             f" | hoymiles total {payload.solar_production_w} W"
                             if payload.hoymiles_status == "OK"
                             else " | hoymiles offline"
-                        )
-                        + (
+                        ),
+                        (
                             f" | inverters {payload.hoymiles_inverter_count}"
                             if payload.hoymiles_status == "OK"
                             else ""
-                        )
-                        + (
+                        ),
+                        (
                             f" | phase A {payload.phase_a_voltage_v:.1f} V"
                             if payload.phase_a_voltage_v is not None
                             else ""
-                        )
+                        ),
                     )
                     await asyncio.to_thread(ping_dead_mans_snitch)
 
@@ -1860,7 +1924,7 @@ async def main() -> None:
 
                 except Exception as exc:
                     failure_count += 1
-                    print(f"[{datetime.now().strftime('%H:%M:%S')}] Relay hiccup: {exc}")
+                    relay_logger.error("Relay hiccup: %s", exc)
                     if failure_count >= OFFLINE_FAILURE_THRESHOLD:
                         offline_message = status_payload_to_json(
                             build_offline_status_payload(failure_count)
@@ -1872,8 +1936,11 @@ async def main() -> None:
 
                 await asyncio.sleep(POLL_INTERVAL_SECONDS)
         finally:
+            log_task.cancel()
             hoymiles_task.cancel()
             weather_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await log_task
             with contextlib.suppress(asyncio.CancelledError):
                 await hoymiles_task
             with contextlib.suppress(asyncio.CancelledError):
@@ -1892,4 +1959,4 @@ if __name__ == "__main__":
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
-        print("\nRelay stopped by user.")
+        relay_logger.info("Relay stopped by user.")

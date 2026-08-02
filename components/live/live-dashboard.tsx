@@ -9,6 +9,7 @@ import { SeriesAreaCard } from "@/components/charts/series-area-card";
 import { useLiveTelemetry } from "@/components/telemetry/use-live-telemetry";
 import { ArrayVisualizer } from "@/components/live/array-visualizer";
 import { LiveWeatherPanel } from "@/components/weather/live-weather-panel";
+import { AdminLogs } from "@/components/admin/admin-logs";
 
 function formatKw(value: number) {
   return `${(value / 1000).toFixed(2)} kW`;
@@ -31,8 +32,8 @@ function formatTimestamp(timestamp: string | undefined) {
   });
 }
 
-export function LiveDashboard() {
-  const { telemetry, series, bridgeState } = useLiveTelemetry();
+export function LiveDashboard({ isAdmin = false }: { isAdmin?: boolean }) {
+  const { telemetry, series, bridgeState, serverLogs } = useLiveTelemetry();
   const homeLoadKw = telemetry.home_consumption_w / 1000;
   const solarKw = telemetry.solar_production_w / 1000;
   const gridKw = telemetry.net_grid_w / 1000;
@@ -151,6 +152,8 @@ export function LiveDashboard() {
         inverters={telemetry.hoymiles?.inverters}
         lastUpdatedAt={telemetry.hoymiles?.timestamp}
       />
+
+      {isAdmin ? <AdminLogs logs={serverLogs} /> : null}
 
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
         <Card className="border-white/10 bg-slate-950/80">
