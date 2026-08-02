@@ -205,6 +205,7 @@ Optional environment variables:
 - `SUPABASE_SERVICE_ROLE_KEY=...`
 - `SUPABASE_TABLE_NAME=meter_readings`
 - `SUPABASE_DAILY_TABLE_NAME=daily_energy_summary`
+- `SUPABASE_PORT_TABLE_NAME=inverter_port_readings`
 - `SUPABASE_WEATHER_TABLE_NAME=weather_snapshots`
 - `SUPABASE_BATCH_MINUTES=10`
 - `WEATHER_LATITUDE=...`

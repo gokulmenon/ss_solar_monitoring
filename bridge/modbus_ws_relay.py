@@ -190,6 +190,7 @@ NEXT_PUBLIC_SUPABASE_URL = os.getenv("NEXT_PUBLIC_SUPABASE_URL", "").strip()
 SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "").strip()
 SUPABASE_TABLE_NAME = os.getenv("SUPABASE_TABLE_NAME", "meter_readings")
 SUPABASE_DAILY_TABLE_NAME = os.getenv("SUPABASE_DAILY_TABLE_NAME", "daily_energy_summary")
+SUPABASE_PORT_TABLE_NAME = os.getenv("SUPABASE_PORT_TABLE_NAME", "inverter_port_readings")
 SUPABASE_WEATHER_TABLE_NAME = os.getenv("SUPABASE_WEATHER_TABLE_NAME", "weather_snapshots")
 SUPABASE_BATCH_MINUTES = int(os.getenv("SUPABASE_BATCH_MINUTES", "10"))
 SUPABASE_SYNC_TIMEOUT_SECONDS = float(os.getenv("SUPABASE_SYNC_TIMEOUT_SECONDS", "5"))
@@ -301,6 +302,8 @@ class CloudBatchState:
     exported_wh: float = 0.0
     solar_wh: float = 0.0
     home_wh: float = 0.0
+    port_rows: list[dict[str, int | float | str]] = field(default_factory=list)
+    port_snapshot_timestamp: Optional[str] = None
 
     def add_sample(
         self,
@@ -322,6 +325,34 @@ class CloudBatchState:
         self.exported_wh += max(-net_grid_w, 0) / 3600
         if home_consumption_w is not None:
             self.home_wh += max(home_consumption_w, 0) / 3600
+
+    def add_hoymiles_snapshot(self, snapshot: HoymilesSnapshot) -> None:
+        """Add one non-zero port snapshot to this cloud batch."""
+        if snapshot.status != "OK" or snapshot.timestamp == self.port_snapshot_timestamp:
+            return
+
+        for inverter in snapshot.inverters:
+            for port in inverter.ports:
+                if (
+                    port.power_w is None
+                    or port.power_w <= 0
+                    or port.voltage_v is None
+                    or port.energy_daily_raw is None
+                ):
+                    continue
+
+                self.port_rows.append(
+                    {
+                        "timestamp": snapshot.timestamp,
+                        "inverter_serial": inverter.serial_number,
+                        "port_number": port.port_number,
+                        "dc_power_w": float(port.power_w),
+                        "dc_voltage_v": float(port.voltage_v),
+                        "energy_daily_wh": float(port.energy_daily_raw),
+                    }
+                )
+
+        self.port_snapshot_timestamp = snapshot.timestamp
 
 
 def decode_float32_be(registers: list[int]) -> float:
@@ -1479,11 +1510,47 @@ async def sync_supabase_batch(session: aiohttp.ClientSession, batch: CloudBatchS
         )
 
 
-async def flush_cloud_batch(session: aiohttp.ClientSession, batch: Optional[CloudBatchState]) -> None:
-    if batch is None or batch.sample_count == 0:
+async def sync_supabase_port_rows(
+    session: aiohttp.ClientSession,
+    rows: list[dict[str, int | float | str]],
+) -> None:
+    """Upsert non-zero Hoymiles port telemetry for one cloud batch."""
+    if not rows or not NEXT_PUBLIC_SUPABASE_URL or not SUPABASE_SERVICE_ROLE_KEY:
         return
 
-    await sync_supabase_batch(session, batch)
+    port_url = (
+        f"{NEXT_PUBLIC_SUPABASE_URL.rstrip('/')}/{SUPABASE_PORT_TABLE_NAME}"
+        "?on_conflict=timestamp,inverter_serial,port_number"
+    )
+
+    try:
+        async with session.post(
+            port_url,
+            json=rows,
+            headers=supabase_headers("resolution=merge-duplicates,return=minimal"),
+            timeout=aiohttp.ClientTimeout(total=SUPABASE_SYNC_TIMEOUT_SECONDS),
+        ) as response:
+            if response.status not in {200, 201, 204}:
+                detail = await response.text()
+                raise RuntimeError(
+                    f"Supabase port telemetry upsert failed with status {response.status}: {detail}"
+                )
+
+        print(
+            f"[{datetime.now().strftime('%H:%M:%S')}] "
+            f"Supabase port telemetry ok ({len(rows)} rows)"
+        )
+    except (aiohttp.ClientError, asyncio.TimeoutError, RuntimeError) as exc:
+        print(f"[{datetime.now().strftime('%H:%M:%S')}] Supabase port telemetry failed: {exc}")
+
+
+async def flush_cloud_batch(session: aiohttp.ClientSession, batch: Optional[CloudBatchState]) -> None:
+    if batch is None or (batch.sample_count == 0 and not batch.port_rows):
+        return
+
+    if batch.sample_count > 0:
+        await sync_supabase_batch(session, batch)
+    await sync_supabase_port_rows(session, batch.port_rows)
 
 
 def queue_cloud_batch_flush(
@@ -1560,6 +1627,7 @@ def advance_cloud_batch(
     session: aiohttp.ClientSession,
     current_batch: Optional[CloudBatchState],
     payload: UnifiedRelayPayload,
+    hoymiles_snapshot: HoymilesSnapshot | None,
     pending_sync_tasks: set[asyncio.Task[None]],
 ) -> CloudBatchState | None:
     """Aggregate grid, voltage, and solar readings into a cloud batch."""
@@ -1585,6 +1653,8 @@ def advance_cloud_batch(
         payload.solar_production_w,
         payload.home_consumption_w,
     )
+    if hoymiles_snapshot is not None:
+        batch.add_hoymiles_snapshot(hoymiles_snapshot)
     return batch
 
 
@@ -1750,6 +1820,7 @@ async def main() -> None:
                         http_session,
                         pending_cloud_batch,
                         payload,
+                        hoymiles_snapshot,
                         pending_cloud_sync_tasks,
                     )
 

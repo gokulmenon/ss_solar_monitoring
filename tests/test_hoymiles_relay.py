@@ -32,6 +32,56 @@ class FakeHoymilesClient:
 
 
 class HoymilesRelayTest(unittest.TestCase):
+    def test_cloud_batch_collects_only_non_zero_port_rows(self):
+        relay = load_relay_module()
+        snapshot = relay.HoymilesSnapshot(
+            timestamp="2026-08-02T12:00:00Z",
+            device_serial_number="dtu",
+            status="OK",
+            error=None,
+            total_active_power_w=300,
+            daily_yield_wh=100,
+            inverter_count=1,
+            port_count=3,
+            inverters=[
+                relay.HoymilesInverterReading(
+                    serial_number="inv-1",
+                    ports=[
+                        relay.HoymilesPortReading(
+                            serial_number="inv-1",
+                            port_number=1,
+                            power_w=100,
+                            voltage_v=40.0,
+                            energy_daily_raw=25,
+                        ),
+                        relay.HoymilesPortReading(
+                            serial_number="inv-1",
+                            port_number=2,
+                            power_w=0,
+                            voltage_v=40.0,
+                            energy_daily_raw=25,
+                        ),
+                        relay.HoymilesPortReading(
+                            serial_number="inv-1",
+                            port_number=3,
+                            power_w=200,
+                            voltage_v=41.0,
+                            energy_daily_raw=50,
+                        ),
+                    ],
+                )
+            ],
+        )
+        batch = relay.CloudBatchState(bucket_start="2026-08-02T12:00:00Z", local_day="2026-08-02")
+
+        batch.add_hoymiles_snapshot(snapshot)
+        batch.add_hoymiles_snapshot(snapshot)
+
+        self.assertEqual(len(batch.port_rows), 2)
+        self.assertEqual(batch.port_rows[0]["inverter_serial"], "inv-1")
+        self.assertEqual(batch.port_rows[0]["port_number"], 1)
+        self.assertEqual(batch.port_rows[1]["dc_power_w"], 200.0)
+
     def test_reads_48_ports_in_safe_chunks_and_groups_four_ports_per_inverter(self):
         relay = load_relay_module()
         calls = []
