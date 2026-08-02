@@ -40,6 +40,7 @@ type RawHistoryRow = {
 
 const DEFAULT_WINDOW_HOURS = 30 * 24;
 const DEFAULT_BUCKET_MINUTES = 60;
+const SUPABASE_PAGE_SIZE = 1000;
 const SUPABASE_TABLE_NAME = process.env.SUPABASE_TABLE_NAME?.trim() || "meter_readings";
 const HISTORY_SNAPSHOT_PATH = path.join(process.cwd(), "public", "history-snapshot.json");
 
@@ -322,43 +323,61 @@ async function loadHistoryFromSupabase(): Promise<HistoryResponse> {
   queryUrl.searchParams.set("order", "timestamp.asc");
 
   try {
-    const response = await fetch(queryUrl.toString(), {
-      method: "GET",
-      headers: {
-        apikey: serviceRoleKey,
-        Authorization: `Bearer ${serviceRoleKey}`,
-        Accept: "application/json",
-      },
-      cache: "no-store",
-    });
-
-    if (!response.ok) {
-      throw new Error(`Supabase request failed with status ${response.status}`);
-    }
-
-    const payload = (await response.json()) as Array<{
+    type SupabaseHistoryRow = {
       timestamp?: string;
       net_grid_w?: number | string | null;
       solar_production_w?: number | string | null;
       phase_a_voltage_v?: number | string | null;
       sample_count?: number | string | null;
-    }>;
+    };
 
-    const rows = payload.flatMap((row) => {
-      const netGrid = parseNumber(row.net_grid_w);
-      if (!row.timestamp || netGrid === null) return [];
-      const sampleCount = parseNumber(row.sample_count);
+    const rows: RawHistoryRow[] = [];
+    let offset = 0;
 
-      return [
-        {
-          timestamp: row.timestamp,
-          net_grid_w: netGrid,
-          solar_production_w: parseNumber(row.solar_production_w),
-          phase_a_voltage_v: parseNumber(row.phase_a_voltage_v),
-          sample_count: Math.max(1, Math.round(sampleCount ?? 1)),
+    while (true) {
+      const pageUrl = new URL(queryUrl);
+      pageUrl.searchParams.set("limit", String(SUPABASE_PAGE_SIZE));
+      pageUrl.searchParams.set("offset", String(offset));
+
+      const response = await fetch(pageUrl.toString(), {
+        method: "GET",
+        headers: {
+          apikey: serviceRoleKey,
+          Authorization: `Bearer ${serviceRoleKey}`,
+          Accept: "application/json",
         },
-      ];
-    });
+        cache: "no-store",
+      });
+
+      if (!response.ok) {
+        throw new Error(`Supabase request failed with status ${response.status}`);
+      }
+
+      const payload = (await response.json()) as SupabaseHistoryRow[];
+      rows.push(
+        ...payload.flatMap((row) => {
+          const netGrid = parseNumber(row.net_grid_w);
+          if (!row.timestamp || netGrid === null) return [];
+          const sampleCount = parseNumber(row.sample_count);
+
+          return [
+            {
+              timestamp: row.timestamp,
+              net_grid_w: netGrid,
+              solar_production_w: parseNumber(row.solar_production_w),
+              phase_a_voltage_v: parseNumber(row.phase_a_voltage_v),
+              sample_count: Math.max(1, Math.round(sampleCount ?? 1)),
+            },
+          ];
+        }),
+      );
+
+      if (payload.length < SUPABASE_PAGE_SIZE) {
+        break;
+      }
+
+      offset += SUPABASE_PAGE_SIZE;
+    }
 
     return buildHistoryResponse("supabase", rows);
   } catch (error) {
