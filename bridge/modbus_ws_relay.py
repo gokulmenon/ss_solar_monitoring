@@ -33,6 +33,7 @@ import os
 import shutil
 import struct
 import sys
+import time
 from collections import defaultdict
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
@@ -163,7 +164,12 @@ HOYMILES_INVERTER_BASE_ADDRESS = 0x1000
 HOYMILES_INVERTER_REGISTER_COUNT = 20
 HOYMILES_INVERTER_REGISTER_STRIDE = 40
 HOYMILES_INVERTER_COUNT = int(os.getenv("HOYMILES_INVERTER_COUNT", "12"))
-HOYMILES_INVERTERS_PER_READ = int(os.getenv("HOYMILES_INVERTERS_PER_READ", "3"))
+HOYMILES_PORTS_PER_INVERTER = int(os.getenv("HOYMILES_PORTS_PER_INVERTER", "4"))
+HOYMILES_PORT_COUNT = int(
+    os.getenv("HOYMILES_PORT_COUNT", str(HOYMILES_INVERTER_COUNT * HOYMILES_PORTS_PER_INVERTER))
+)
+HOYMILES_PORTS_PER_READ = int(os.getenv("HOYMILES_PORTS_PER_READ", "3"))
+HOYMILES_CHUNK_DELAY_SECONDS = float(os.getenv("HOYMILES_CHUNK_DELAY_SECONDS", "1"))
 HOYMILES_DTU_SERIAL_ADDRESS = 0x2000
 HOYMILES_DTU_SERIAL_REGISTER_COUNT = 3
 
@@ -398,6 +404,12 @@ def read_hoymiles_registers(client, *, start_address: int, count: int, unit_id: 
 
 
 def decode_hoymiles_inverter_block(registers: list[int]) -> HoymilesInverterReading | None:
+    """Decode one 40-register Hoymiles port block.
+
+    Hoymiles assigns one 40-register block to each microinverter port. The
+    caller groups the resulting port records by serial number to reconstruct
+    multi-port inverter objects.
+    """
     if len(registers) < HOYMILES_INVERTER_REGISTER_COUNT:
         return None
 
@@ -408,6 +420,7 @@ def decode_hoymiles_inverter_block(registers: list[int]) -> HoymilesInverterRead
         return None
 
     port_number = raw_bytes[7]
+    pv_voltage_raw = int.from_bytes(raw_bytes[8:10], byteorder="big", signed=False)
     pv_current_raw = int.from_bytes(raw_bytes[10:12], byteorder="big", signed=False)
     grid_voltage_raw = int.from_bytes(raw_bytes[12:14], byteorder="big", signed=False)
     grid_frequency_raw = int.from_bytes(raw_bytes[14:16], byteorder="big", signed=False)
@@ -439,7 +452,7 @@ def decode_hoymiles_inverter_block(registers: list[int]) -> HoymilesInverterRead
             HoymilesPortReading(
                 serial_number=serial_number,
                 port_number=port_number,
-                voltage_v=grid_voltage_raw / 10.0,
+                voltage_v=pv_voltage_raw / 10.0,
                 current_a=pv_current_raw / current_scale,
                 power_w=power_w,
                 energy_total_raw=total_production,
@@ -998,21 +1011,18 @@ def read_hoymiles_snapshot_sync() -> HoymilesSnapshot:
         except Exception as exc:
             errors.append(f"Hoymiles DTU serial read failed: {exc}")
 
-        inverters: list[HoymilesInverterReading] = []
-        total_active_power_w = 0
-        daily_yield_wh = 0.0
-        daily_yield_count = 0
+        port_readings: list[HoymilesInverterReading] = []
 
-        for chunk_start_index in range(0, HOYMILES_INVERTER_COUNT, HOYMILES_INVERTERS_PER_READ):
-            chunk_inverter_count = min(
-                HOYMILES_INVERTERS_PER_READ,
-                HOYMILES_INVERTER_COUNT - chunk_start_index,
+        for chunk_start_port_index in range(0, HOYMILES_PORT_COUNT, HOYMILES_PORTS_PER_READ):
+            chunk_port_count = min(
+                HOYMILES_PORTS_PER_READ,
+                HOYMILES_PORT_COUNT - chunk_start_port_index,
             )
             start_address = (
                 HOYMILES_INVERTER_BASE_ADDRESS
-                + chunk_start_index * HOYMILES_INVERTER_REGISTER_STRIDE
+                + chunk_start_port_index * HOYMILES_INVERTER_REGISTER_STRIDE
             )
-            register_count = chunk_inverter_count * HOYMILES_INVERTER_REGISTER_STRIDE
+            register_count = chunk_port_count * HOYMILES_INVERTER_REGISTER_STRIDE
 
             try:
                 registers = read_hoymiles_registers(
@@ -1022,38 +1032,72 @@ def read_hoymiles_snapshot_sync() -> HoymilesSnapshot:
                     unit_id=HOYMILES_MODBUS_UNIT_ID,
                 )
             except Exception as exc:
-                if chunk_start_index == 0:
+                if chunk_start_port_index == 0:
                     return build_offline_hoymiles_snapshot(
                         f"Hoymiles Modbus read failed at 0x{start_address:04X}: {exc}"
                     )
                 errors.append(
-                    f"Hoymiles Modbus read stopped at inverter {chunk_start_index + 1}: {exc}"
+                    f"Hoymiles Modbus read stopped at port {chunk_start_port_index + 1}: {exc}"
                 )
                 break
 
-            for chunk_offset in range(chunk_inverter_count):
+            for chunk_offset in range(chunk_port_count):
                 block_start = chunk_offset * HOYMILES_INVERTER_REGISTER_STRIDE
                 block_end = block_start + HOYMILES_INVERTER_REGISTER_STRIDE
-                inverter = decode_hoymiles_inverter_block(registers[block_start:block_end])
-                if inverter is None:
-                    if not inverters:
+                port_reading = decode_hoymiles_inverter_block(registers[block_start:block_end])
+                if port_reading is None:
+                    if not port_readings:
                         return build_offline_hoymiles_snapshot(
-                            "Hoymiles Modbus response did not include inverter data"
+                            "Hoymiles Modbus response did not include port data"
                         )
                     break
 
-                inverters.append(inverter)
-                if inverter.link_status:
-                    if inverter.active_power_w is not None:
-                        total_active_power_w += inverter.active_power_w
-                    for port in inverter.ports:
-                        if port.energy_daily_raw is not None:
-                            daily_yield_wh += float(port.energy_daily_raw)
-                            daily_yield_count += 1
+                port_readings.append(port_reading)
 
-            if len(inverters) < chunk_start_index + chunk_inverter_count:
+            if len(port_readings) < chunk_start_port_index + chunk_port_count:
                 break
 
+            if chunk_start_port_index + chunk_port_count < HOYMILES_PORT_COUNT:
+                time.sleep(max(0.0, HOYMILES_CHUNK_DELAY_SECONDS))
+
+        inverters_by_serial: dict[str, HoymilesInverterReading] = {}
+        for port_reading in port_readings:
+            serial_number = port_reading.serial_number
+            inverter = inverters_by_serial.get(serial_number)
+            if inverter is None:
+                inverter = HoymilesInverterReading(
+                    serial_number=serial_number,
+                    active_power_w=0,
+                    reactive_power_var=port_reading.reactive_power_var,
+                    voltage_v=port_reading.voltage_v,
+                    current_a=port_reading.current_a,
+                    frequency_hz=port_reading.frequency_hz,
+                    power_factor=port_reading.power_factor,
+                    temperature_c=port_reading.temperature_c,
+                    warning_number=port_reading.warning_number,
+                    link_status=port_reading.link_status,
+                    power_limit_w=port_reading.power_limit_w,
+                    modulation_index_signal=port_reading.modulation_index_signal,
+                    ports=[],
+                )
+                inverters_by_serial[serial_number] = inverter
+
+            inverter.active_power_w = (inverter.active_power_w or 0) + sum(
+                port.power_w or 0 for port in port_reading.ports
+            )
+            inverter.link_status = max(inverter.link_status or 0, port_reading.link_status or 0)
+            inverter.ports.extend(port_reading.ports)
+
+        inverters = list(inverters_by_serial.values())
+        total_active_power_w = sum(inverter.active_power_w or 0 for inverter in inverters)
+        daily_yield_values = [
+            port.energy_daily_raw
+            for inverter in inverters
+            for port in inverter.ports
+            if port.energy_daily_raw is not None
+        ]
+        daily_yield_wh = sum(daily_yield_values)
+        daily_yield_count = len(daily_yield_values)
         inverter_count = len(inverters)
         port_count = sum(len(inverter.ports) for inverter in inverters)
         error_message = "; ".join(errors) if errors else None
