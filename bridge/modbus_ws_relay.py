@@ -1572,7 +1572,7 @@ async def sync_supabase_port_rows(
         return
 
     port_url = (
-        f"{NEXT_PUBLIC_SUPABASE_URL.rstrip('/')}/{SUPABASE_PORT_TABLE_NAME}"
+        f"{NEXT_PUBLIC_SUPABASE_URL.rstrip('/')}/rest/v1/{SUPABASE_PORT_TABLE_NAME}"
         "?on_conflict=timestamp,inverter_serial,port_number"
     )
 
