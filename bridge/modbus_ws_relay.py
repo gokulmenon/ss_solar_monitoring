@@ -1,39 +1,23 @@
-"""
-Local Modbus RTU + Hoymiles Modbus TCP relay.
+"""Hybrid Hoymiles relay: DTU Modbus TCP polling plus passive RS-485 sniffing.
 
-This bridge keeps the Chint DTSU666-CT meter on the shared RS-485 bus and
-reads the Hoymiles DTU over Ethernet using Modbus TCP on port 502.
-
-Important behavior:
-- RS-485 reads remain sequential and use one shared AsyncModbusSerialClient.
-- Hoymiles is polled separately over Modbus TCP.
-- If one side fails, the relay keeps broadcasting with null/0 values for that
-  device instead of exiting.
-- The Chint meter reading still feeds the existing CSV backup and Supabase
-  history flow.
-
-Hoymiles mapping notes:
-- The relay reads the DTU's inverter blocks directly over Modbus TCP and
-  converts them into inverter totals and per-port readings.
-- If you want to inspect or change the DTU host, port, or polling interval,
-  see the HOYMILES_MODBUS_* env vars below.
+The DTU-Pro-S is the sole RS-485 master and polls the attached Chint DTSU666.
+This process opens the USB-RS485 adapter for receive-only byte capture; it
+never writes a Modbus frame.  Inverter data continues to come from the DTU's
+Ethernet Modbus TCP service.  WebSocket, Supabase, and CSV schemas are kept
+compatible with the existing application.
 """
 
 from __future__ import annotations
 
-import argparse
 import asyncio
 import csv
 import contextlib
-import gc
-import importlib.util
 import inspect
 import json
 import logging
+import math
 import os
-import shutil
 import struct
-import sys
 import time
 from collections import defaultdict
 from dataclasses import asdict, dataclass, field
@@ -48,11 +32,14 @@ import websockets
 from websockets.server import WebSocketServerProtocol
 
 try:
-    from pymodbus.client import AsyncModbusSerialClient
+    import serial
+except ImportError:  # pragma: no cover - resolved when bridge deps are installed
+    serial = None
+
+try:
     from pymodbus.client import ModbusTcpClient
     from pymodbus.pdu.register_message import ReadHoldingRegistersResponse
 except ImportError:  # pragma: no cover - resolved when bridge deps are installed
-    AsyncModbusSerialClient = None
     ModbusTcpClient = None
     ReadHoldingRegistersResponse = None
 
@@ -152,24 +139,6 @@ def load_env_file(path: Path) -> None:
 load_env_file(Path(__file__).with_name(".env"))
 
 
-def parse_cli_args(argv: list[str]) -> argparse.Namespace:
-    """Parse relay CLI flags without rejecting unrelated wrapper arguments."""
-    parser = argparse.ArgumentParser(description="Local Modbus + Hoymiles relay")
-    parser.add_argument(
-        "--os",
-        dest="target_os",
-        default="mac",
-        help='Serial-port profile to use. "windows" selects SERIAL_PORT_WINDOWS; anything else uses SERIAL_PORT_MACOS.',
-    )
-    args, _ = parser.parse_known_args(argv)
-    return args
-
-
-def normalize_target_os(value: str) -> str:
-    """Collapse any non-Windows value into the macOS profile."""
-    return "windows" if value.strip().lower() == "windows" else "mac"
-
-
 def first_env_value(*keys: str) -> tuple[Optional[str], Optional[str]]:
     """Return the first non-empty environment variable value plus its key."""
     for key in keys:
@@ -179,52 +148,28 @@ def first_env_value(*keys: str) -> tuple[Optional[str], Optional[str]]:
     return None, None
 
 
-CLI_ARGS = parse_cli_args(sys.argv[1:])
-TARGET_OS = normalize_target_os(CLI_ARGS.target_os)
-
-
-def resolve_serial_port(target_os: str) -> tuple[str, str]:
-    """
-    Pick the serial port from env vars using the requested relay profile.
-
-    Precedence:
-    1. SERIAL_PORT for a one-off override on any platform
-    2. SERIAL_PORT_WINDOWS when --os windows is selected
-    3. SERIAL_PORT_MACOS for macOS and every other value
-    """
-    explicit_port, explicit_key = first_env_value("SERIAL_PORT")
-    if explicit_port is not None and explicit_key is not None:
-        return explicit_port, explicit_key
-
-    if target_os == "windows":
-        return first_env_value("SERIAL_PORT_WINDOWS")[0] or "COM3", "SERIAL_PORT_WINDOWS"
-
-    return (
-        first_env_value("SERIAL_PORT_MACOS")[0] or "/dev/cu.usbserial-BH002YZD",
-        "SERIAL_PORT_MACOS",
-    )
-
-
 HOST = os.getenv("BRIDGE_HOST", "127.0.0.1")
 PORT = int(os.getenv("BRIDGE_PORT", "8787"))
-SERIAL_PORT, SERIAL_PORT_SOURCE = resolve_serial_port(TARGET_OS)
-BAUDRATE = int(os.getenv("MODBUS_BAUDRATE", "9600"))
 POLL_INTERVAL_SECONDS = float(os.getenv("BRIDGE_POLL_INTERVAL_SECONDS", "5"))
 
-# Chint DTSU666-CT
-METER_SLAVE_ID = int(os.getenv("MODBUS_SLAVE_ID", "1"))
+# Passive Chint meter sniffer.  These values configure receive-only pyserial;
+# no code path writes to this port.
+SERIAL_PORT = os.getenv("SERIAL_PORT", "COM4").strip()
+SERIAL_BAUDRATE = int(os.getenv("MODBUS_BAUDRATE", "9600"))
+METER_SLAVE_ID = int(os.getenv("MODBUS_SLAVE_ID", "142"))
 METER_TOTAL_ACTIVE_POWER_REGISTER = int(os.getenv("METER_TOTAL_ACTIVE_POWER_REGISTER", "8210"))
-METER_PHASE_A_VOLTAGE_REGISTER = int(os.getenv("METER_PHASE_A_VOLTAGE_REGISTER", "8192"))
-METER_REGISTER_KIND = os.getenv("METER_REGISTER_KIND", "holding").strip().lower()
+# The DTU's observed 44-register poll begins before the voltage register.  The
+# meter returns Float32 values in tenths, so scale after decoding.
+METER_PHASE_A_VOLTAGE_REGISTER = int(os.getenv("METER_PHASE_A_VOLTAGE_REGISTER", "8198"))
 METER_POWER_SCALE = float(os.getenv("METER_POWER_SCALE", "0.1"))
 METER_VOLTAGE_SCALE = float(os.getenv("METER_VOLTAGE_SCALE", "0.1"))
+METER_SNIFFER_STALE_SECONDS = float(os.getenv("METER_SNIFFER_STALE_SECONDS", "15"))
 
 # Hoymiles DTU via Ethernet / Modbus TCP
-HOYMILES_MODBUS_HOST = first_env_value("HOYMILES_MODBUS_HOST", "HOYMILES_WIFI_HOST")[0] or "192.168.1.242"
+HOYMILES_MODBUS_HOST = os.getenv("HOYMILES_MODBUS_HOST", "192.168.1.242").strip()
 HOYMILES_MODBUS_PORT = int(os.getenv("HOYMILES_MODBUS_PORT", "502"))
 HOYMILES_MODBUS_UNIT_ID = int(os.getenv("HOYMILES_MODBUS_UNIT_ID", "1"))
 HOYMILES_MODBUS_TIMEOUT_SECONDS = float(os.getenv("HOYMILES_MODBUS_TIMEOUT_SECONDS", "20"))
-HOYMILES_MODBUS_REFRESH_SECONDS = float(os.getenv("HOYMILES_MODBUS_REFRESH_SECONDS", "900"))
 HOYMILES_INVERTER_BASE_ADDRESS = 0x1000
 HOYMILES_INVERTER_REGISTER_COUNT = 20
 HOYMILES_INVERTER_REGISTER_STRIDE = 40
@@ -237,15 +182,6 @@ HOYMILES_PORTS_PER_READ = int(os.getenv("HOYMILES_PORTS_PER_READ", "3"))
 HOYMILES_CHUNK_DELAY_SECONDS = float(os.getenv("HOYMILES_CHUNK_DELAY_SECONDS", "1"))
 HOYMILES_DTU_SERIAL_ADDRESS = 0x2000
 HOYMILES_DTU_SERIAL_REGISTER_COUNT = 3
-
-# Backward-compatible aliases for older log paths and helper functions below.
-HOYMILES_WIFI_HOST = HOYMILES_MODBUS_HOST
-HOYMILES_WIFI_TIMEOUT_SECONDS = HOYMILES_MODBUS_TIMEOUT_SECONDS
-HOYMILES_WIFI_REFRESH_SECONDS = HOYMILES_MODBUS_REFRESH_SECONDS
-HOYMILES_WIFI_COMMAND = "hoymiles-wifi"
-HOYMILES_WIFI_COMMAND_ARG = "get-real-data-new"
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
-
 CSV_LOG_PATH = os.getenv("CSV_LOG_PATH")
 CSV_BACKUP_DIR = os.getenv("CSV_BACKUP_DIR", "./logs/meter-backups")
 CSV_BACKUP_PREFIX = os.getenv("CSV_BACKUP_PREFIX", "meter")
@@ -559,88 +495,6 @@ def decode_hoymiles_inverter_block(registers: list[int]) -> HoymilesInverterRead
     )
 
 
-def create_modbus_client():
-    if AsyncModbusSerialClient is None:
-        raise RuntimeError(
-            "pymodbus is not installed. Run: python3 -m pip install -r bridge/requirements.txt"
-        )
-
-    return AsyncModbusSerialClient(
-        port=SERIAL_PORT,
-        baudrate=BAUDRATE,
-        bytesize=8,
-        parity="N",
-        stopbits=1,
-        timeout=1,
-        retries=0,
-    )
-
-
-async def ensure_modbus_connected(client) -> None:
-    """Keep retrying until the serial client opens successfully."""
-    while True:
-        try:
-            if await client.connect() and client.connected:
-                return
-        except Exception as exc:
-            relay_logger.error("Modbus connect failed: %s", exc)
-
-        relay_logger.warning("Modbus reconnect retry in 1s...")
-        await asyncio.sleep(1)
-
-
-async def reconnect_modbus_client(client) -> None:
-    """Close and reopen the same shared AsyncModbusSerialClient instance."""
-    try:
-        client.close()
-    except Exception:
-        pass
-
-    gc.collect()
-    await asyncio.sleep(1)
-    await ensure_modbus_connected(client)
-
-
-async def read_float_register(
-    client,
-    *,
-    slave_id: int,
-    address: int,
-    register_kind: str,
-    label: str,
-    scale: float = 1.0,
-) -> tuple[Optional[float], Optional[str]]:
-    """
-    Read a two-register float from the selected slave.
-
-    The Modbus bus is half-duplex, so callers must await these reads
-    sequentially instead of launching them concurrently.
-    """
-    reader = client.read_input_registers if register_kind == "input" else client.read_holding_registers
-
-    try:
-        response = await reader(
-            **build_modbus_read_kwargs(
-                reader,
-                address=address,
-                count=2,
-                slave_id=slave_id,
-            )
-        )
-        if response is None:
-            raise RuntimeError(f"{label} returned no response")
-        if response.isError():
-            raise RuntimeError(f"{label} returned Modbus error: {response}")
-
-        registers = getattr(response, "registers", None)
-        if not registers or len(registers) < 2:
-            raise RuntimeError(f"{label} returned incomplete register data")
-
-        return decode_float32_be(registers) * scale, None
-    except Exception as exc:
-        return None, f"{label} read failed: {exc}"
-
-
 def bucket_start_for_timestamp(timestamp: str, bucket_minutes: int) -> str:
     """Round a UTC timestamp down to the start of the cloud batch window."""
     date = datetime.fromisoformat(timestamp.replace("Z", "+00:00")).astimezone(timezone.utc)
@@ -677,41 +531,6 @@ def resolve_csv_sink() -> tuple[Path | None, bool]:
     return None, False
 
 
-async def read_meter_snapshot(client) -> MeterSnapshot:
-    """Poll the Chint meter sequentially and return the live values plus any errors."""
-    errors: list[str] = []
-
-    total_active_power_w, power_error = await read_float_register(
-        client,
-        slave_id=METER_SLAVE_ID,
-        address=METER_TOTAL_ACTIVE_POWER_REGISTER,
-        register_kind=METER_REGISTER_KIND,
-        label=f"Chint meter active power (slave {METER_SLAVE_ID}, reg {METER_TOTAL_ACTIVE_POWER_REGISTER})",
-        scale=METER_POWER_SCALE,
-    )
-    if power_error:
-        errors.append(power_error)
-
-    phase_a_voltage_v, voltage_error = await read_float_register(
-        client,
-        slave_id=METER_SLAVE_ID,
-        address=METER_PHASE_A_VOLTAGE_REGISTER,
-        register_kind=METER_REGISTER_KIND,
-        label=f"Chint meter phase A voltage (slave {METER_SLAVE_ID}, reg {METER_PHASE_A_VOLTAGE_REGISTER})",
-        scale=METER_VOLTAGE_SCALE,
-    )
-    if voltage_error:
-        errors.append(voltage_error)
-
-    return MeterSnapshot(
-        timestamp=datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
-        status="OK" if total_active_power_w is not None or phase_a_voltage_v is not None else "OFFLINE",
-        total_active_power_w=int(round(total_active_power_w)) if total_active_power_w is not None else None,
-        phase_a_voltage_v=round(phase_a_voltage_v, 1) if phase_a_voltage_v is not None else None,
-        error="; ".join(errors) if errors else None,
-    )
-
-
 def coerce_int(value: Any) -> Optional[int]:
     if value is None:
         return None
@@ -741,84 +560,6 @@ def coerce_float(value: Any) -> Optional[float]:
             return float(value.strip())
         except ValueError:
             return None
-    return None
-
-
-def scale_tenths(value: Any) -> Optional[float]:
-    number = coerce_float(value)
-    return None if number is None else number / 10.0
-
-
-def scale_hundredths(value: Any) -> Optional[float]:
-    number = coerce_float(value)
-    return None if number is None else number / 100.0
-
-
-def scale_thousandths(value: Any) -> Optional[float]:
-    number = coerce_float(value)
-    return None if number is None else number / 1000.0
-
-
-def first_present(mapping: dict[str, Any], *keys: str) -> Any:
-    """Return the first non-empty value across snake_case and camelCase keys."""
-    for key in keys:
-        value = mapping.get(key)
-        if value is not None:
-            return value
-    return None
-
-
-def extract_json_payload(text: str) -> dict[str, Any]:
-    """
-    Parse JSON from hoymiles-wifi stdout.
-
-    The CLI normally emits JSON with --as-json, but this function also tolerates
-    any short prefix/suffix text by extracting the first balanced object.
-    """
-    stripped = text.strip()
-    if not stripped:
-        raise ValueError("empty Hoymiles output")
-
-    try:
-        loaded = json.loads(stripped)
-    except json.JSONDecodeError:
-        start = stripped.find("{")
-        end = stripped.rfind("}")
-        if start < 0 or end <= start:
-            raise
-        loaded = json.loads(stripped[start : end + 1])
-
-    if not isinstance(loaded, dict):
-        raise ValueError("Hoymiles JSON response was not an object")
-
-    return loaded
-
-
-def resolve_hoymiles_invocation() -> Optional[list[str]]:
-    """
-    Resolve the Hoymiles CLI invocation.
-
-    Prefer `python -m hoymiles_wifi` when the package is importable in the
-    current interpreter. That survives copied or moved virtualenv folders,
-    where Windows console-script launchers often keep the old absolute Python
-    path baked into the generated `.exe`.
-    """
-    if HOYMILES_WIFI_COMMAND == "hoymiles-wifi" and importlib.util.find_spec("hoymiles_wifi") is not None:
-        return [sys.executable, "-m", "hoymiles_wifi"]
-
-    executable = shutil.which(HOYMILES_WIFI_COMMAND)
-    if executable is not None:
-        return [executable]
-
-    local_venv_candidates = (
-        PROJECT_ROOT / ".venv" / "bin" / HOYMILES_WIFI_COMMAND,
-        PROJECT_ROOT / ".venv" / "Scripts" / f"{HOYMILES_WIFI_COMMAND}.exe",
-        PROJECT_ROOT / ".venv" / "Scripts" / f"{HOYMILES_WIFI_COMMAND}.cmd",
-    )
-    for local_venv_executable in local_venv_candidates:
-        if local_venv_executable.exists():
-            return [str(local_venv_executable)]
-
     return None
 
 
@@ -1066,7 +807,7 @@ def build_offline_hoymiles_snapshot(message: str) -> HoymilesSnapshot:
     return HoymilesSnapshot(
         timestamp=datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         device_serial_number=None,
-        status="OFFLINE",
+        status="HARDWARE_OFFLINE",
         error=message,
         total_active_power_w=None,
         daily_yield_wh=None,
@@ -1076,11 +817,262 @@ def build_offline_hoymiles_snapshot(message: str) -> HoymilesSnapshot:
     )
 
 
-def read_hoymiles_snapshot_sync() -> HoymilesSnapshot:
+def build_offline_meter_snapshot(message: str) -> MeterSnapshot:
+    """Build the schema-compatible meter representation for an unavailable DTU."""
+    return MeterSnapshot(
+        timestamp=datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+        status="HARDWARE_OFFLINE",
+        total_active_power_w=None,
+        phase_a_voltage_v=None,
+        error=message,
+    )
+
+
+def modbus_crc16(frame: bytes) -> int:
+    """Return the Modbus RTU CRC-16 for a frame without its trailing CRC."""
+    crc = 0xFFFF
+    for byte in frame:
+        crc ^= byte
+        for _ in range(8):
+            crc = (crc >> 1) ^ 0xA001 if crc & 1 else crc >> 1
+    return crc & 0xFFFF
+
+
+def valid_modbus_rtu_frame(frame: bytes) -> bool:
+    """Validate standard Modbus RTU CRC bytes (low byte, then high byte)."""
+    return len(frame) >= 4 and modbus_crc16(frame[:-2]) == int.from_bytes(frame[-2:], "little")
+
+
+@dataclass
+class SniffedMeterRequest:
+    register: int
+    count: int
+    captured_at: float
+
+
+class ModbusMeterSniffer:
+    """Parse read-only Chint request/response frames from a noisy serial stream."""
+
+    def __init__(self, slave_id: int) -> None:
+        self.slave_id = slave_id
+        self.buffer = bytearray()
+        self.pending_requests: list[SniffedMeterRequest] = []
+        self.total_active_power_w: Optional[int] = None
+        self.phase_a_voltage_v: Optional[float] = None
+
+    def _discard_expired_requests(self, now: float) -> None:
+        self.pending_requests = [
+            request for request in self.pending_requests if now - request.captured_at <= 2.0
+        ]
+
+    def _response_request_index(self, byte_count: int) -> Optional[int]:
+        for index, request in enumerate(self.pending_requests):
+            if request.count * 2 == byte_count:
+                return index
+        return None
+
+    def _decode_response(
+        self,
+        request: SniffedMeterRequest,
+        payload: bytes,
+    ) -> Optional[MeterSnapshot]:
+        """Apply a response payload to every target Float32 covered by its request."""
+        updates = 0
+        targets = (
+            (METER_TOTAL_ACTIVE_POWER_REGISTER, "power"),
+            (METER_PHASE_A_VOLTAGE_REGISTER, "voltage"),
+        )
+        for target_register, target_kind in targets:
+            offset = (target_register - request.register) * 2
+            if offset < 0 or offset + 4 > len(payload):
+                continue
+            value = struct.unpack(">f", payload[offset : offset + 4])[0]
+            if not math.isfinite(value):
+                continue
+            if target_kind == "power":
+                self.total_active_power_w = int(round(value * METER_POWER_SCALE))
+            else:
+                self.phase_a_voltage_v = round(value * METER_VOLTAGE_SCALE, 1)
+            updates += 1
+
+        if updates == 0:
+            return None
+        return MeterSnapshot(
+            timestamp=datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+            status="OK",
+            total_active_power_w=self.total_active_power_w,
+            phase_a_voltage_v=self.phase_a_voltage_v,
+            error=None,
+        )
+
+    def feed(self, chunk: bytes) -> tuple[list[MeterSnapshot], bool]:
+        """Consume bytes and return decoded snapshots plus a valid-packet signal."""
+        self.buffer.extend(chunk)
+        snapshots: list[MeterSnapshot] = []
+        saw_valid_packet = False
+        now = time.monotonic()
+        self._discard_expired_requests(now)
+
+        while True:
+            start = self.buffer.find(bytes((self.slave_id, 0x03)))
+            if start < 0:
+                # Preserve one byte only when it could be the next frame's ID.
+                if self.buffer[-1:] == bytes((self.slave_id,)):
+                    del self.buffer[:-1]
+                else:
+                    self.buffer.clear()
+                break
+            if start > 0:
+                del self.buffer[:start]
+            if len(self.buffer) < 8:
+                break
+
+            # A response can be identified unambiguously when its byte count
+            # matches the oldest captured request. Check it before requests:
+            # register 0x2000 starts with 0x20 and otherwise resembles a count.
+            byte_count = self.buffer[2]
+            request_index = self._response_request_index(byte_count)
+            response_length = 3 + byte_count + 2
+            if request_index is not None:
+                # Windows can split a large Modbus response across reads.  A
+                # matching request tells us exactly how long the response is,
+                # so retain the complete partial frame until the next read.
+                if len(self.buffer) < response_length:
+                    break
+                frame = bytes(self.buffer[:response_length])
+                if valid_modbus_rtu_frame(frame):
+                    request = self.pending_requests.pop(request_index)
+                    del self.buffer[:response_length]
+                    saw_valid_packet = True
+                    snapshot = self._decode_response(request, frame[3:-2])
+                    if snapshot is not None:
+                        snapshots.append(snapshot)
+                    continue
+            request_frame = bytes(self.buffer[:8])
+            if valid_modbus_rtu_frame(request_frame):
+                register = int.from_bytes(request_frame[2:4], "big")
+                count = int.from_bytes(request_frame[4:6], "big")
+                if count > 0:
+                    self.pending_requests.append(
+                        SniffedMeterRequest(register=register, count=count, captured_at=now)
+                    )
+                    self.pending_requests = self.pending_requests[-8:]
+                    saw_valid_packet = True
+                    del self.buffer[:8]
+                    continue
+
+            # A complete invalid candidate cannot become valid by waiting for
+            # more bytes, so move the sliding window forward one byte.
+            del self.buffer[0]
+
+        return snapshots, saw_valid_packet
+
+
+async def meter_sniffer_loop(
+    serial_port: str,
+    baudrate: int,
+    state_dict: dict[str, Any],
+) -> None:
+    """Continuously receive DTU↔meter traffic without ever writing to RS-485."""
+    if serial is None:
+        state_dict["value"] = build_offline_meter_snapshot("pyserial is not installed")
+        relay_logger.error("Meter sniffer unavailable: pyserial is not installed")
+        return
+
+    parser = ModbusMeterSniffer(METER_SLAVE_ID)
+    last_valid_packet_at = 0.0
+    last_diagnostic_at = 0.0
+    raw_byte_count = 0
+    raw_sample = bytearray()
+    stale_reported = False
+    while True:
+        port = None
+        try:
+            # timeout keeps read() bounded; no write is performed anywhere in
+            # this loop, leaving the DTU as the only electrical bus master.
+            port = serial.Serial(
+                port=serial_port,
+                baudrate=baudrate,
+                bytesize=serial.EIGHTBITS,
+                parity=serial.PARITY_NONE,
+                stopbits=serial.STOPBITS_ONE,
+                timeout=0.25,
+                write_timeout=0,
+            )
+            relay_logger.info(
+                "Passive meter sniffer listening on %s at %s-8N1 for slave %s",
+                serial_port,
+                baudrate,
+                METER_SLAVE_ID,
+            )
+            while True:
+                chunk = await asyncio.to_thread(port.read, max(port.in_waiting, 1))
+                now = time.monotonic()
+                if chunk:
+                    raw_byte_count += len(chunk)
+                    if len(raw_sample) < 96:
+                        raw_sample.extend(chunk[: 96 - len(raw_sample)])
+                    snapshots, saw_valid_packet = parser.feed(chunk)
+                    if saw_valid_packet:
+                        last_valid_packet_at = now
+                        stale_reported = False
+                    if snapshots:
+                        state_dict["value"] = snapshots[-1]
+                if raw_byte_count and now - last_diagnostic_at >= 10:
+                    if now - last_valid_packet_at > 0.5:
+                        relay_logger.warning(
+                            "Passive sniffer received %s unrecognised RS-485 bytes; sample: %s",
+                            raw_byte_count,
+                            raw_sample.hex(" "),
+                        )
+                    raw_byte_count = 0
+                    raw_sample.clear()
+                    last_diagnostic_at = now
+                if now - last_valid_packet_at > METER_SNIFFER_STALE_SECONDS:
+                    previous = state_dict.get("value")
+                    if previous is None or previous.status != "OFFLINE":
+                        state_dict["value"] = MeterSnapshot(
+                            timestamp=datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+                            status="OFFLINE",
+                            total_active_power_w=None,
+                            phase_a_voltage_v=None,
+                            error=(
+                                f"No valid Modbus RTU traffic from meter slave {METER_SLAVE_ID} "
+                                f"for {METER_SNIFFER_STALE_SECONDS:.0f}s"
+                            ),
+                        )
+                    if not stale_reported:
+                        relay_logger.warning(
+                            "Passive sniffer has not seen a valid request/response from slave %s in %.0fs",
+                            METER_SLAVE_ID,
+                            METER_SNIFFER_STALE_SECONDS,
+                        )
+                        stale_reported = True
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:
+            state_dict["value"] = MeterSnapshot(
+                timestamp=datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+                status="OFFLINE",
+                total_active_power_w=None,
+                phase_a_voltage_v=None,
+                error=f"Passive meter sniffer error: {exc}",
+            )
+            relay_logger.error("Passive meter sniffer error: %s; retrying in 2s", exc)
+            await asyncio.sleep(2)
+        finally:
+            if port is not None:
+                with contextlib.suppress(Exception):
+                    port.close()
+
+
+def read_hoymiles_snapshot_sync(client=None) -> HoymilesSnapshot:
     """Read the Hoymiles DTU directly over Modbus TCP and build a structured snapshot."""
-    client = create_hoymiles_modbus_client()
+    owns_client = client is None
+    if owns_client:
+        client = create_hoymiles_modbus_client()
     try:
-        if not client.connect() or not getattr(client, "connected", False):
+        if not getattr(client, "connected", False) and not client.connect():
             return build_offline_hoymiles_snapshot(
                 f"Unable to connect to Hoymiles DTU at {HOYMILES_MODBUS_HOST}:{HOYMILES_MODBUS_PORT}"
             )
@@ -1206,12 +1198,30 @@ def read_hoymiles_snapshot_sync() -> HoymilesSnapshot:
             inverters=inverters,
         )
     finally:
-        with contextlib.suppress(Exception):
-            client.close()
+        if owns_client:
+            with contextlib.suppress(Exception):
+                client.close()
 
 
 async def read_hoymiles_snapshot() -> HoymilesSnapshot:
     return await asyncio.to_thread(read_hoymiles_snapshot_sync)
+
+
+async def hoymiles_refresh_loop(state_dict: dict[str, Any]) -> None:
+    """Refresh only inverter data over Modbus TCP; meter data never uses TCP here."""
+    while True:
+        snapshot = await read_hoymiles_snapshot()
+        state_dict["value"] = snapshot
+        if snapshot.status == "OK":
+            relay_logger.info(
+                "Hoymiles Modbus TCP refresh -> %s W, %s inverters, %s ports",
+                snapshot.total_active_power_w,
+                snapshot.inverter_count,
+                snapshot.port_count,
+            )
+        else:
+            relay_logger.warning("Hoymiles Modbus TCP offline -> %s", snapshot.error or "unknown error")
+        await asyncio.sleep(POLL_INTERVAL_SECONDS)
 
 
 def build_unified_payload(
@@ -1639,41 +1649,6 @@ async def publish_current_payload(
     return payload
 
 
-async def hoymiles_refresh_loop(
-    *,
-    latest_message: dict[str, str | None],
-    connected_clients: set[WebSocketServerProtocol],
-    state_lock: asyncio.Lock,
-    latest_meter_snapshot: dict[str, MeterSnapshot | None],
-    latest_hoymiles_snapshot: dict[str, HoymilesSnapshot | None],
-) -> None:
-    while True:
-        snapshot = await read_hoymiles_snapshot()
-        if snapshot.status == "OK":
-            relay_logger.info(
-                "Hoymiles Modbus refresh ok -> %s W, %s inverters, %s ports",
-                snapshot.total_active_power_w,
-                snapshot.inverter_count,
-                snapshot.port_count,
-            )
-        else:
-            relay_logger.warning(
-                "Hoymiles Modbus refresh offline -> %s",
-                snapshot.error or "unknown error",
-            )
-        async with state_lock:
-            latest_hoymiles_snapshot["value"] = snapshot
-            meter_snapshot = latest_meter_snapshot["value"]
-
-        await publish_current_payload(
-            latest_message=latest_message,
-            connected_clients=connected_clients,
-            meter_snapshot=meter_snapshot,
-            hoymiles_snapshot=snapshot,
-        )
-        await asyncio.sleep(HOYMILES_MODBUS_REFRESH_SECONDS)
-
-
 def advance_cloud_batch(
     session: aiohttp.ClientSession,
     current_batch: Optional[CloudBatchState],
@@ -1725,8 +1700,8 @@ def build_offline_status_payload(failures: int) -> RelayStatusPayload:
         status="HARDWARE_OFFLINE",
         failures=failures,
         message=(
-            "Both RS-485 devices are offline. "
-            "Check the USB adapter, serial bus, meter power, and DTU power."
+            "The Hoymiles DTU is offline or its attached meter is unavailable. "
+            "Check DTU Ethernet connectivity, DTU power, and the DTU-to-meter RS-485 link."
         ),
     )
 
@@ -1797,24 +1772,22 @@ async def client_handler(
 
 
 async def main() -> None:
-    if AsyncModbusSerialClient is None or ModbusTcpClient is None:
+    if ModbusTcpClient is None:
         raise RuntimeError("pymodbus is missing. Install bridge dependencies first.")
 
     connected_clients: set[WebSocketServerProtocol] = set()
     log_queue: asyncio.Queue[dict[str, str]] = asyncio.Queue(maxsize=100)
     configure_logging(asyncio.get_running_loop(), log_queue)
 
-    client = create_modbus_client()
-    await ensure_modbus_connected(client)
-
     latest_message: dict[str, str | None] = {"value": None}
     failure_count = 0
     pending_cloud_batch: Optional[CloudBatchState] = None
     pending_cloud_sync_tasks: set[asyncio.Task[None]] = set()
-    state_lock = asyncio.Lock()
-    latest_meter_snapshot: dict[str, MeterSnapshot | None] = {"value": None}
-    latest_hoymiles_snapshot: dict[str, HoymilesSnapshot | None] = {
-        "value": build_offline_hoymiles_snapshot("Awaiting first Hoymiles poll")
+    latest_meter_snapshot: dict[str, MeterSnapshot] = {
+        "value": build_offline_meter_snapshot("Awaiting passive RS-485 meter traffic")
+    }
+    latest_hoymiles_snapshot: dict[str, HoymilesSnapshot] = {
+        "value": build_offline_hoymiles_snapshot("Awaiting first Modbus TCP poll")
     }
 
     async def handler(websocket: WebSocketServerProtocol) -> None:
@@ -1823,52 +1796,39 @@ async def main() -> None:
     async with websockets.serve(handler, HOST, PORT):
         http_session = aiohttp.ClientSession()
         relay_logger.info(
-            "Modbus relay listening on ws://%s:%s (profile: %s, serial: %s via %s, baud: %s)",
+            "DTU Modbus TCP relay listening on ws://%s:%s",
             HOST,
             PORT,
-            TARGET_OS,
-            SERIAL_PORT,
-            SERIAL_PORT_SOURCE,
-            BAUDRATE,
         )
         relay_logger.info(
-            "Chint meter -> slave %s, power reg %s (%s), voltage reg %s (%s)",
-            METER_SLAVE_ID,
-            METER_TOTAL_ACTIVE_POWER_REGISTER,
-            METER_REGISTER_KIND,
-            METER_PHASE_A_VOLTAGE_REGISTER,
-            METER_REGISTER_KIND,
-        )
-        relay_logger.info(
-            "Hoymiles Modbus TCP -> host %s:%s, unit %s, refresh %.0fs",
+            "Hoymiles DTU TCP -> %s:%s, unit %s, poll %.1fs",
             HOYMILES_MODBUS_HOST,
             HOYMILES_MODBUS_PORT,
             HOYMILES_MODBUS_UNIT_ID,
-            HOYMILES_MODBUS_REFRESH_SECONDS,
+            POLL_INTERVAL_SECONDS,
+        )
+        relay_logger.info(
+            "Chint meter -> passive-only RS-485 capture on %s at %s-8N1, slave %s",
+            SERIAL_PORT,
+            SERIAL_BAUDRATE,
+            METER_SLAVE_ID,
         )
         relay_logger.info(describe_cloud_sync())
         relay_logger.info(describe_csv_logging())
         relay_logger.info(describe_weather_sync())
 
         log_task = asyncio.create_task(broadcast_logs(log_queue, connected_clients))
-        hoymiles_task = asyncio.create_task(
-            hoymiles_refresh_loop(
-                latest_message=latest_message,
-                connected_clients=connected_clients,
-                state_lock=state_lock,
-                latest_meter_snapshot=latest_meter_snapshot,
-                latest_hoymiles_snapshot=latest_hoymiles_snapshot,
-            )
+        meter_sniffer_task = asyncio.create_task(
+            meter_sniffer_loop(SERIAL_PORT, SERIAL_BAUDRATE, latest_meter_snapshot)
         )
+        hoymiles_task = asyncio.create_task(hoymiles_refresh_loop(latest_hoymiles_snapshot))
         weather_task = asyncio.create_task(weather_poll_loop(http_session))
 
         try:
             while True:
                 try:
-                    meter_snapshot = await read_meter_snapshot(client)
-                    async with state_lock:
-                        latest_meter_snapshot["value"] = meter_snapshot
-                        hoymiles_snapshot = latest_hoymiles_snapshot["value"]
+                    meter_snapshot = latest_meter_snapshot["value"]
+                    hoymiles_snapshot = latest_hoymiles_snapshot["value"]
 
                     payload = await publish_current_payload(
                         latest_message=latest_message,
@@ -1919,7 +1879,6 @@ async def main() -> None:
                         )
                         latest_message["value"] = offline_message
                         await broadcast(connected_clients, offline_message)
-                        await reconnect_modbus_client(client)
                         failure_count = 0
 
                 except Exception as exc:
@@ -1931,16 +1890,18 @@ async def main() -> None:
                         )
                         latest_message["value"] = offline_message
                         await broadcast(connected_clients, offline_message)
-                        await reconnect_modbus_client(client)
                         failure_count = 0
 
                 await asyncio.sleep(POLL_INTERVAL_SECONDS)
         finally:
             log_task.cancel()
+            meter_sniffer_task.cancel()
             hoymiles_task.cancel()
             weather_task.cancel()
             with contextlib.suppress(asyncio.CancelledError):
                 await log_task
+            with contextlib.suppress(asyncio.CancelledError):
+                await meter_sniffer_task
             with contextlib.suppress(asyncio.CancelledError):
                 await hoymiles_task
             with contextlib.suppress(asyncio.CancelledError):
@@ -1949,10 +1910,6 @@ async def main() -> None:
                 await asyncio.gather(*pending_cloud_sync_tasks)
             await flush_cloud_batch(http_session, pending_cloud_batch)
             await http_session.close()
-            try:
-                client.close()
-            finally:
-                gc.collect()
 
 
 if __name__ == "__main__":

@@ -1,4 +1,5 @@
 import importlib.util
+import struct
 import sys
 import types
 import unittest
@@ -132,7 +133,75 @@ class HoymilesRelayTest(unittest.TestCase):
         self.assertEqual([count for _, count, _ in calls[1:]], [120] * 16)
         self.assertEqual([start for start, _, _ in calls[1:]], [4096 + 120 * index for index in range(16)])
         self.assertEqual(sleep.call_count, 15)
-        sleep.assert_called_with(1.0)
+        sleep.assert_called_with(relay.HOYMILES_CHUNK_DELAY_SECONDS)
+
+    def test_passively_decodes_meter_request_response_pairs(self):
+        relay = load_relay_module()
+        parser = relay.ModbusMeterSniffer(142)
+
+        def frame(payload):
+            return payload + relay.modbus_crc16(payload).to_bytes(2, "little")
+
+        power_request = frame(bytes([142, 3]) + (8210).to_bytes(2, "big") + (2).to_bytes(2, "big"))
+        power_response = frame(bytes([142, 3, 4]) + struct.pack(">f", -1234.0))
+        voltage_request = frame(bytes([142, 3]) + (8198).to_bytes(2, "big") + (2).to_bytes(2, "big"))
+        voltage_response = frame(bytes([142, 3, 4]) + struct.pack(">f", 2397.0))
+
+        first_snapshots, first_valid = parser.feed(b"\x00\xFF" + power_request[:5])
+        second_snapshots, second_valid = parser.feed(
+            power_request[5:] + power_response + voltage_request + voltage_response
+        )
+
+        self.assertFalse(first_snapshots)
+        self.assertFalse(first_valid)
+        self.assertTrue(second_valid)
+        self.assertEqual(len(second_snapshots), 2)
+        self.assertEqual(second_snapshots[0].total_active_power_w, -123)
+        self.assertEqual(second_snapshots[0].phase_a_voltage_v, None)
+        self.assertEqual(second_snapshots[1].total_active_power_w, -123)
+        self.assertEqual(second_snapshots[1].phase_a_voltage_v, 239.7)
+
+    def test_retains_a_fragmented_93_byte_response_until_complete(self):
+        relay = load_relay_module()
+        parser = relay.ModbusMeterSniffer(142)
+
+        def frame(payload):
+            return payload + relay.modbus_crc16(payload).to_bytes(2, "little")
+
+        start_register = 8192
+        request = frame(
+            bytes([142, 3]) + start_register.to_bytes(2, "big") + (44).to_bytes(2, "big")
+        )
+        payload = bytearray(88)
+        voltage_offset = (relay.METER_PHASE_A_VOLTAGE_REGISTER - start_register) * 2
+        power_offset = (relay.METER_TOTAL_ACTIVE_POWER_REGISTER - start_register) * 2
+        payload[voltage_offset : voltage_offset + 4] = struct.pack(">f", 2397.0)
+        payload[power_offset : power_offset + 4] = struct.pack(">f", 43860.0)
+        response = frame(bytes([142, 3, 88]) + bytes(payload))
+
+        parser.feed(request)
+        snapshots, saw_valid_packet = parser.feed(response[:63])
+
+        self.assertFalse(snapshots)
+        self.assertFalse(saw_valid_packet)
+        self.assertEqual(len(parser.buffer), 63)
+
+        snapshots, saw_valid_packet = parser.feed(response[63:])
+
+        self.assertTrue(saw_valid_packet)
+        self.assertEqual(len(snapshots), 1)
+        self.assertEqual(snapshots[0].total_active_power_w, 4386)
+        self.assertEqual(snapshots[0].phase_a_voltage_v, 239.7)
+
+    def test_sniffer_rejects_frames_with_bad_crc(self):
+        relay = load_relay_module()
+        parser = relay.ModbusMeterSniffer(142)
+        invalid_request = bytes([142, 3]) + (8210).to_bytes(2, "big") + (2).to_bytes(2, "big") + b"\0\0"
+
+        snapshots, saw_valid_packet = parser.feed(invalid_request)
+
+        self.assertFalse(snapshots)
+        self.assertFalse(saw_valid_packet)
 
 
 if __name__ == "__main__":
