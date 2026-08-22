@@ -23,6 +23,8 @@ type HoymilesFlowVisualizerProps = {
   homeConsumptionW: number;
   timestamp?: string;
   todaySolarYieldKwh: number | null;
+  todayConsumptionKwh: number | null;
+  todayNetGridKwh: number | null;
   energyTotals: EnergyTotals;
   connectionLabel: string;
   plantName?: string;
@@ -84,34 +86,20 @@ function FlowParticles({
   );
 }
 
-function SemiGauge({ value }: { value: number }) {
+function SemiGauge({ value, label }: { value: number; label: string }) {
   const radius = 39;
   const circumference = Math.PI * radius;
   const dashOffset = circumference - (value / 100) * circumference;
 
   return (
-    <svg viewBox="0 0 104 62" className="h-16 w-28" aria-label={`${value.toFixed(0)}% self-consumption`}>
-      <path
-        d="M13 54 A39 39 0 0 1 91 54"
-        fill="none"
-        stroke="rgba(148, 163, 184, 0.22)"
-        strokeWidth="10"
-        strokeLinecap="round"
-      />
-      <path
-        d="M13 54 A39 39 0 0 1 91 54"
-        fill="none"
-        stroke="#34d399"
-        strokeWidth="10"
-        strokeLinecap="round"
-        strokeDasharray={circumference}
-        strokeDashoffset={dashOffset}
-        className="transition-[stroke-dashoffset] duration-700"
-      />
-      <text x="52" y="48" textAnchor="middle" className="fill-white text-[16px] font-semibold">
-        {value.toFixed(0)}%
-      </text>
-    </svg>
+    <div className="shrink-0 text-center">
+      <svg viewBox="0 0 104 62" className="h-16 w-28" aria-label={`${value.toFixed(0)}% self-consumption`}>
+        <path d="M13 54 A39 39 0 0 1 91 54" fill="none" stroke="rgba(148, 163, 184, 0.22)" strokeWidth="10" strokeLinecap="round" />
+        <path d="M13 54 A39 39 0 0 1 91 54" fill="none" stroke="#34d399" strokeWidth="10" strokeLinecap="round" strokeDasharray={circumference} strokeDashoffset={dashOffset} className="transition-[stroke-dashoffset] duration-700" />
+        <text x="52" y="48" textAnchor="middle" className="fill-white text-[16px] font-semibold">{value.toFixed(0)}%</text>
+      </svg>
+      <p className="-mt-1 text-[9px] uppercase tracking-[0.12em] text-slate-400">{label}</p>
+    </div>
   );
 }
 
@@ -120,6 +108,8 @@ export function HoymilesFlowVisualizer({
   homeConsumptionW,
   timestamp,
   todaySolarYieldKwh,
+  todayConsumptionKwh,
+  todayNetGridKwh,
   energyTotals,
   connectionLabel,
   plantName = "Gokul Menon",
@@ -141,6 +131,14 @@ export function HoymilesFlowVisualizer({
   const gridTone = gridState === "exporting" ? "text-emerald-300" : gridState === "importing" ? "text-amber-300" : "text-slate-300";
   const gridDotTone = gridState === "exporting" ? "bg-emerald-400" : gridState === "importing" ? "bg-amber-400" : "bg-slate-400";
   const gridLabel = gridState === "exporting" ? "Exporting" : gridState === "importing" ? "Importing" : "Balanced";
+  const todayGridLabel =
+    typeof todayNetGridKwh !== "number"
+      ? "Net grid"
+      : todayNetGridKwh > 0.001
+        ? "Net export"
+        : todayNetGridKwh < -0.001
+          ? "Net consumption"
+          : "Net grid";
 
   useEffect(() => {
     const controller = new AbortController();
@@ -274,44 +272,86 @@ export function HoymilesFlowVisualizer({
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
-        <div data-testid="today-production-card" className="col-span-2 rounded-3xl border border-white/10 bg-slate-950/80 p-4 shadow-lg backdrop-blur-xl md:col-span-1">
-          <div className="flex items-start justify-between gap-2">
-            <div>
-              <p className="text-[11px] uppercase tracking-[0.18em] text-slate-400">Today Production</p>
-              <p className="mt-2 text-2xl font-bold tracking-tight text-white">{todaySolarYieldKwh === null ? "No data yet" : formatEnergy(todaySolarYieldKwh, "kWh")}</p>
-              <p className="mt-1 text-xs text-slate-400">Live self-consumption</p>
+      <div className="mx-auto max-w-xl space-y-3">
+        <div data-testid="today-production-card" className="rounded-3xl border border-white/10 bg-slate-950/80 p-4 shadow-lg backdrop-blur-xl">
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0 flex-1">
+              <p className="text-[11px] uppercase tracking-[0.18em] text-slate-400">Today</p>
+              <div className="mt-3 space-y-2">
+                <EnergyValue label="Solar yield" value={formatEnergy(todaySolarYieldKwh ?? 0, "kWh")} tone="green" />
+                <EnergyValue label="Consumption" value={formatEnergy(todayConsumptionKwh ?? 0, "kWh")} />
+                <EnergyValue label={todayGridLabel} value={formatEnergy(Math.abs(todayNetGridKwh ?? 0), "kWh")} tone={todayNetGridKwh && todayNetGridKwh < 0 ? "amber" : "green"} />
+              </div>
             </div>
-            <SemiGauge value={selfConsumption} />
+            <div className="space-y-2">
+              <SemiGauge value={selfConsumption} label="Self-consumption" />
+              <SemiGauge value={Math.min(100, Math.max(0, powerRatio))} label="PV capacity" />
+            </div>
           </div>
         </div>
 
-        <ProductionCard icon={CalendarDays} label="This Month" value={formatEnergy(energyTotals.this_month_solar_kwh, "MWh")} detail="Solar production" />
-        <ProductionCard icon={History} label="Lifetime Energy" value={formatEnergy(energyTotals.lifetime_solar_kwh, "MWh")} detail={energyTotals.tracked_day_count > 0 ? `${energyTotals.tracked_day_count} tracked days` : "No data yet"} />
+        <div className="grid grid-cols-2 gap-3">
+          <EnergySummaryCard icon={CalendarDays} label="This Month" solarKwh={energyTotals.this_month_solar_kwh} consumptionKwh={energyTotals.this_month_home_consumption_kwh} />
+          <EnergySummaryCard icon={History} label="Lifetime Energy" solarKwh={energyTotals.lifetime_solar_kwh} consumptionKwh={energyTotals.lifetime_home_consumption_kwh} detail={energyTotals.tracked_day_count > 0 ? `${energyTotals.tracked_day_count} tracked days` : "No data yet"} />
+        </div>
       </div>
     </section>
   );
 }
 
-function ProductionCard({
-  icon: Icon,
+function EnergyValue({
   label,
   value,
+  tone = "default",
+}: {
+  label: string;
+  value: string;
+  tone?: "default" | "green" | "amber";
+}) {
+  const valueColor =
+    tone === "green" ? "text-emerald-300" : tone === "amber" ? "text-amber-300" : "text-white";
+
+  return (
+    <div>
+      <p className="text-[9px] uppercase tracking-[0.12em] text-slate-500">{label}</p>
+      <p className={`mt-1 text-sm font-bold tracking-tight ${valueColor}`}>{value}</p>
+    </div>
+  );
+}
+
+function EnergySummaryCard({
+  icon: Icon,
+  label,
+  solarKwh,
+  consumptionKwh,
   detail,
 }: {
   icon: LucideIcon;
   label: string;
-  value: string;
-  detail: string;
+  solarKwh: number;
+  consumptionKwh: number;
+  detail?: string;
 }) {
+  const netEnergyKwh = solarKwh - consumptionKwh;
+  const netLabel =
+    netEnergyKwh > 0.001
+      ? "Net export"
+      : netEnergyKwh < -0.001
+        ? "Net consumption"
+        : "Net balance";
+
   return (
     <div className="rounded-3xl border border-white/10 bg-slate-950/80 p-4 shadow-lg backdrop-blur-xl">
       <div className="flex items-start justify-between gap-2">
         <p className="text-[11px] uppercase tracking-[0.18em] text-slate-400">{label}</p>
         <Icon className="h-5 w-5 text-emerald-300" aria-hidden="true" />
       </div>
-      <p className="mt-3 text-xl font-bold tracking-tight text-white">{value}</p>
-      <p className="mt-1 text-xs text-slate-400">{detail}</p>
+      <div className="mt-3 space-y-2">
+        <EnergyValue label="Solar yield" value={formatEnergy(solarKwh, "MWh")} tone="green" />
+        <EnergyValue label="Consumption" value={formatEnergy(consumptionKwh, "MWh")} />
+        <EnergyValue label={netLabel} value={formatEnergy(Math.abs(netEnergyKwh), "MWh")} tone={netEnergyKwh < 0 ? "amber" : "green"} />
+      </div>
+      {detail ? <p className="mt-2 text-xs text-slate-400">{detail}</p> : null}
     </div>
   );
 }
