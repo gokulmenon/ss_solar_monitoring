@@ -7,8 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { SeriesAreaCard } from "@/components/charts/series-area-card";
 import { useLiveTelemetry } from "@/components/telemetry/use-live-telemetry";
-import { PowerFlowVisualizer } from "@/components/live/power-flow-visualizer";
-import type { DailyEnergySummaryPoint } from "@/lib/daily-energy";
+import { HoymilesFlowVisualizer } from "@/components/live/hoymiles-flow-visualizer";
+import type { DailyEnergySummaryPoint, EnergyTotals } from "@/lib/daily-energy";
 
 const UPTIME_STATUS_URL = "https://stats.uptimerobot.com/nS4Sm3g9El";
 type UptimeMonitor = {
@@ -35,6 +35,14 @@ type UptimePayload =
       message: string;
       detail?: unknown;
     };
+
+const EMPTY_ENERGY_TOTALS: EnergyTotals = {
+  this_month_solar_kwh: 0,
+  this_month_home_consumption_kwh: 0,
+  lifetime_solar_kwh: 0,
+  lifetime_home_consumption_kwh: 0,
+  tracked_day_count: 0,
+};
 
 function formatKw(value: number) {
   return `${value.toFixed(2)} kW`;
@@ -95,6 +103,7 @@ function uptimeDotClass(tone: UptimeMonitor["tone"]) {
 export function HomeDashboard() {
   const { telemetry, series, bridgeState } = useLiveTelemetry();
   const [dailyEnergy, setDailyEnergy] = useState<DailyEnergySummaryPoint[]>([]);
+  const [energyTotals, setEnergyTotals] = useState<EnergyTotals>(EMPTY_ENERGY_TOTALS);
   const [uptime, setUptime] = useState<UptimePayload | null>(null);
 
   useEffect(() => {
@@ -121,6 +130,32 @@ export function HomeDashboard() {
     void loadDailyEnergy();
 
     return () => controller.abort();
+  }, []);
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    async function loadEnergyTotals() {
+      try {
+        const response = await fetch("/api/energy-totals", {
+          signal: controller.signal,
+          cache: "no-store",
+        });
+
+        if (!response.ok) return;
+        setEnergyTotals((await response.json()) as EnergyTotals);
+      } catch (error) {
+        if ((error as Error).name !== "AbortError") console.error(error);
+      }
+    }
+
+    void loadEnergyTotals();
+    const intervalId = window.setInterval(loadEnergyTotals, 5 * 60 * 1000);
+
+    return () => {
+      controller.abort();
+      window.clearInterval(intervalId);
+    };
   }, []);
 
   useEffect(() => {
@@ -288,10 +323,13 @@ export function HomeDashboard() {
         </Card>
       </div>
 
-      <PowerFlowVisualizer
+      <HoymilesFlowVisualizer
         solarProductionW={telemetry.solar_production_w}
-        netGridW={telemetry.net_grid_w}
         homeConsumptionW={telemetry.home_consumption_w}
+        timestamp={telemetry.timestamp}
+        todaySolarYieldKwh={todaySolarYieldKwh}
+        energyTotals={energyTotals}
+        connectionLabel={bridgeLabel}
       />
 
       <SeriesAreaCard

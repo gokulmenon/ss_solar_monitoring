@@ -41,3 +41,40 @@ body {
   backdrop-filter: blur(22px);
   -webkit-backdrop-filter: blur(22px);
 }
+
+@keyframes hoymiles-flow-particle {
+  0%,
+  100% {
+    opacity: 0.28;
+  }
+
+  45% {
+    opacity: 1;
+  }
+}
+
+.hoymiles-energy-line {
+  fill: none;
+  stroke-width: 7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.hoymiles-energy-collector {
+  stroke-width: 11;
+}
+
+.hoymiles-energy-main {
+  stroke-width: 15;
+}
+
+.hoymiles-flow-particle {
+  animation: hoymiles-flow-particle 1.2s ease-in-out infinite;
+  filter: drop-shadow(0 0 7px currentColor);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hoymiles-flow-particle {
+    animation: none;
+  }
+}
