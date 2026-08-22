@@ -5,7 +5,6 @@ import { WifiHigh } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { SeriesAreaCard } from "@/components/charts/series-area-card";
 import { useLiveTelemetry } from "@/components/telemetry/use-live-telemetry";
 import { HoymilesFlowVisualizer } from "@/components/live/hoymiles-flow-visualizer";
 import type { DailyEnergySummaryPoint, EnergyTotals } from "@/lib/daily-energy";
@@ -44,10 +43,6 @@ const EMPTY_ENERGY_TOTALS: EnergyTotals = {
   tracked_day_count: 0,
 };
 
-function formatVoltage(value: number) {
-  return `${value.toFixed(1)} V`;
-}
-
 function formatUptimePercent(value: number | null) {
   if (typeof value !== "number") return "--";
   return `${value.toFixed(2)}%`;
@@ -83,7 +78,7 @@ function uptimeDotClass(tone: UptimeMonitor["tone"]) {
 }
 
 export function HomeDashboard() {
-  const { telemetry, series, bridgeState } = useLiveTelemetry();
+  const { telemetry, bridgeState } = useLiveTelemetry();
   const [dailyEnergy, setDailyEnergy] = useState<DailyEnergySummaryPoint[]>([]);
   const [energyTotals, setEnergyTotals] = useState<EnergyTotals>(EMPTY_ENERGY_TOTALS);
   const [uptime, setUptime] = useState<UptimePayload | null>(null);
@@ -176,7 +171,6 @@ export function HomeDashboard() {
     };
   }, []);
 
-  const voltageV = telemetry.phase_a_voltage_v ?? 245;
   const todayKey = useMemo(
     () => new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York" }).format(new Date()),
     [],
@@ -226,34 +220,7 @@ export function HomeDashboard() {
         </Card>
       ) : null}
 
-      <SeriesAreaCard
-        title="Live grid trend"
-        subtitle="Net grid exchange based on the live bridge feed. Switch between 10m, 6h, and 24h."
-        data={series}
-        dataKey="net_grid_w"
-        stroke="#3b82f6"
-        fill="#60a5fa"
-        formatter={(value) => `${Math.round(value).toLocaleString()} W`}
-        defaultRange="6h"
-      />
-
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-        <Card className="border-white/10 bg-slate-950/80">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-[11px] uppercase tracking-[0.24em] text-slate-400">
-              Phase A voltage
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-semibold text-amber-300">
-              {formatVoltage(voltageV)}
-            </div>
-            <p className="mt-2 text-sm text-slate-400">
-              Chint register 8192 with relay scaling applied.
-            </p>
-          </CardContent>
-        </Card>
-
+      <div className="grid grid-cols-1 gap-3">
         <Card className="border-white/10 bg-slate-950/80">
           <CardHeader className="pb-2">
             <CardTitle className="text-[11px] uppercase tracking-[0.24em] text-slate-400">
