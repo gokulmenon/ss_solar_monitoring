@@ -239,10 +239,10 @@ export function HoymilesFlowVisualizer({
           </g>
         </svg>
 
-        <div className="absolute left-3 top-3 max-w-[48%] rounded-xl border border-white/10 bg-slate-950/80 px-3 py-2 shadow-lg backdrop-blur-md">
-          <p className="truncate text-sm font-semibold text-white">{plantName}</p>
-          <p className="mt-0.5 text-[10px] font-medium text-slate-300">Live · {formatTimestamp(timestamp)}</p>
-          <p className="mt-1 text-[10px] text-slate-400">Capacity {capacityKw.toFixed(2)} kW</p>
+        <div className="absolute left-3 top-3 max-w-[43%] rounded-xl border border-white/10 bg-slate-950/80 px-2.5 py-1.5 shadow-lg backdrop-blur-md">
+          <p className="truncate text-xs font-semibold text-white">{plantName}</p>
+          <p className="mt-0.5 text-[9px] font-medium text-slate-300">Live · {formatTimestamp(timestamp)}</p>
+          <p className="mt-0.5 text-[9px] text-slate-400">Capacity {capacityKw.toFixed(2)} kW</p>
         </div>
 
         <div className="absolute right-3 top-3 flex items-center gap-1.5 rounded-xl border border-white/10 bg-slate-950/80 px-2.5 py-2 text-[10px] shadow-lg backdrop-blur-md">
@@ -258,19 +258,19 @@ export function HoymilesFlowVisualizer({
           <p className="mt-0.5 whitespace-nowrap text-[10px] font-medium text-slate-300">Power Ratio {Math.max(0, powerRatio).toFixed(1)}%</p>
         </div>
 
-        <div data-testid="grid-flow-badge" className="absolute left-[20%] top-[84%] w-32 -translate-x-1/2 rounded-xl border border-white/10 bg-slate-950/80 p-2.5 shadow-lg backdrop-blur-md">
-          <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-slate-400">Grid</p>
-          <p className="mt-0.5 text-base font-bold text-white">{formatPowerKw(Math.abs(trueGridW))}</p>
-          <p className={`mt-1 flex items-center gap-1 text-[10px] font-semibold ${gridTone}`}>
+        <div data-testid="grid-flow-badge" className="absolute left-[20%] top-[81%] w-28 -translate-x-1/2 rounded-xl border border-white/10 bg-slate-950/80 p-1.5 shadow-lg backdrop-blur-md">
+          <p className="text-[8px] font-medium uppercase tracking-[0.12em] text-slate-400">Grid</p>
+          <p className="mt-0.5 text-[13px] font-bold leading-tight text-white">{formatPowerKw(Math.abs(trueGridW))}</p>
+          <p className={`mt-0.5 flex items-center gap-1 text-[8px] font-semibold ${gridTone}`}>
             <span className={`h-1.5 w-1.5 rounded-full ${gridDotTone}`} />
             {gridLabel}
           </p>
         </div>
 
-        <div data-testid="loads-flow-badge" className="absolute right-3 top-[64%] w-32 rounded-xl border border-white/10 bg-slate-950/80 p-2.5 shadow-lg backdrop-blur-md">
-          <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-slate-400">Loads</p>
-          <p className="mt-0.5 text-base font-bold text-white">{formatPowerKw(trueHomeW)}</p>
-          <p className="mt-1 text-[10px] font-semibold text-emerald-300">Home demand</p>
+        <div data-testid="loads-flow-badge" className="absolute right-3 top-[64%] w-28 rounded-xl border border-white/10 bg-slate-950/80 p-2 shadow-lg backdrop-blur-md">
+          <p className="text-[9px] font-medium uppercase tracking-[0.14em] text-slate-400">Loads</p>
+          <p className="mt-0.5 text-sm font-bold text-white">{formatPowerKw(trueHomeW)}</p>
+          <p className="mt-1 text-[9px] font-semibold text-emerald-300">Home demand</p>
         </div>
       </div>
 
