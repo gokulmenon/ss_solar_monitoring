@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Copy, Loader2, RefreshCw, ShieldAlert, ShieldCheck, Trash2 } from "lucide-react";
+import { Copy, Loader2, RefreshCw, ShieldAlert, Trash2 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -42,9 +42,10 @@ function statusVariant(code: InviteCode): "success" | "danger" | "warning" | "se
 export function InviteCodeManager() {
   const [codes, setCodes] = useState<InviteCode[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isCreating, setIsCreating] = useState(false);
+  const [isRotating, setIsRotating] = useState(false);
   const [busyCodeId, setBusyCodeId] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState("");
+  const [rotationMsg, setRotationMsg] = useState("");
   const [copiedCodeId, setCopiedCodeId] = useState<string | null>(null);
 
   const activeCodes = useMemo(
@@ -79,9 +80,10 @@ export function InviteCodeManager() {
     void loadCodes();
   }, []);
 
-  const createCode = async () => {
-    setIsCreating(true);
+  const rotateCodes = async () => {
+    setIsRotating(true);
     setErrorMsg("");
+    setRotationMsg("");
 
     try {
       const response = await fetch("/api/admin/invite-codes", {
@@ -91,21 +93,23 @@ export function InviteCodeManager() {
         },
       });
 
-      const payload = (await response.json()) as { code?: InviteCode; error?: string };
+      const payload = (await response.json()) as { codes?: InviteCode[]; error?: string };
 
       if (!response.ok) {
-        throw new Error(payload.error ?? "Failed to create invite code.");
+        throw new Error(payload.error ?? "Failed to rotate invite codes.");
       }
 
-      if (payload.code) {
-        setCodes((previous) => [payload.code as InviteCode, ...previous]);
-      } else {
-        await loadCodes();
-      }
+      const newCodes = payload.codes ?? [];
+      setRotationMsg(
+        newCodes.length === 5
+          ? `Revoked unused active codes and created ${newCodes[0]?.code} through ${newCodes[4]?.code}.`
+          : "Revoked unused active codes and created a new invite-code batch.",
+      );
+      await loadCodes();
     } catch (error) {
-      setErrorMsg(error instanceof Error ? error.message : "Failed to create invite code.");
+      setErrorMsg(error instanceof Error ? error.message : "Failed to rotate invite codes.");
     } finally {
-      setIsCreating(false);
+      setIsRotating(false);
     }
   };
 
@@ -153,13 +157,13 @@ export function InviteCodeManager() {
           <div>
             <CardTitle className="text-base">Admin key area</CardTitle>
             <CardDescription>
-              Create, copy, and revoke invite codes for new OAuth sign-ups.
+              Rotate five sequential invite codes for new OAuth sign-ups. Rotation revokes all unused active codes.
             </CardDescription>
           </div>
 
-          <Button type="button" className="w-full sm:w-auto" onClick={createCode} disabled={isCreating}>
-            {isCreating ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-            Rotate invite code
+          <Button type="button" className="w-full sm:w-auto" onClick={rotateCodes} disabled={isRotating}>
+            {isRotating ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+            Rotate 5 invite codes
           </Button>
         </div>
       </CardHeader>
@@ -168,6 +172,12 @@ export function InviteCodeManager() {
         {errorMsg ? (
           <div className="rounded-2xl border border-rose-400/20 bg-rose-400/10 px-4 py-3 text-sm text-rose-100">
             {errorMsg}
+          </div>
+        ) : null}
+
+        {rotationMsg ? (
+          <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-100">
+            {rotationMsg}
           </div>
         ) : null}
 

@@ -1,15 +1,7 @@
-import { randomBytes } from "node:crypto";
-
 import { NextResponse } from "next/server";
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isCurrentUserAdmin } from "@/lib/supabase/roles";
-
-function generateInviteCode() {
-  const segmentA = randomBytes(3).toString("hex").toUpperCase();
-  const segmentB = randomBytes(3).toString("hex").toUpperCase();
-  return `SOLAR-${segmentA}-${segmentB}`;
-}
 
 async function requireAdmin() {
   const { user, profile, isAdmin } = await isCurrentUserAdmin();
@@ -47,17 +39,15 @@ export async function POST() {
   if ("error" in auth) return auth.error;
 
   const supabaseAdmin = createAdminClient();
-  const code = generateInviteCode();
-
   const { data, error } = await supabaseAdmin
-    .from("invite_codes")
-    .insert({ code })
-    .select("id,code,is_used,is_revoked,used_by_user_id,used_at,created_at")
-    .single();
+    .rpc("rotate_invite_codes", {
+      p_batch_size: 5,
+      p_year: new Date().getUTCFullYear(),
+    });
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  return NextResponse.json({ code: data });
+  return NextResponse.json({ codes: data ?? [] });
 }
