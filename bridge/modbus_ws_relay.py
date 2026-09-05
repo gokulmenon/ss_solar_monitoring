@@ -185,6 +185,10 @@ HOYMILES_DTU_SERIAL_REGISTER_COUNT = 3
 CSV_LOG_PATH = os.getenv("CSV_LOG_PATH")
 CSV_BACKUP_DIR = os.getenv("CSV_BACKUP_DIR", "./logs/meter-backups")
 CSV_BACKUP_PREFIX = os.getenv("CSV_BACKUP_PREFIX", "meter")
+PORT_CSV_BACKUP_DIR = os.getenv("PORT_CSV_BACKUP_DIR", "./logs/inverter-port-backups")
+PORT_CSV_BACKUP_PREFIX = os.getenv("PORT_CSV_BACKUP_PREFIX", "inverter_ports")
+WEATHER_CSV_BACKUP_DIR = os.getenv("WEATHER_CSV_BACKUP_DIR", "./logs/weather-backups")
+WEATHER_CSV_BACKUP_PREFIX = os.getenv("WEATHER_CSV_BACKUP_PREFIX", "weather")
 OFFLINE_FAILURE_THRESHOLD = int(os.getenv("BRIDGE_OFFLINE_THRESHOLD", "10"))
 
 NEXT_PUBLIC_SUPABASE_URL = os.getenv("NEXT_PUBLIC_SUPABASE_URL", "").strip()
@@ -305,6 +309,8 @@ class CloudBatchState:
     home_wh: float = 0.0
     # Store at most one reading per (inverter_serial, port_number) per batch
     port_readings: dict[tuple[str, int], dict[str, int | float | str]] = field(default_factory=dict)
+    # The local CSV is the complete diagnostic archive, including valid zero-power ports.
+    port_archive_rows: dict[tuple[str, int], dict[str, int | float | str]] = field(default_factory=dict)
 
     def add_sample(
         self,
@@ -336,15 +342,14 @@ class CloudBatchState:
             for port in inverter.ports:
                 if (
                     port.power_w is None
-                    or port.power_w <= 0
                     or port.voltage_v is None
                     or port.energy_daily_raw is None
                 ):
                     continue
 
-                # Keying by (serial, port) ensures only 1 row per port exists in this batch
+                # Keying by (serial, port) ensures only 1 row per port exists in this batch.
                 key = (inverter.serial_number, port.port_number)
-                self.port_readings[key] = {
+                row = {
                     "timestamp": self.bucket_start,  # Align with the 10-minute batch window
                     "inverter_serial": inverter.serial_number,
                     "port_number": port.port_number,
@@ -352,6 +357,12 @@ class CloudBatchState:
                     "dc_voltage_v": float(port.voltage_v),
                     "energy_daily_wh": float(port.energy_daily_raw),
                 }
+                self.port_archive_rows[key] = row
+
+                # Cloud history stays compact; local CSV keeps all valid ports for
+                # long-term diagnostics, including ports producing zero power.
+                if port.power_w > 0:
+                    self.port_readings[key] = row
 
 
 def decode_float32_be(registers: list[int]) -> float:
@@ -1317,6 +1328,76 @@ def write_csv_row(payload: UnifiedRelayPayload) -> None:
         )
 
 
+def write_port_csv_rows(rows: list[dict[str, int | float | str]]) -> None:
+    """Append the deduplicated per-port cloud batch to daily local CSV archives."""
+    rows_by_day: dict[str, list[dict[str, int | float | str]]] = defaultdict(list)
+
+    for row in rows:
+        rows_by_day[local_day_for_timestamp(str(row["timestamp"]))].append(row)
+
+    for local_day, daily_rows in rows_by_day.items():
+        path = Path(PORT_CSV_BACKUP_DIR) / f"{PORT_CSV_BACKUP_PREFIX}_{local_day}.csv"
+        path.parent.mkdir(parents=True, exist_ok=True)
+
+        write_header = not path.exists() or path.stat().st_size == 0
+        with path.open("a", newline="") as file:
+            writer = csv.writer(file)
+            if write_header:
+                writer.writerow(
+                    [
+                        "Timestamp (UTC)",
+                        "Inverter Serial",
+                        "Port Number",
+                        "DC Power (W)",
+                        "DC Voltage (V)",
+                        "Daily Energy (Wh)",
+                    ]
+                )
+
+            for row in sorted(
+                daily_rows,
+                key=lambda value: (str(value["inverter_serial"]), int(value["port_number"])),
+            ):
+                writer.writerow(
+                    [
+                        row["timestamp"],
+                        row["inverter_serial"],
+                        row["port_number"],
+                        row["dc_power_w"],
+                        row["dc_voltage_v"],
+                        row["energy_daily_wh"],
+                    ]
+                )
+
+
+def write_weather_csv_row(row: dict[str, int | float | str | None]) -> None:
+    """Append one successful weather observation to its relay-local daily archive."""
+    timestamp = str(row["timestamp"])
+    local_day = local_day_for_timestamp(timestamp)
+    path = Path(WEATHER_CSV_BACKUP_DIR) / f"{WEATHER_CSV_BACKUP_PREFIX}_{local_day}.csv"
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+    fields = [
+        "timestamp",
+        "temperature_2m",
+        "cloud_cover",
+        "cloud_cover_low",
+        "cloud_cover_mid",
+        "cloud_cover_high",
+        "shortwave_radiation",
+        "direct_radiation",
+        "diffuse_radiation",
+        "wind_speed_10m",
+        "precipitation",
+    ]
+    write_header = not path.exists() or path.stat().st_size == 0
+    with path.open("a", newline="") as file:
+        writer = csv.writer(file)
+        if write_header:
+            writer.writerow([field.replace("_", " ").title() for field in fields])
+        writer.writerow([row.get(field) for field in fields])
+
+
 def build_supabase_batch_row(payload: UnifiedRelayPayload) -> dict[str, int | float | str | None] | None:
     """Convert the meter portion of the merged payload into a Supabase row."""
     if payload.meter_total_active_power_w is None:
@@ -1427,6 +1508,13 @@ async def poll_weather_once(session: aiohttp.ClientSession) -> dict[str, int | f
         payload = await response.json()
 
     row = build_weather_row(payload)
+    try:
+        write_weather_csv_row(row)
+        relay_logger.info("Weather CSV backup ok %s", row["timestamp"])
+    except OSError as exc:
+        # A local archive problem should never prevent the live weather value
+        # from being persisted to Supabase.
+        relay_logger.error("Weather CSV backup failed: %s", exc)
     await upsert_weather_snapshot(session, row)
     return row
 
@@ -1603,13 +1691,22 @@ async def sync_supabase_port_rows(
 
 
 async def flush_cloud_batch(session: aiohttp.ClientSession, batch: Optional[CloudBatchState]) -> None:
-    if batch is None or (batch.sample_count == 0 and not batch.port_readings):
+    if batch is None or (batch.sample_count == 0 and not batch.port_archive_rows):
         return
 
     if batch.sample_count > 0:
         await sync_supabase_batch(session, batch)
+    if batch.port_archive_rows:
+        port_archive_rows = list(batch.port_archive_rows.values())
+        try:
+            write_port_csv_rows(port_archive_rows)
+            relay_logger.info("Inverter port CSV backup ok (%s rows)", len(port_archive_rows))
+        except OSError as exc:
+            # Preserve the cloud path even if the local disk is temporarily unavailable.
+            relay_logger.error("Inverter port CSV backup failed: %s", exc)
     if batch.port_readings:
-        await sync_supabase_port_rows(session, list(batch.port_readings.values()))
+        port_rows = list(batch.port_readings.values())
+        await sync_supabase_port_rows(session, port_rows)
 
 
 def queue_cloud_batch_flush(
@@ -1729,6 +1826,16 @@ def describe_csv_logging() -> str:
     return f"CSV backup enabled -> single file {path}"
 
 
+def describe_port_csv_logging() -> str:
+    """Return the location of the long-term per-port archive."""
+    return f"Inverter port CSV backup enabled -> daily files in {PORT_CSV_BACKUP_DIR}"
+
+
+def describe_weather_csv_logging() -> str:
+    """Return the location of the long-term weather archive."""
+    return f"Weather CSV backup enabled -> daily files in {WEATHER_CSV_BACKUP_DIR}"
+
+
 def describe_weather_sync() -> str:
     """Return a short human-readable weather sync status for startup logs."""
     if not WEATHER_LATITUDE or not WEATHER_LONGITUDE:
@@ -1814,6 +1921,8 @@ async def main() -> None:
         )
         relay_logger.info(describe_cloud_sync())
         relay_logger.info(describe_csv_logging())
+        relay_logger.info(describe_port_csv_logging())
+        relay_logger.info(describe_weather_csv_logging())
         relay_logger.info(describe_weather_sync())
 
         log_task = asyncio.create_task(broadcast_logs(log_queue, connected_clients))

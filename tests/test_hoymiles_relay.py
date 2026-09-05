@@ -1,6 +1,7 @@
 import importlib.util
 import struct
 import sys
+import tempfile
 import types
 import unittest
 from pathlib import Path
@@ -33,6 +34,68 @@ class FakeHoymilesClient:
 
 
 class HoymilesRelayTest(unittest.TestCase):
+    def test_writes_port_csv_archive_by_local_day(self):
+        relay = load_relay_module()
+        rows = [
+            {
+                "timestamp": "2026-08-02T12:00:00Z",
+                "inverter_serial": "inv-2",
+                "port_number": 2,
+                "dc_power_w": 200.0,
+                "dc_voltage_v": 41.0,
+                "energy_daily_wh": 50.0,
+            },
+            {
+                "timestamp": "2026-08-02T12:00:00Z",
+                "inverter_serial": "inv-1",
+                "port_number": 1,
+                "dc_power_w": 100.0,
+                "dc_voltage_v": 40.0,
+                "energy_daily_wh": 25.0,
+            },
+        ]
+
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            with patch.object(relay, "PORT_CSV_BACKUP_DIR", temporary_directory):
+                relay.write_port_csv_rows(rows)
+
+            local_day = relay.local_day_for_timestamp(rows[0]["timestamp"])
+            archive = Path(temporary_directory) / f"inverter_ports_{local_day}.csv"
+            lines = archive.read_text().splitlines()
+
+        self.assertEqual(len(lines), 3)
+        self.assertIn("Inverter Serial", lines[0])
+        self.assertIn("inv-1", lines[1])
+        self.assertIn("inv-2", lines[2])
+
+    def test_writes_weather_csv_archive_by_local_day(self):
+        relay = load_relay_module()
+        row = {
+            "timestamp": "2026-08-02T12:00:00Z",
+            "temperature_2m": 23.5,
+            "cloud_cover": 58.0,
+            "cloud_cover_low": 12.0,
+            "cloud_cover_mid": 30.0,
+            "cloud_cover_high": 16.0,
+            "shortwave_radiation": 500.0,
+            "direct_radiation": 350.0,
+            "diffuse_radiation": 150.0,
+            "wind_speed_10m": 4.2,
+            "precipitation": 0.0,
+        }
+
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            with patch.object(relay, "WEATHER_CSV_BACKUP_DIR", temporary_directory):
+                relay.write_weather_csv_row(row)
+
+            local_day = relay.local_day_for_timestamp(str(row["timestamp"]))
+            archive = Path(temporary_directory) / f"weather_{local_day}.csv"
+            lines = archive.read_text().splitlines()
+
+        self.assertEqual(len(lines), 2)
+        self.assertIn("Temperature 2M", lines[0])
+        self.assertIn("23.5", lines[1])
+
     def test_cloud_batch_collects_only_non_zero_port_rows(self):
         relay = load_relay_module()
         snapshot = relay.HoymilesSnapshot(
@@ -79,6 +142,7 @@ class HoymilesRelayTest(unittest.TestCase):
         batch.add_hoymiles_snapshot(snapshot)
 
         self.assertEqual(len(batch.port_readings), 2)
+        self.assertEqual(len(batch.port_archive_rows), 3)
         self.assertEqual(batch.port_readings[("inv-1", 1)]["inverter_serial"], "inv-1")
         self.assertEqual(batch.port_readings[("inv-1", 1)]["port_number"], 1)
         self.assertEqual(batch.port_readings[("inv-1", 3)]["dc_power_w"], 200.0)
