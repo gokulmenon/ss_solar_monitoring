@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { InviteCodeManager } from "@/components/admin/invite-code-manager";
+import { OverlayEditorToggle } from "@/components/admin/overlay-editor-toggle";
 import { WeatherStatusCard } from "@/components/weather/weather-status-card";
 import { createClient } from "@/lib/supabase/server";
 
@@ -75,6 +76,8 @@ export default async function SettingsPage() {
           </Button>
         </CardContent>
       </Card>
+
+      {isAdmin ? <OverlayEditorToggle /> : null}
 
       {isAdmin ? <InviteCodeManager /> : null}
 

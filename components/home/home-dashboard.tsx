@@ -77,7 +77,7 @@ function uptimeDotClass(tone: UptimeMonitor["tone"]) {
   }
 }
 
-export function HomeDashboard() {
+export function HomeDashboard({ isAdmin = false }: { isAdmin?: boolean }) {
   const { telemetry, bridgeState } = useLiveTelemetry();
   const [dailyEnergy, setDailyEnergy] = useState<DailyEnergySummaryPoint[]>([]);
   const [energyTotals, setEnergyTotals] = useState<EnergyTotals>(EMPTY_ENERGY_TOTALS);
@@ -202,6 +202,7 @@ export function HomeDashboard() {
         todayNetGridKwh={todayNetGridKwh}
         energyTotals={energyTotals}
         connectionLabel={bridgeLabel}
+        isAdmin={isAdmin}
       />
 
       {bridgeState === "hardware_offline" ? (

@@ -2,9 +2,13 @@
 
 import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
-import { CalendarDays, CloudSun, History, Wifi, type LucideIcon } from "lucide-react";
+import { CalendarDays, CloudSun, History, SlidersHorizontal, Wifi, type LucideIcon } from "lucide-react";
 
 import type { EnergyTotals } from "@/lib/daily-energy";
+import {
+  OVERLAY_EDITOR_CHANGED_EVENT,
+  readOverlayEditorEnabled,
+} from "@/lib/overlay-editor";
 import {
   formatPowerKw,
   getFlowDuration,
@@ -29,16 +33,251 @@ type HoymilesFlowVisualizerProps = {
   connectionLabel: string;
   plantName?: string;
   capacityKw?: number;
+  isAdmin?: boolean;
 };
 
+type QuadId = "S1" | "P1" | "S2" | "P2";
+
+type QuadPoint = [number, number];
+
+// Panel-string overlay quads (viewBox 0 0 1000 750, y grows down; points run
+// around the perimeter). Edit these numbers to move the green overlays — or
+// use the on-screen overlay tuner and copy the values back here.
+const QUAD_OVERLAYS: { id: QuadId; label: string; points: QuadPoint[] }[] = [
+  { id: "S1", label: "Back-face strip", points: [[465, 204], [722, 102], [781, 101], [528, 202]] },
+  { id: "P1", label: "Upper face", points: [[548, 208], [832, 95], [922, 184], [643, 302]] },
+  { id: "S2", label: "Lower-left eave", points: [[96, 440], [224, 409], [136, 445], [49, 455]] },
+  { id: "P2", label: "Garage face", points: [[152, 451], [506, 317], [579, 392], [215, 522]] },
+];
+
+const QUAD_TUNER_STORAGE_KEY = "hoymiles-quad-overlays";
+
+function defaultQuadPoints(): Record<QuadId, QuadPoint[]> {
+  return Object.fromEntries(
+    QUAD_OVERLAYS.map((quad) => [quad.id, quad.points.map((point) => [...point] as QuadPoint)]),
+  ) as Record<QuadId, QuadPoint[]>;
+}
+
+function quadPointsToString(points: QuadPoint[]) {
+  return points.map(([x, y]) => `${Math.round(x)},${Math.round(y)}`).join(" ");
+}
+
+function loadQuadTunerState(): Record<QuadId, QuadPoint[]> | null {
+  try {
+    if (typeof window === "undefined") return null;
+    const raw = window.localStorage.getItem(QUAD_TUNER_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Record<QuadId, QuadPoint[]>;
+    for (const quad of QUAD_OVERLAYS) {
+      const points = parsed[quad.id];
+      if (
+        !Array.isArray(points) ||
+        points.length !== 4 ||
+        points.some(
+          (point) =>
+            !Array.isArray(point) ||
+            point.length !== 2 ||
+            point.some((axis) => typeof axis !== "number" || Number.isNaN(axis)),
+        )
+      ) {
+        return null;
+      }
+    }
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
 const PATH_IDS = {
-  lowerSolar: "hoymiles-lower-solar-flow",
-  upperSolar: "hoymiles-upper-solar-flow",
-  solarTrunk: "hoymiles-solar-trunk-flow",
+  runS1: "hoymiles-run-s1-flow",
+  runP1: "hoymiles-run-p1-flow",
+  runS2: "hoymiles-run-s2-flow",
+  runP2: "hoymiles-run-p2-flow",
+  trunkUpper: "hoymiles-trunk-upper-flow",
+  trunkLower: "hoymiles-trunk-lower-flow",
   gridExport: "hoymiles-grid-export-flow",
   gridImport: "hoymiles-grid-import-flow",
   loads: "hoymiles-loads-flow",
 } as const;
+
+type PipeNodeId = "upperMid" | "lowerMid" | "junction" | "combiner";
+
+// One source point per quad; each run flows source -> shared node -> trunk -> combiner.
+const RUN_END_NODES: Record<QuadId, "upperMid" | "lowerMid"> = {
+  S1: "upperMid",
+  P1: "upperMid",
+  S2: "lowerMid",
+  P2: "lowerMid",
+};
+
+const PIPE_NODE_DEFAULTS: Record<PipeNodeId, QuadPoint> = {
+  upperMid: [694, 139],
+  lowerMid: [340, 378],
+  junction: [134, 453],
+  combiner: [202, 580],
+};
+
+const PIPE_SOURCE_DEFAULTS: Record<QuadId, QuadPoint> = {
+  S1: [653, 152],
+  P1: [678, 151],
+  S2: [179, 426],
+  P2: [351, 382],
+};
+
+type PipeViaKey = "runS1" | "runP1" | "runS2" | "runP2" | "trunkUpper" | "trunkLower" | "grid" | "loads";
+
+const PIPE_VIA_DEFAULTS: Record<PipeViaKey, QuadPoint[]> = {
+  runS1: [],
+  runP1: [],
+  runS2: [[202, 425], [246, 410]],
+  runP2: [],
+  trunkUpper: [[525, 209], [520, 308]],
+  trunkLower: [[129, 519], [174, 539]],
+  grid: [[145, 595], [80, 560], [80, 700]],
+  loads: [[259, 558]],
+};
+
+const PIPE_END_DEFAULTS: Record<"grid" | "loads", QuadPoint> = {
+  grid: [-1, 720],
+  loads: [354, 525],
+};
+
+type PipeState = {
+  nodes: Record<PipeNodeId, QuadPoint>;
+  sources: Record<QuadId, QuadPoint>;
+  via: Record<PipeViaKey, QuadPoint[]>;
+  ends: Record<"grid" | "loads", QuadPoint>;
+};
+
+const PIPE_TUNER_STORAGE_KEY = "hoymiles-pipe-routes-v2";
+
+function copyPipePoints(points: QuadPoint[]): QuadPoint[] {
+  return points.map((point) => [...point] as QuadPoint);
+}
+
+function defaultPipeState(): PipeState {
+  return {
+    nodes: Object.fromEntries(
+      Object.entries(PIPE_NODE_DEFAULTS).map(([id, point]) => [id, [...point] as QuadPoint]),
+    ) as Record<PipeNodeId, QuadPoint>,
+    sources: Object.fromEntries(
+      Object.entries(PIPE_SOURCE_DEFAULTS).map(([id, point]) => [id, [...point] as QuadPoint]),
+    ) as Record<QuadId, QuadPoint>,
+    via: Object.fromEntries(
+      Object.entries(PIPE_VIA_DEFAULTS).map(([id, points]) => [id, copyPipePoints(points)]),
+    ) as Record<PipeViaKey, QuadPoint[]>,
+    ends: Object.fromEntries(
+      Object.entries(PIPE_END_DEFAULTS).map(([id, point]) => [id, [...point] as QuadPoint]),
+    ) as Record<"grid" | "loads", QuadPoint>,
+  };
+}
+
+function buildPipeD(points: QuadPoint[]) {
+  return points.map(([x, y], index) => `${index === 0 ? "M" : "L"} ${Math.round(x)} ${Math.round(y)}`).join(" ");
+}
+
+function isQuadPoint(value: unknown): value is QuadPoint {
+  return (
+    Array.isArray(value) &&
+    value.length === 2 &&
+    value.every((axis) => typeof axis === "number" && Number.isFinite(axis))
+  );
+}
+
+function loadPipeTunerState(): PipeState | null {
+  try {
+    if (typeof window === "undefined") return null;
+    const raw = window.localStorage.getItem(PIPE_TUNER_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<PipeState>;
+    if (!parsed || typeof parsed !== "object") return null;
+    const { nodes, sources, via, ends } = parsed;
+    if (!nodes || !sources || !via || !ends) return null;
+    const nodeIds: PipeNodeId[] = ["upperMid", "lowerMid", "junction", "combiner"];
+    const quadIds: QuadId[] = ["S1", "P1", "S2", "P2"];
+    const viaKeys = Object.keys(PIPE_VIA_DEFAULTS) as PipeViaKey[];
+    if (
+      !nodeIds.every((id) => isQuadPoint(nodes[id])) ||
+      !quadIds.every((id) => isQuadPoint(sources[id])) ||
+      !viaKeys.every((key) => Array.isArray(via[key]) && via[key].every(isQuadPoint)) ||
+      !isQuadPoint(ends.grid) ||
+      !isQuadPoint(ends.loads)
+    ) {
+      return null;
+    }
+    return { nodes, sources, via, ends } as PipeState;
+  } catch {
+    return null;
+  }
+}
+
+type InfoBoxId = "title" | "status" | "hero" | "grid" | "loads";
+
+type InfoBox = { x: number; y: number; scale: number };
+
+const INFO_BOX_ANCHOR: Record<InfoBoxId, "left" | "right"> = {
+  title: "left",
+  status: "right",
+  hero: "left",
+  grid: "left",
+  loads: "right",
+};
+
+const INFO_BOX_LABELS: Record<InfoBoxId, string> = {
+  title: "Title card",
+  status: "Gateway + weather",
+  hero: "Hero power + ratio",
+  grid: "Grid badge",
+  loads: "Loads badge",
+};
+
+// x/y are % from the anchored edge (left/right) and top; scale is %. Defaults
+// reproduce the current layout exactly.
+const INFO_BOX_DEFAULTS: Record<InfoBoxId, InfoBox> = {
+  title: { x: 2, y: 3, scale: 100 },
+  status: { x: 2, y: 3, scale: 100 },
+  hero: { x: 42, y: 10, scale: 73 },
+  grid: { x: 15, y: 88, scale: 80 },
+  loads: { x: 51, y: 63, scale: 80 },
+};
+
+const INFO_BOX_STORAGE_KEY = "hoymiles-infobox-layout-v1";
+
+function defaultInfoBoxes(): Record<InfoBoxId, InfoBox> {
+  return Object.fromEntries(
+    Object.entries(INFO_BOX_DEFAULTS).map(([id, box]) => [id, { ...box }]),
+  ) as Record<InfoBoxId, InfoBox>;
+}
+
+function loadInfoBoxState(): Record<InfoBoxId, InfoBox> | null {
+  try {
+    if (typeof window === "undefined") return null;
+    const raw = window.localStorage.getItem(INFO_BOX_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<Record<InfoBoxId, InfoBox>>;
+    if (!parsed || typeof parsed !== "object") return null;
+    const ids: InfoBoxId[] = ["title", "status", "hero", "grid", "loads"];
+    if (
+      !ids.every(
+        (id) =>
+          parsed[id] &&
+          typeof parsed[id].x === "number" &&
+          Number.isFinite(parsed[id].x) &&
+          typeof parsed[id].y === "number" &&
+          Number.isFinite(parsed[id].y) &&
+          typeof parsed[id].scale === "number" &&
+          Number.isFinite(parsed[id].scale) &&
+          parsed[id].scale > 0,
+      )
+    ) {
+      return null;
+    }
+    return parsed as Record<InfoBoxId, InfoBox>;
+  } catch {
+    return null;
+  }
+}
 
 function formatTimestamp(timestamp?: string) {
   if (!timestamp) return "Awaiting update";
@@ -103,6 +342,99 @@ function SemiGauge({ value, label }: { value: number; label: string }) {
   );
 }
 
+function XyInput({
+  label,
+  point,
+  onChange,
+}: {
+  label: string;
+  point: QuadPoint;
+  onChange: (axis: 0 | 1, value: number) => void;
+}) {
+  const [x, y] = point;
+  return (
+    <div className="flex min-w-0 flex-wrap items-center gap-1">
+      <span className="shrink-0 text-[10px] text-slate-500">{label}</span>
+      <input
+        type="number"
+        value={Math.round(x)}
+        onChange={(event) => {
+          const value = event.target.value === "" ? NaN : Number(event.target.value);
+          if (!Number.isNaN(value)) onChange(0, value);
+        }}
+        className="w-14 shrink-0 rounded-md border border-white/10 bg-slate-950 px-1.5 py-1 text-xs text-white"
+        aria-label={`${label} x`}
+      />
+      <input
+        type="number"
+        value={Math.round(y)}
+        onChange={(event) => {
+          const value = event.target.value === "" ? NaN : Number(event.target.value);
+          if (!Number.isNaN(value)) onChange(1, value);
+        }}
+        className="w-14 shrink-0 rounded-md border border-white/10 bg-slate-950 px-1.5 py-1 text-xs text-white"
+        aria-label={`${label} y`}
+      />
+    </div>
+  );
+}
+
+function ViaPointList({
+  title,
+  hint,
+  points,
+  anchor,
+  onChange,
+}: {
+  title: string;
+  hint: string;
+  points: QuadPoint[];
+  anchor: QuadPoint;
+  onChange: (next: QuadPoint[]) => void;
+}) {
+  return (
+    <div className="rounded-xl border border-white/10 bg-slate-900/50 p-2">
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <p className="text-xs font-semibold text-slate-200">
+          {title} <span className="font-normal text-slate-500">{hint}</span>
+        </p>
+        <button
+          type="button"
+          onClick={() => onChange([...points, [...(points[points.length - 1] ?? anchor)] as QuadPoint])}
+          className="rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5 text-[10px] text-slate-300"
+        >
+          + Point
+        </button>
+      </div>
+      {points.length === 0 ? (
+        <p className="text-[10px] text-slate-500">Direct run — no midpoints. Add one to bend the pipe.</p>
+      ) : (
+        <div className="grid grid-cols-1 gap-2">
+          {points.map(([x, y], index) => (
+            <div key={index} className="flex items-center gap-1">
+              <XyInput
+                label={`${title} J${index + 1}`}
+                point={[x, y]}
+                onChange={(axis, value) =>
+                  onChange(points.map((p, i) => (i === index ? ([axis === 0 ? value : p[0], axis === 1 ? value : p[1]] as QuadPoint) : p)))
+                }
+              />
+              <button
+                type="button"
+                onClick={() => onChange(points.filter((_, i) => i !== index))}
+                className="rounded-full border border-white/10 bg-white/[0.04] px-1.5 py-0.5 text-[10px] text-slate-400"
+                aria-label={`Remove ${title} point ${index + 1}`}
+              >
+                ×
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function HoymilesFlowVisualizer({
   solarProductionW,
   homeConsumptionW,
@@ -114,8 +446,191 @@ export function HoymilesFlowVisualizer({
   connectionLabel,
   plantName = "Gokul Menon",
   capacityKw = 20.02,
+  isAdmin = false,
 }: HoymilesFlowVisualizerProps) {
   const [temperatureC, setTemperatureC] = useState<number | null>(null);
+  const [overlayEditorEnabled, setOverlayEditorEnabled] = useState(false);
+  const showEditorTools = isAdmin && overlayEditorEnabled;
+
+  useEffect(() => {
+    setOverlayEditorEnabled(readOverlayEditorEnabled());
+
+    function sync() {
+      setOverlayEditorEnabled(readOverlayEditorEnabled());
+    }
+
+    window.addEventListener("storage", sync);
+    window.addEventListener(OVERLAY_EDITOR_CHANGED_EVENT, sync);
+    return () => {
+      window.removeEventListener("storage", sync);
+      window.removeEventListener(OVERLAY_EDITOR_CHANGED_EVENT, sync);
+    };
+  }, []);
+
+  const [tunerOpen, setTunerOpen] = useState(false);
+  const [quadPoints, setQuadPoints] = useState<Record<QuadId, QuadPoint[]>>(defaultQuadPoints);
+  const [copiedQuad, setCopiedQuad] = useState<string | null>(null);
+
+  useEffect(() => {
+    const saved = loadQuadTunerState();
+    if (saved) setQuadPoints(saved);
+  }, []);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(QUAD_TUNER_STORAGE_KEY, JSON.stringify(quadPoints));
+    } catch {
+      // Storage unavailable (private mode, etc.) — tuner still works for the session.
+    }
+  }, [quadPoints]);
+
+  function setQuadPoint(id: QuadId, index: number, axis: 0 | 1, value: number) {
+    if (Number.isNaN(value)) return;
+    setQuadPoints((prev) => {
+      const next = { ...prev, [id]: prev[id].map((point) => [...point] as QuadPoint) };
+      next[id][index][axis] = value;
+      return next;
+    });
+  }
+
+  function resetQuadPoints() {
+    setQuadPoints(defaultQuadPoints());
+    try {
+      window.localStorage.removeItem(QUAD_TUNER_STORAGE_KEY);
+    } catch {
+      // Ignore storage failures; state reset is what matters.
+    }
+  }
+
+  const [pipeTunerOpen, setPipeTunerOpen] = useState(false);
+  const [pipes, setPipes] = useState<PipeState>(defaultPipeState);
+
+  useEffect(() => {
+    const saved = loadPipeTunerState();
+    if (saved) setPipes(saved);
+  }, []);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(PIPE_TUNER_STORAGE_KEY, JSON.stringify(pipes));
+    } catch {
+      // Storage unavailable — pipe tuner still works for the session.
+    }
+  }, [pipes]);
+
+  function runLine(id: QuadId): QuadPoint[] {
+    return [pipes.sources[id], ...pipes.via[`run${id}` as PipeViaKey], pipes.nodes[RUN_END_NODES[id]]];
+  }
+
+  const trunkUpperLine: QuadPoint[] = [
+    pipes.nodes.upperMid,
+    ...pipes.via.trunkUpper,
+    pipes.nodes.lowerMid,
+    pipes.nodes.junction,
+  ];
+  const trunkLowerLine: QuadPoint[] = [
+    pipes.nodes.junction,
+    ...pipes.via.trunkLower,
+    pipes.nodes.combiner,
+  ];
+  const gridLine: QuadPoint[] = [pipes.nodes.combiner, ...pipes.via.grid, pipes.ends.grid];
+  const loadsLine: QuadPoint[] = [pipes.nodes.combiner, ...pipes.via.loads, pipes.ends.loads];
+
+  function setPipeNode(id: PipeNodeId, axis: 0 | 1, value: number) {
+    setPipes((prev) => ({
+      ...prev,
+      nodes: { ...prev.nodes, [id]: [axis === 0 ? value : prev.nodes[id][0], axis === 1 ? value : prev.nodes[id][1]] as QuadPoint },
+    }));
+  }
+
+  function setPipeSource(id: QuadId, axis: 0 | 1, value: number) {
+    setPipes((prev) => ({
+      ...prev,
+      sources: { ...prev.sources, [id]: [axis === 0 ? value : prev.sources[id][0], axis === 1 ? value : prev.sources[id][1]] as QuadPoint },
+    }));
+  }
+
+  function setPipeVia(key: PipeViaKey, next: QuadPoint[]) {
+    setPipes((prev) => ({ ...prev, via: { ...prev.via, [key]: next } }));
+  }
+
+  function setPipeEnd(key: "grid" | "loads", axis: 0 | 1, value: number) {
+    setPipes((prev) => ({
+      ...prev,
+      ends: { ...prev.ends, [key]: [axis === 0 ? value : prev.ends[key][0], axis === 1 ? value : prev.ends[key][1]] as QuadPoint },
+    }));
+  }
+
+  function resetPipes() {
+    setPipes(defaultPipeState());
+    try {
+      window.localStorage.removeItem(PIPE_TUNER_STORAGE_KEY);
+    } catch {
+      // Ignore storage failures; state reset is what matters.
+    }
+  }
+
+  const [boxTunerOpen, setBoxTunerOpen] = useState(false);
+  const [infoBoxes, setInfoBoxes] = useState<Record<InfoBoxId, InfoBox>>(defaultInfoBoxes);
+
+  useEffect(() => {
+    const saved = loadInfoBoxState();
+    if (saved) setInfoBoxes(saved);
+  }, []);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(INFO_BOX_STORAGE_KEY, JSON.stringify(infoBoxes));
+    } catch {
+      // Storage unavailable — box tuner still works for the session.
+    }
+  }, [infoBoxes]);
+
+  function infoStyle(id: InfoBoxId) {
+    const box = infoBoxes[id];
+    return {
+      ...(INFO_BOX_ANCHOR[id] === "left" ? { left: `${box.x}%` } : { right: `${box.x}%` }),
+      top: `${box.y}%`,
+      scale: `${box.scale / 100}`,
+    };
+  }
+
+  function setInfoBox(id: InfoBoxId, field: "x" | "y" | "scale", value: number) {
+    if (Number.isNaN(value) || (field === "scale" && value <= 0)) return;
+    setInfoBoxes((prev) => ({ ...prev, [id]: { ...prev[id], [field]: value } }));
+  }
+
+  function resetInfoBoxes() {
+    setInfoBoxes(defaultInfoBoxes());
+    try {
+      window.localStorage.removeItem(INFO_BOX_STORAGE_KEY);
+    } catch {
+      // Ignore storage failures; state reset is what matters.
+    }
+  }
+
+  function copyQuadText(text: string, tag: string) {
+    const done = () => {
+      setCopiedQuad(tag);
+      window.setTimeout(() => {
+        setCopiedQuad((current) => (current === tag ? null : current));
+      }, 1500);
+    };
+    const legacyCopy = () => {
+      const area = document.createElement("textarea");
+      area.value = text;
+      document.body.appendChild(area);
+      area.select();
+      document.execCommand("copy");
+      area.remove();
+      done();
+    };
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(text).then(done, legacyCopy);
+    } else {
+      legacyCopy();
+    }
+  }
 
   const trueSolarW = Math.max(0, solarProductionW);
   const trueHomeW = Math.abs(homeConsumptionW);
@@ -174,7 +689,8 @@ export function HoymilesFlowVisualizer({
 
   return (
     <section aria-label="Live home energy flow" className="space-y-3">
-      <div className="relative mx-auto w-full max-w-xl overflow-hidden rounded-[1.75rem] border border-white/10 bg-slate-950 shadow-[0_28px_80px_rgba(2,6,23,0.6)] aspect-[4/3]">
+      <div className={showEditorTools ? "grid gap-3 lg:grid-cols-[minmax(0,34rem)_minmax(20rem,1fr)] lg:items-start" : ""}>
+      <div className={showEditorTools ? "relative mx-auto w-full max-w-xl overflow-hidden rounded-[1.75rem] border border-white/10 bg-slate-950 shadow-[0_28px_80px_rgba(2,6,23,0.6)] aspect-[4/3] lg:mx-0" : "relative mx-auto w-full max-w-xl overflow-hidden rounded-[1.75rem] border border-white/10 bg-slate-950 shadow-[0_28px_80px_rgba(2,6,23,0.6)] aspect-[4/3]"}>
         <Image
           alt="Isometric view of the home energy system"
           className="object-cover"
@@ -201,49 +717,100 @@ export function HoymilesFlowVisualizer({
             </filter>
           </defs>
 
-          {/* ISOMETRIC CONDUIT PATHS MATCHING ANNOTATION */}
-          <g filter="url(#hoymiles-flow-glow)">
-            {/* Upper Roof Array: Routes down roof pitch, drops down 2nd story wall, connects to combiner */}
-            <path id={PATH_IDS.upperSolar} d="M 680 180 L 580 230 L 580 400 L 440 460 L 380 460 L 380 485" className="hoymiles-energy-line" stroke="#34d399" opacity={solarActive ? 1 : 0.2} />
-            
-            {/* Lower Roof Array: Traces parallel slope down to combiner */}
-            <path id={PATH_IDS.lowerSolar} d="M 260 465 L 320 485 L 380 485" className="hoymiles-energy-line" stroke="#34d399" opacity={solarActive ? 1 : 0.2} />
-            <path id={PATH_IDS.solarTrunk} d="M 380 485 L 300 510 L 250 540 L 220 580" className="hoymiles-energy-line hoymiles-energy-collector" stroke="#34d399" opacity={solarActive ? 1 : 0.2} />
-            
-            {/* Grid leaves the combiner through the exchange point beside the left-wall window. */}
-            <path id={PATH_IDS.gridExport} d="M 220 580 L 145 560 L 80 560 L 80 700 L 120 720" className="hoymiles-energy-line" stroke="#10b981" opacity={gridState === "exporting" ? 1 : 0.16} />
-            <path id={PATH_IDS.gridImport} d="M 220 580 L 145 560 L 80 560 L 80 700 L 120 720" className="hoymiles-energy-line" stroke="#f59e0b" opacity={gridState === "importing" ? 1 : 0.16} />
-            
-            {/* Home Loads Path (Sweeps across garage/driveway seam into living room) */}
-            <path id={PATH_IDS.loads} d="M 220 580 L 350 630 L 750 460" className="hoymiles-energy-line" stroke="#34d399" opacity={loadsActive ? 1 : 0.18} />
+          {/* PANEL STRING OVERLAYS spanning the full roof faces, hip corner
+              to eave corner (img px * 0.9766 = viewBox). P1 covers the
+              whole upper front face; P2 the whole garage face. The S1
+              (back-face strip along the far eave) and S2 (lower-left
+              eave run) slivers are drawn first so they tuck behind
+              the big faces. */}
+          <g>
+            {QUAD_OVERLAYS.map((quad) => (
+              <polygon
+                key={quad.id}
+                points={quadPointsToString(quadPoints[quad.id])}
+                fill="rgba(52,211,153,0.20)"
+                stroke="#6ee7b7"
+                strokeWidth="2.5"
+                strokeLinejoin="round"
+                opacity={solarActive ? 0.95 : 0.3}
+              />
+            ))}
           </g>
 
-          {solarActive ? <FlowParticles pathId={PATH_IDS.lowerSolar} color="#86efac" duration={solarDuration} /> : null}
-          {solarActive ? <FlowParticles pathId={PATH_IDS.upperSolar} color="#86efac" duration={solarDuration} /> : null}
-          {solarActive ? <FlowParticles pathId={PATH_IDS.solarTrunk} color="#6ee7b7" duration={solarDuration} /> : null}
+          {/* ISOMETRIC CONDUIT PATHS: one source run per quad (S1/P1 -> upper
+              node, S2/P2 -> lower node), shared trunk to the junction dot,
+              then into the accumulator (lightning combiner). Geometry comes
+              from pipe state so the pipe tuner can move every joint. */}
+          <g filter="url(#hoymiles-flow-glow)">
+            {(["S1", "P1", "S2", "P2"] as QuadId[]).map((id) => (
+              <path
+                key={PATH_IDS[`run${id}` as "runS1" | "runP1" | "runS2" | "runP2"]}
+                id={PATH_IDS[`run${id}` as "runS1" | "runP1" | "runS2" | "runP2"]}
+                d={buildPipeD(runLine(id))}
+                className="hoymiles-energy-line"
+                stroke="#34d399"
+                opacity={solarActive ? 1 : 0.2}
+              />
+            ))}
+
+            {/* Shared trunk: upper node down to the lower node, then to the junction dot */}
+            <path id={PATH_IDS.trunkUpper} d={buildPipeD(trunkUpperLine)} className="hoymiles-energy-line hoymiles-energy-collector" stroke="#34d399" opacity={solarActive ? 1 : 0.2} />
+
+            {/* Single trunk: junction dot to the accumulator (lightning combiner) on the left wall */}
+            <path id={PATH_IDS.trunkLower} d={buildPipeD(trunkLowerLine)} className="hoymiles-energy-line hoymiles-energy-collector" stroke="#34d399" opacity={solarActive ? 1 : 0.2} />
+
+            {/* Grid leaves the combiner through the exchange point beside the left-wall window. */}
+            <path id={PATH_IDS.gridExport} d={buildPipeD(gridLine)} className="hoymiles-energy-line" stroke="#10b981" opacity={gridState === "exporting" ? 1 : 0.16} />
+            <path id={PATH_IDS.gridImport} d={buildPipeD(gridLine)} className="hoymiles-energy-line" stroke="#f59e0b" opacity={gridState === "importing" ? 1 : 0.16} />
+
+            {/* Home Loads Path (Sweeps across garage/driveway seam into living room) */}
+            <path id={PATH_IDS.loads} d={buildPipeD(loadsLine)} className="hoymiles-energy-line" stroke="#34d399" opacity={loadsActive ? 1 : 0.18} />
+          </g>
+
+          {solarActive ? <FlowParticles pathId={PATH_IDS.runS1} color="#86efac" duration={solarDuration} /> : null}
+          {solarActive ? <FlowParticles pathId={PATH_IDS.runP1} color="#86efac" duration={solarDuration} /> : null}
+          {solarActive ? <FlowParticles pathId={PATH_IDS.runS2} color="#86efac" duration={solarDuration} /> : null}
+          {solarActive ? <FlowParticles pathId={PATH_IDS.runP2} color="#86efac" duration={solarDuration} /> : null}
+          {solarActive ? <FlowParticles pathId={PATH_IDS.trunkUpper} color="#6ee7b7" duration={solarDuration} /> : null}
+          {solarActive ? <FlowParticles pathId={PATH_IDS.trunkLower} color="#6ee7b7" duration={solarDuration} /> : null}
           {gridState === "exporting" ? <FlowParticles pathId={PATH_IDS.gridExport} color="#34d399" duration={gridDuration} /> : null}
           {gridState === "importing" ? <FlowParticles pathId={PATH_IDS.gridImport} color="#fbbf24" duration={gridDuration} reverse /> : null}
           {loadsActive ? <FlowParticles pathId={PATH_IDS.loads} color="#6ee7b7" duration={loadDuration} /> : null}
 
-          {/* COMBINER JUNCTION BOX ON LEFT WALL */}
+          {/* COMBINER JUNCTION BOX ON LEFT WALL — markers follow pipe nodes */}
           <g filter="url(#hoymiles-flow-glow)">
-            <circle cx="380" cy="485" r="7" fill="#d1fae5" stroke="#34d399" strokeWidth="3" />
-            <circle cx="220" cy="580" r="18" fill="#082f24" stroke="#6ee7b7" strokeWidth="4" />
-            <path d="M219 566 L209 584 H219 L215 595 L231 577 H222 L227 566 Z" fill="#d1fae5" />
+            <circle cx={pipes.nodes.upperMid[0]} cy={pipes.nodes.upperMid[1]} r="5" fill="#d1fae5" stroke="#34d399" strokeWidth="2.5" />
+            <circle cx={pipes.nodes.lowerMid[0]} cy={pipes.nodes.lowerMid[1]} r="5" fill="#d1fae5" stroke="#34d399" strokeWidth="2.5" />
+            {(["S1", "P1", "S2", "P2"] as QuadId[]).map((id) => (
+              <circle
+                key={`src-${id}`}
+                cx={pipes.sources[id][0]}
+                cy={pipes.sources[id][1]}
+                r="4"
+                fill="#052e22"
+                stroke="#6ee7b7"
+                strokeWidth="2.5"
+              />
+            ))}
+            <circle cx={pipes.nodes.junction[0]} cy={pipes.nodes.junction[1]} r="7" fill="#d1fae5" stroke="#34d399" strokeWidth="3" />
+            <g transform={`translate(${pipes.nodes.combiner[0] - 220} ${pipes.nodes.combiner[1] - 580})`}>
+              <circle cx="220" cy="580" r="18" fill="#082f24" stroke="#6ee7b7" strokeWidth="4" />
+              <path d="M219 566 L209 584 H219 L215 595 L231 577 H222 L227 566 Z" fill="#d1fae5" />
+              <text x="220" y="607" textAnchor="middle" className="fill-emerald-50 text-[10px] font-semibold">COMBINER</text>
+            </g>
             <rect x="64" y="544" width="32" height="32" rx="8" fill="#172554" stroke="#7dd3fc" strokeWidth="3" />
             <path d="M71 555 H88 M85 551 L89 555 L85 559 M90 569 H73 M76 565 L72 569 L76 573" stroke="#e0f2fe" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-            <text x="220" y="607" textAnchor="middle" className="fill-emerald-50 text-[10px] font-semibold">COMBINER</text>
             <text x="80" y="591" textAnchor="middle" className="fill-sky-100 text-[10px] font-semibold">EXCHANGE</text>
           </g>
         </svg>
 
-        <div className="absolute left-3 top-3 max-w-[43%] rounded-xl border border-white/10 bg-slate-950/80 px-2.5 py-1.5 shadow-lg backdrop-blur-md">
+        <div style={infoStyle("title")} className="absolute max-w-[43%] rounded-xl border border-white/10 bg-slate-950/80 px-2.5 py-1.5 shadow-lg backdrop-blur-md">
           <p className="truncate text-xs font-semibold text-white">{plantName}</p>
           <p className="mt-0.5 text-[9px] font-medium text-slate-300">Live · {formatTimestamp(timestamp)}</p>
           <p className="mt-0.5 text-[9px] text-slate-400">Capacity {capacityKw.toFixed(2)} kW</p>
         </div>
 
-        <div className="absolute right-3 top-3 flex items-center gap-1.5 rounded-xl border border-white/10 bg-slate-950/80 px-2.5 py-2 text-[10px] shadow-lg backdrop-blur-md">
+        <div style={infoStyle("status")} className="absolute flex items-center gap-1.5 rounded-xl border border-white/10 bg-slate-950/80 px-2.5 py-2 text-[10px] shadow-lg backdrop-blur-md">
           <Wifi className="h-3.5 w-3.5 text-emerald-300" aria-hidden="true" />
           <span className="hidden text-slate-200 sm:inline">{connectionLabel}</span>
           <span className="h-3.5 w-px bg-white/10" />
@@ -251,12 +818,12 @@ export function HoymilesFlowVisualizer({
           <span className="font-semibold text-white">{temperatureLabel}</span>
         </div>
 
-        <div className="absolute left-1/2 top-[4%] -translate-x-1/2 rounded-2xl border border-white/10 bg-slate-950/82 px-4 py-2 text-center shadow-xl backdrop-blur-md">
+        <div style={infoStyle("hero")} className="absolute -translate-x-1/2 rounded-2xl border border-white/10 bg-slate-950/82 px-4 py-2 text-center shadow-xl backdrop-blur-md">
           <p data-testid="hero-solar-power" className="whitespace-nowrap text-2xl font-bold tracking-tight text-white sm:text-3xl">{formatPowerKw(trueSolarW)}</p>
           <p className="mt-0.5 whitespace-nowrap text-[10px] font-medium text-slate-300">Power Ratio {Math.max(0, powerRatio).toFixed(1)}%</p>
         </div>
 
-        <div data-testid="grid-flow-badge" className="absolute left-[20%] top-[81%] w-28 -translate-x-1/2 rounded-xl border border-white/10 bg-slate-950/80 p-1.5 shadow-lg backdrop-blur-md">
+        <div data-testid="grid-flow-badge" style={infoStyle("grid")} className="absolute w-28 -translate-x-1/2 rounded-xl border border-white/10 bg-slate-950/80 p-1.5 shadow-lg backdrop-blur-md">
           <p className="text-[8px] font-medium uppercase tracking-[0.12em] text-slate-400">Grid</p>
           <p className="mt-0.5 text-[13px] font-bold leading-tight text-white">{formatPowerKw(Math.abs(trueGridW))}</p>
           <p className={`mt-0.5 flex items-center gap-1 text-[8px] font-semibold ${gridTone}`}>
@@ -265,11 +832,257 @@ export function HoymilesFlowVisualizer({
           </p>
         </div>
 
-        <div data-testid="loads-flow-badge" className="absolute right-3 top-[64%] w-28 rounded-xl border border-white/10 bg-slate-950/80 p-2 shadow-lg backdrop-blur-md">
+        <div data-testid="loads-flow-badge" style={infoStyle("loads")} className="absolute w-28 rounded-xl border border-white/10 bg-slate-950/80 p-2 shadow-lg backdrop-blur-md">
           <p className="text-[9px] font-medium uppercase tracking-[0.14em] text-slate-400">Loads</p>
           <p className="mt-0.5 text-sm font-bold text-white">{formatPowerKw(trueHomeW)}</p>
           <p className="mt-1 text-[9px] font-semibold text-emerald-300">Home demand</p>
         </div>
+      </div>
+
+      {showEditorTools ? (
+      <div className="mx-auto w-full max-w-xl lg:mx-0 lg:max-h-[calc(100vh-1.5rem)] lg:overflow-y-auto lg:pr-1">
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setTunerOpen((open) => !open)}
+            className="flex items-center gap-1.5 rounded-full border border-white/10 bg-slate-950/80 px-3 py-1.5 text-[11px] font-medium text-slate-300 shadow-lg backdrop-blur-md"
+          >
+            <SlidersHorizontal className="h-3.5 w-3.5 text-emerald-300" aria-hidden="true" />
+            {tunerOpen ? "Hide overlay tuner" : "Tune overlays"}
+          </button>
+          <button
+            type="button"
+            onClick={() => setPipeTunerOpen((open) => !open)}
+            className="flex items-center gap-1.5 rounded-full border border-white/10 bg-slate-950/80 px-3 py-1.5 text-[11px] font-medium text-slate-300 shadow-lg backdrop-blur-md"
+          >
+            <SlidersHorizontal className="h-3.5 w-3.5 text-sky-300" aria-hidden="true" />
+            {pipeTunerOpen ? "Hide pipe tuner" : "Tune pipes"}
+          </button>
+          <button
+            type="button"
+            onClick={() => setBoxTunerOpen((open) => !open)}
+            className="flex items-center gap-1.5 rounded-full border border-white/10 bg-slate-950/80 px-3 py-1.5 text-[11px] font-medium text-slate-300 shadow-lg backdrop-blur-md"
+          >
+            <SlidersHorizontal className="h-3.5 w-3.5 text-amber-300" aria-hidden="true" />
+            {boxTunerOpen ? "Hide box tuner" : "Tune boxes"}
+          </button>
+        </div>
+        {tunerOpen ? (
+          <div className="mt-2 space-y-3 rounded-2xl border border-white/10 bg-slate-950/80 p-3 shadow-lg backdrop-blur-md">
+            <p className="text-[11px] leading-relaxed text-slate-400">
+              Nudge quad corners live (viewBox 0 0 1000 750, y grows down, C1–C4 run
+              around the perimeter). Values persist in this browser; copy them back
+              into QUAD_OVERLAYS to commit.
+            </p>
+            {QUAD_OVERLAYS.map((quad) => (
+              <div key={quad.id} className="rounded-xl border border-white/10 bg-slate-900/50 p-2">
+                <div className="mb-2 flex items-center justify-between gap-2">
+                  <p className="text-xs font-semibold text-slate-200">
+                    {quad.id} <span className="font-normal text-slate-500">{quad.label}</span>
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => copyQuadText(quadPointsToString(quadPoints[quad.id]), quad.id)}
+                    className="rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5 text-[10px] text-slate-300"
+                  >
+                    {copiedQuad === quad.id ? "Copied" : "Copy"}
+                  </button>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  {quadPoints[quad.id].map(([x, y], index) => (
+                    <div key={index} className="flex min-w-0 flex-wrap items-center gap-1">
+                      <span className="shrink-0 text-[10px] text-slate-500">C{index + 1}</span>
+                      <input
+                        type="number"
+                        value={Math.round(x)}
+                        onChange={(event) => setQuadPoint(quad.id, index, 0, event.target.value === "" ? NaN : Number(event.target.value))}
+                        className="w-14 shrink-0 rounded-md border border-white/10 bg-slate-950 px-1.5 py-1 text-xs text-white"
+                        aria-label={`${quad.id} corner ${index + 1} x`}
+                      />
+                      <input
+                        type="number"
+                        value={Math.round(y)}
+                        onChange={(event) => setQuadPoint(quad.id, index, 1, event.target.value === "" ? NaN : Number(event.target.value))}
+                        className="w-14 shrink-0 rounded-md border border-white/10 bg-slate-950 px-1.5 py-1 text-xs text-white"
+                        aria-label={`${quad.id} corner ${index + 1} y`}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() =>
+                  copyQuadText(
+                    QUAD_OVERLAYS.map((quad) => `${quad.id}: ${quadPointsToString(quadPoints[quad.id])}`).join("\n"),
+                    "all",
+                  )
+                }
+                className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[11px] text-slate-200"
+              >
+                {copiedQuad === "all" ? "Copied all" : "Copy all"}
+              </button>
+              <button
+                type="button"
+                onClick={resetQuadPoints}
+                className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[11px] text-slate-400"
+              >
+                Reset
+              </button>
+            </div>
+          </div>
+        ) : null}
+        {pipeTunerOpen ? (
+          <div className="mt-2 space-y-3 rounded-2xl border border-white/10 bg-slate-950/80 p-3 shadow-lg backdrop-blur-md">
+            <p className="text-[11px] leading-relaxed text-slate-400">
+              One source point per quad, every pipe joint editable (viewBox 0 0 1000 750,
+              y grows down). Shared nodes move every connected pipe at once. Values
+              persist in this browser; copy them back into the PIPE_* defaults to commit.
+            </p>
+            <div className="rounded-xl border border-white/10 bg-slate-900/50 p-2">
+              <p className="mb-2 text-xs font-semibold text-slate-200">Sources <span className="font-normal text-slate-500">one per quad, each runs to the combiner</span></p>
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                {(["S1", "P1", "S2", "P2"] as QuadId[]).map((id) => (
+                  <XyInput
+                    key={id}
+                    label={`${id} src → ${RUN_END_NODES[id] === "upperMid" ? "upper node" : "lower node"}`}
+                    point={pipes.sources[id]}
+                    onChange={(axis, value) => setPipeSource(id, axis, value)}
+                  />
+                ))}
+              </div>
+            </div>
+            {(["runS1", "runP1", "runS2", "runP2"] as PipeViaKey[]).map((key) => (
+              <ViaPointList
+                key={key}
+                title={key}
+                hint="run midpoints"
+                points={pipes.via[key]}
+                anchor={pipes.nodes[RUN_END_NODES[key.slice(3) as QuadId]]}
+                onChange={(next) => setPipeVia(key, next)}
+              />
+            ))}
+            <ViaPointList
+              title="trunkUpper"
+              hint="upper node → lower node → junction"
+              points={pipes.via.trunkUpper}
+              anchor={pipes.nodes.junction}
+              onChange={(next) => setPipeVia("trunkUpper", next)}
+            />
+            <ViaPointList
+              title="trunkLower"
+              hint="junction → combiner"
+              points={pipes.via.trunkLower}
+              anchor={pipes.nodes.combiner}
+              onChange={(next) => setPipeVia("trunkLower", next)}
+            />
+            <div className="rounded-xl border border-white/10 bg-slate-900/50 p-2">
+              <p className="mb-2 text-xs font-semibold text-slate-200">Nodes <span className="font-normal text-slate-500">shared joints + markers</span></p>
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                {(Object.keys(PIPE_NODE_DEFAULTS) as PipeNodeId[]).map((id) => (
+                  <XyInput key={id} label={id} point={pipes.nodes[id]} onChange={(axis, value) => setPipeNode(id, axis, value)} />
+                ))}
+              </div>
+            </div>
+            <div className="rounded-xl border border-white/10 bg-slate-900/50 p-2">
+              <p className="mb-2 text-xs font-semibold text-slate-200">Grid & loads <span className="font-normal text-slate-500">start at combiner</span></p>
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                <XyInput label="grid end" point={pipes.ends.grid} onChange={(axis, value) => setPipeEnd("grid", axis, value)} />
+                <XyInput label="loads end" point={pipes.ends.loads} onChange={(axis, value) => setPipeEnd("loads", axis, value)} />
+              </div>
+            </div>
+            <ViaPointList
+              title="grid"
+              hint="combiner → end"
+              points={pipes.via.grid}
+              anchor={pipes.ends.grid}
+              onChange={(next) => setPipeVia("grid", next)}
+            />
+            <ViaPointList
+              title="loads"
+              hint="combiner → end"
+              points={pipes.via.loads}
+              anchor={pipes.ends.loads}
+              onChange={(next) => setPipeVia("loads", next)}
+            />
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => copyQuadText(JSON.stringify(pipes, null, 2), "pipes-all")}
+                className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[11px] text-slate-200"
+              >
+                {copiedQuad === "pipes-all" ? "Copied all" : "Copy all"}
+              </button>
+              <button
+                type="button"
+                onClick={resetPipes}
+                className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[11px] text-slate-400"
+              >
+                Reset
+              </button>
+            </div>
+          </div>
+        ) : null}
+        {boxTunerOpen ? (
+          <div className="mt-2 space-y-3 rounded-2xl border border-white/10 bg-slate-950/80 p-3 shadow-lg backdrop-blur-md">
+            <p className="text-[11px] leading-relaxed text-slate-400">
+              Move the info boxes over the house (X/Y are % from the anchored edge and
+              top) and dial their size. Values persist in this browser; copy them back
+              into INFO_BOX_DEFAULTS to commit.
+            </p>
+            {(Object.keys(INFO_BOX_DEFAULTS) as InfoBoxId[]).map((id) => (
+              <div key={id} className="rounded-xl border border-white/10 bg-slate-900/50 p-2">
+                <p className="mb-2 text-xs font-semibold text-slate-200">
+                  {INFO_BOX_LABELS[id]}{" "}
+                  <span className="font-normal text-slate-500">
+                    {INFO_BOX_ANCHOR[id] === "left" ? "from left" : "from right"} · {id}
+                  </span>
+                </p>
+                <div className="flex flex-wrap items-center gap-2">
+                  <XyInput
+                    label={`${id} pos`}
+                    point={[infoBoxes[id].x, infoBoxes[id].y]}
+                    onChange={(axis, value) => setInfoBox(id, axis === 0 ? "x" : "y", value)}
+                  />
+                  <div className="flex items-center gap-1">
+                    <span className="text-[10px] text-slate-500">Scale</span>
+                    <input
+                      type="number"
+                      value={Math.round(infoBoxes[id].scale)}
+                      onChange={(event) => {
+                        const value = event.target.value === "" ? NaN : Number(event.target.value);
+                        setInfoBox(id, "scale", value);
+                      }}
+                      className="w-16 rounded-md border border-white/10 bg-slate-950 px-1.5 py-1 text-xs text-white"
+                      aria-label={`${id} scale percent`}
+                    />
+                    <span className="text-[10px] text-slate-500">%</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => copyQuadText(JSON.stringify(infoBoxes, null, 2), "boxes-all")}
+                className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[11px] text-slate-200"
+              >
+                {copiedQuad === "boxes-all" ? "Copied all" : "Copy all"}
+              </button>
+              <button
+                type="button"
+                onClick={resetInfoBoxes}
+                className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[11px] text-slate-400"
+              >
+                Reset
+              </button>
+            </div>
+          </div>
+        ) : null}
+      </div>
+        ) : null}
       </div>
 
       <div className="mx-auto max-w-xl space-y-3">
@@ -355,3 +1168,5 @@ function EnergySummaryCard({
     </div>
   );
 }
+
+
