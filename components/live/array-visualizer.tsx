@@ -1,6 +1,13 @@
 import { Cpu, Thermometer, Zap } from "lucide-react";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  ROOF_SECTIONS,
+  SECTION_DISPLAY_ORDER,
+  getSectionPowerW,
+  groupInvertersBySection,
+  type SectionId,
+} from "@/lib/roof-layout";
 import { cn } from "@/lib/utils";
 import type { HoymilesInverterReading, HoymilesPortReading } from "@/components/telemetry/use-live-telemetry";
 
@@ -9,44 +16,12 @@ type ArrayVisualizerProps = {
   lastUpdatedAt?: string;
 };
 
-type RoofPlaneConfig = {
-  name: string;
-  position: string;
-  inverterCount: number;
-  activePanelCount: number;
-  columns: string;
+const SECTION_COLUMNS: Record<SectionId, string> = {
+  S1: "grid-cols-1",
+  P1: "grid-cols-1 sm:grid-cols-2 xl:grid-cols-4",
+  S2: "grid-cols-1 sm:grid-cols-2 xl:grid-cols-4",
+  P2: "grid-cols-1 sm:grid-cols-3",
 };
-
-const ROOF_PLANES: RoofPlaneConfig[] = [
-  {
-    name: "Roof 2",
-    position: "Top Left",
-    inverterCount: 4,
-    activePanelCount: 16,
-    columns: "grid-cols-1 sm:grid-cols-2 xl:grid-cols-4",
-  },
-  {
-    name: "Roof 3",
-    position: "Top Right",
-    inverterCount: 1,
-    activePanelCount: 4,
-    columns: "grid-cols-1",
-  },
-  {
-    name: "Roof 1",
-    position: "Bottom Left",
-    inverterCount: 3,
-    activePanelCount: 12,
-    columns: "grid-cols-1 sm:grid-cols-3",
-  },
-  {
-    name: "Roof 4",
-    position: "Bottom Right",
-    inverterCount: 4,
-    activePanelCount: 13,
-    columns: "grid-cols-1 sm:grid-cols-2 xl:grid-cols-4",
-  },
-];
 
 function powerTone(powerW: number | null | undefined) {
   if (!powerW || powerW <= 0) {
@@ -70,7 +45,11 @@ function powerTone(powerW: number | null | undefined) {
 
 function formatSerial(serialNumber: string | undefined) {
   if (!serialNumber) return "Awaiting inverter";
-  return serialNumber.length > 6 ? `...${serialNumber.slice(-6)}` : serialNumber;
+  return serialNumber.length > 4 ? `...${serialNumber.slice(-4)}` : serialNumber;
+}
+
+function shortSerial(serialNumber: string) {
+  return serialNumber.length > 4 ? serialNumber.slice(-4) : serialNumber;
 }
 
 function formatTimestamp(timestamp: string | undefined) {
@@ -128,22 +107,29 @@ function PanelBlock({
 
 function InverterGroup({
   inverter,
+  expectedSerial,
   globalSlotStart,
   activePanelCount,
 }: {
   inverter?: HoymilesInverterReading;
+  expectedSerial?: string;
   globalSlotStart: number;
   activePanelCount: number;
 }) {
   const ports = [1, 2, 3, 4];
   const temperature = inverter?.temperature_c;
+  const serialLabel = inverter?.serial_number
+    ? formatSerial(inverter.serial_number)
+    : expectedSerial
+      ? `Awaiting ...${shortSerial(expectedSerial)}`
+      : "Awaiting inverter";
 
   return (
     <div className="rounded-xl border border-white/[0.08] bg-slate-950/50 p-2">
       <div className="mb-2 flex items-center justify-between gap-2">
         <div className="flex min-w-0 items-center gap-1.5 text-[10px] uppercase tracking-[0.18em] text-slate-500">
           <Cpu className="h-3.5 w-3.5 shrink-0" />
-          <span className="truncate">{formatSerial(inverter?.serial_number)}</span>
+          <span className="truncate">{serialLabel}</span>
         </div>
         <div className="flex shrink-0 items-center gap-1 rounded-full border border-white/[0.08] bg-white/[0.04] px-2 py-0.5 text-[10px] text-slate-300">
           <Thermometer className="h-3 w-3 text-orange-300" />
@@ -170,12 +156,12 @@ function InverterGroup({
 }
 
 export function ArrayVisualizer({ inverters = [], lastUpdatedAt }: ArrayVisualizerProps) {
-  let inverterOffset = 0;
   const onlineInverters = inverters.filter((inverter) => inverter.serial_number);
   const totalPowerW = onlineInverters.reduce(
     (sum, inverter) => sum + Math.max(0, inverter.active_power_w ?? 0),
     0,
   );
+  const { sections, unassigned } = groupInvertersBySection(inverters);
 
   return (
     <Card className="overflow-hidden border-white/10 bg-slate-950/80">
@@ -186,7 +172,7 @@ export function ArrayVisualizer({ inverters = [], lastUpdatedAt }: ArrayVisualiz
               Solar Array Visualizer
             </CardTitle>
             <p className="mt-2 text-sm text-slate-400">
-              45 panels across 12 Hoymiles microinverters and 4 roof planes.
+              45 panels across 12 Hoymiles microinverters and 4 roof sections.
             </p>
             <p className="mt-1 text-xs uppercase tracking-[0.18em] text-slate-500">
               Last solar refresh {formatTimestamp(lastUpdatedAt)}
@@ -199,36 +185,44 @@ export function ArrayVisualizer({ inverters = [], lastUpdatedAt }: ArrayVisualiz
       </CardHeader>
       <CardContent className="pt-0">
         <div className="grid gap-3 lg:grid-cols-2">
-          {ROOF_PLANES.map((plane) => {
-            const planeInverters = inverters.slice(inverterOffset, inverterOffset + plane.inverterCount);
-            inverterOffset += plane.inverterCount;
+          {SECTION_DISPLAY_ORDER.map((sectionId) => {
+            const section = ROOF_SECTIONS[sectionId];
+            const sectionInverters = sections[sectionId];
+            const sectionPowerW = getSectionPowerW(sectionInverters);
 
             return (
               <section
-                key={plane.name}
+                key={sectionId}
                 className="rounded-xl border border-white/10 bg-slate-900/50 p-3"
               >
                 <div className="mb-3 flex items-center justify-between gap-3">
                   <div>
-                    <h2 className="text-sm font-semibold text-slate-100">{plane.name}</h2>
-                    <p className="text-xs text-slate-500">{plane.position}</p>
+                    <h2 className="text-sm font-semibold text-slate-100">{sectionId}</h2>
+                    <p className="text-xs text-slate-500">{section.label}</p>
                   </div>
                   <div className="text-right text-xs text-slate-400">
-                    <div>{plane.activePanelCount} panels</div>
-                    <div>{plane.inverterCount} inverters</div>
+                    <div>{section.activePanels} panels</div>
+                    <div>{section.inverterSerials.length} inverters</div>
+                    <div className="font-semibold text-emerald-300">
+                      {(sectionPowerW / 1000).toFixed(2)} kW
+                    </div>
                   </div>
                 </div>
-                <div className={cn("grid gap-2", plane.columns)}>
-                  {Array.from({ length: plane.inverterCount }).map((_, index) => (
+                <div className={cn("grid gap-2", SECTION_COLUMNS[sectionId])}>
+                  {section.inverterSerials.map((serial, index) => (
                     <InverterGroup
-                      key={`${plane.name}-${index}`}
-                      inverter={planeInverters[index]}
+                      key={`${sectionId}-${serial}`}
+                      inverter={sectionInverters.find(
+                        (candidate) =>
+                          candidate.serial_number.trim().toUpperCase() === serial.toUpperCase(),
+                      )}
+                      expectedSerial={serial}
                       globalSlotStart={(index * 4)}
-                      activePanelCount={plane.activePanelCount}
+                      activePanelCount={section.activePanels}
                     />
                   ))}
                 </div>
-                {plane.name === "Roof 4" ? (
+                {sectionId === "P1" ? (
                   <p className="mt-3 text-xs text-slate-500">
                     Three ghosted slots are reserved for unused inverter ports.
                   </p>
@@ -237,6 +231,12 @@ export function ArrayVisualizer({ inverters = [], lastUpdatedAt }: ArrayVisualiz
             );
           })}
         </div>
+        {unassigned.length > 0 ? (
+          <div className="mt-3 rounded-xl border border-dashed border-amber-300/30 bg-amber-300/[0.04] px-4 py-3 text-sm text-amber-200/90">
+            {unassigned.length} inverter{unassigned.length === 1 ? "" : "s"} not mapped to a roof
+            section: {unassigned.map((inverter) => formatSerial(inverter.serial_number)).join(", ")}
+          </div>
+        ) : null}
         {onlineInverters.length === 0 ? (
           <div className="mt-3 rounded-xl border border-dashed border-white/10 bg-white/[0.02] px-4 py-6 text-center text-sm text-slate-400">
             Waiting for the next Hoymiles refresh from the relay.

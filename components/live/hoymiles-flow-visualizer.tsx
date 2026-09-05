@@ -10,6 +10,12 @@ import {
   readOverlayEditorEnabled,
 } from "@/lib/overlay-editor";
 import {
+  getSectionPowerW,
+  getSectionRatio,
+  groupInvertersBySection,
+  type SectionInverter,
+} from "@/lib/roof-layout";
+import {
   formatPowerKw,
   getFlowDuration,
   getGridFlowState,
@@ -34,6 +40,7 @@ type HoymilesFlowVisualizerProps = {
   plantName?: string;
   capacityKw?: number;
   isAdmin?: boolean;
+  inverters?: SectionInverter[];
 };
 
 type QuadId = "S1" | "P1" | "S2" | "P2";
@@ -44,7 +51,7 @@ type QuadPoint = [number, number];
 // around the perimeter). Edit these numbers to move the green overlays — or
 // use the on-screen overlay tuner and copy the values back here.
 const QUAD_OVERLAYS: { id: QuadId; label: string; points: QuadPoint[] }[] = [
-  { id: "S1", label: "Back-face strip", points: [[465, 204], [722, 102], [781, 101], [528, 202]] },
+  { id: "S1", label: "Back-face strip", points: [[465, 201], [618, 142], [715, 128], [528, 202]] },
   { id: "P1", label: "Upper face", points: [[548, 208], [832, 95], [922, 184], [643, 302]] },
   { id: "S2", label: "Lower-left eave", points: [[96, 440], [224, 409], [136, 445], [49, 455]] },
   { id: "P2", label: "Garage face", points: [[152, 451], [506, 317], [579, 392], [215, 522]] },
@@ -60,6 +67,84 @@ function defaultQuadPoints(): Record<QuadId, QuadPoint[]> {
 
 function quadPointsToString(points: QuadPoint[]) {
   return points.map(([x, y]) => `${Math.round(x)},${Math.round(y)}`).join(" ");
+}
+
+type FillGeometry = {
+  points: string;
+  midX: number;
+  midY: number;
+  angle: number;
+};
+
+// Fixed label anchors (viewBox units) for sections whose text sits away from
+// the quad: S2 below the swimming pool, S1 above the roof right of the hero.
+const SECTION_LABEL_ANCHOR: Partial<Record<QuadId, QuadPoint>> = {
+  S1: [445, 245],
+  S2: [110, 422],
+};
+
+// Battery fill for a slanted quad: a strip growing from one long edge toward
+// the other, so the fill surface stays parallel to the eave. P1/P2 fill from
+// the bottom edge upward; S1/S2 fill from the top edge downward.
+function quadFillGeometry(corners: QuadPoint[], ratio: number, fromTop = false): FillGeometry | null {
+  if (corners.length !== 4 || ratio <= 0.005) return null;
+
+  const edges = corners.map((a, i) => ({ a, b: corners[(i + 1) % corners.length] }));
+  const length = (edge: { a: QuadPoint; b: QuadPoint }) =>
+    Math.hypot(edge.b[0] - edge.a[0], edge.b[1] - edge.a[1]);
+  let longest = 0;
+  edges.forEach((edge, i) => {
+    if (length(edge) > length(edges[longest])) longest = i;
+  });
+  const opposite = (longest + 2) % edges.length;
+  const avgY = (edge: { a: QuadPoint; b: QuadPoint }) => (edge.a[1] + edge.b[1]) / 2;
+  const bottom = avgY(edges[longest]) >= avgY(edges[opposite]) ? edges[longest] : edges[opposite];
+  const top = bottom === edges[longest] ? edges[opposite] : edges[longest];
+
+  const lerp = (p: QuadPoint, q: QuadPoint): QuadPoint => [
+    p[0] + (q[0] - p[0]) * ratio,
+    p[1] + (q[1] - p[1]) * ratio,
+  ];
+  // Pair corners by strip end (projection onto the long axis) instead of edge
+  // order: on tapered slivers the short edges run nearly parallel to the long
+  // direction, so order-based pairing bowties into triangles. End-based
+  // pairing keeps the fill a simple band hugging the fixed edge.
+  const axisDx = edges[longest].b[0] - edges[longest].a[0];
+  const axisDy = edges[longest].b[1] - edges[longest].a[1];
+  const axisLen = Math.hypot(axisDx, axisDy) || 1;
+  const project = (p: QuadPoint) => (p[0] * axisDx + p[1] * axisDy) / axisLen;
+  const [B0, B1] = project(bottom.a) <= project(bottom.b) ? [bottom.a, bottom.b] : [bottom.b, bottom.a];
+  const [T0, T1] = project(top.a) <= project(top.b) ? [top.a, top.b] : [top.b, top.a];
+  const lineA = fromTop ? lerp(T0, B0) : lerp(B0, T0);
+  const lineB = fromTop ? lerp(T1, B1) : lerp(B1, T1);
+  const fixed = fromTop ? [T0, T1] : [B0, B1];
+  const points = [fixed[0], fixed[1], lineB, lineA]
+    .map(([x, y]) => `${Math.round(x)},${Math.round(y)}`)
+    .join(" ");
+
+  const midX = (lineA[0] + lineB[0]) / 2;
+  const midY = (lineA[1] + lineB[1]) / 2;
+  return { points, midX, midY, angle: quadBottomEdgeAngle(corners) };
+}
+
+// Lean of a quad's bottom long edge in degrees, left-to-right. Used for label
+// rotation; S2 borrows P2's edge since they share the lower deck and S2's own
+// eave is nearly flat.
+function quadBottomEdgeAngle(corners: QuadPoint[]): number {
+  if (corners.length !== 4) return 0;
+
+  const edges = corners.map((a, i) => ({ a, b: corners[(i + 1) % corners.length] }));
+  const length = (edge: { a: QuadPoint; b: QuadPoint }) =>
+    Math.hypot(edge.b[0] - edge.a[0], edge.b[1] - edge.a[1]);
+  let longest = 0;
+  edges.forEach((edge, i) => {
+    if (length(edge) > length(edges[longest])) longest = i;
+  });
+  const opposite = (longest + 2) % edges.length;
+  const avgY = (edge: { a: QuadPoint; b: QuadPoint }) => (edge.a[1] + edge.b[1]) / 2;
+  const bottom = avgY(edges[longest]) >= avgY(edges[opposite]) ? edges[longest] : edges[opposite];
+  const [left, right] = bottom.a[0] <= bottom.b[0] ? [bottom.a, bottom.b] : [bottom.b, bottom.a];
+  return (Math.atan2(right[1] - left[1], right[0] - left[0]) * 180) / Math.PI;
 }
 
 function loadQuadTunerState(): Record<QuadId, QuadPoint[]> | null {
@@ -447,6 +532,7 @@ export function HoymilesFlowVisualizer({
   plantName = "Gokul Menon",
   capacityKw = 20.02,
   isAdmin = false,
+  inverters = [],
 }: HoymilesFlowVisualizerProps) {
   const [temperatureC, setTemperatureC] = useState<number | null>(null);
   const [overlayEditorEnabled, setOverlayEditorEnabled] = useState(false);
@@ -687,6 +773,27 @@ export function HoymilesFlowVisualizer({
     [temperatureC],
   );
 
+  // Per-section power drives the P1/P2 battery-style quad fills.
+  const sectionPowerW = useMemo(() => {
+    const { sections } = groupInvertersBySection(inverters);
+    return {
+      S1: getSectionPowerW(sections.S1),
+      P1: getSectionPowerW(sections.P1),
+      S2: getSectionPowerW(sections.S2),
+      P2: getSectionPowerW(sections.P2),
+    };
+  }, [inverters]);
+
+  const sectionRatios = useMemo(
+    () => ({
+      S1: getSectionRatio("S1", sectionPowerW.S1),
+      P1: getSectionRatio("P1", sectionPowerW.P1),
+      S2: getSectionRatio("S2", sectionPowerW.S2),
+      P2: getSectionRatio("P2", sectionPowerW.P2),
+    }),
+    [sectionPowerW],
+  );
+
   return (
     <section aria-label="Live home energy flow" className="space-y-3">
       <div className={showEditorTools ? "grid gap-3 lg:grid-cols-[minmax(0,34rem)_minmax(20rem,1fr)] lg:items-start" : ""}>
@@ -737,6 +844,41 @@ export function HoymilesFlowVisualizer({
             ))}
           </g>
 
+          {/* Battery-style section fills: P1/P2 rise from the bottom long edge
+              with the section kW and % riding above the fill line; S1/S2
+              descend from the top long edge with detached labels (S2 below
+              the pool, S1 above the roof right of the hero). */}
+          {QUAD_OVERLAYS.map((quad) => {
+            const fromTop = quad.id === "S1" || quad.id === "S2";
+            const fill = quadFillGeometry(quadPoints[quad.id], sectionRatios[quad.id], fromTop);
+            if (!fill) return null;
+            const anchor = SECTION_LABEL_ANCHOR[quad.id];
+            const labelX = anchor ? anchor[0] : fill.midX;
+            const labelY = anchor ? anchor[1] : fill.midY - 30;
+            const labelAngle = quad.id === "S2" ? quadBottomEdgeAngle(quadPoints.P2) : fill.angle;
+            const label = `${(sectionPowerW[quad.id] / 1000).toFixed(2)} kW ${Math.round(sectionRatios[quad.id] * 100)}%`;
+            return (
+              <g key={`fill-${quad.id}`} opacity="0.85">
+                <polygon points={fill.points} fill="rgba(52,211,153,0.35)" />
+                <text
+                  x={labelX}
+                  y={labelY}
+                  textAnchor="middle"
+                  transform={`rotate(${labelAngle.toFixed(1)} ${labelX.toFixed(1)} ${labelY.toFixed(1)})`}
+                  fill="#ffffff"
+                  fillOpacity="0.9"
+                  fontSize="16"
+                  fontWeight="600"
+                  stroke="rgba(5,46,34,0.65)"
+                  strokeWidth="1"
+                  paintOrder="stroke"
+                >
+                  {label}
+                </text>
+              </g>
+            );
+          })}
+
           {/* ISOMETRIC CONDUIT PATHS: one source run per quad (S1/P1 -> upper
               node, S2/P2 -> lower node), shared trunk to the junction dot,
               then into the accumulator (lightning combiner). Geometry comes
@@ -781,17 +923,6 @@ export function HoymilesFlowVisualizer({
           <g filter="url(#hoymiles-flow-glow)">
             <circle cx={pipes.nodes.upperMid[0]} cy={pipes.nodes.upperMid[1]} r="5" fill="#d1fae5" stroke="#34d399" strokeWidth="2.5" />
             <circle cx={pipes.nodes.lowerMid[0]} cy={pipes.nodes.lowerMid[1]} r="5" fill="#d1fae5" stroke="#34d399" strokeWidth="2.5" />
-            {(["S1", "P1", "S2", "P2"] as QuadId[]).map((id) => (
-              <circle
-                key={`src-${id}`}
-                cx={pipes.sources[id][0]}
-                cy={pipes.sources[id][1]}
-                r="4"
-                fill="#052e22"
-                stroke="#6ee7b7"
-                strokeWidth="2.5"
-              />
-            ))}
             <circle cx={pipes.nodes.junction[0]} cy={pipes.nodes.junction[1]} r="7" fill="#d1fae5" stroke="#34d399" strokeWidth="3" />
             <g transform={`translate(${pipes.nodes.combiner[0] - 220} ${pipes.nodes.combiner[1] - 580})`}>
               <circle cx="220" cy="580" r="18" fill="#082f24" stroke="#6ee7b7" strokeWidth="4" />

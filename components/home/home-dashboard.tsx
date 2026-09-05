@@ -203,6 +203,7 @@ export function HomeDashboard({ isAdmin = false }: { isAdmin?: boolean }) {
         energyTotals={energyTotals}
         connectionLabel={bridgeLabel}
         isAdmin={isAdmin}
+        inverters={telemetry.hoymiles?.inverters}
       />
 
       {bridgeState === "hardware_offline" ? (
