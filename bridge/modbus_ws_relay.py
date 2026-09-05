@@ -303,8 +303,8 @@ class CloudBatchState:
     exported_wh: float = 0.0
     solar_wh: float = 0.0
     home_wh: float = 0.0
-    port_rows: list[dict[str, int | float | str]] = field(default_factory=list)
-    port_snapshot_timestamp: Optional[str] = None
+    # Store at most one reading per (inverter_serial, port_number) per batch
+    port_readings: dict[tuple[str, int], dict[str, int | float | str]] = field(default_factory=dict)
 
     def add_sample(
         self,
@@ -328,8 +328,8 @@ class CloudBatchState:
             self.home_wh += max(home_consumption_w, 0) / 3600
 
     def add_hoymiles_snapshot(self, snapshot: HoymilesSnapshot) -> None:
-        """Add one non-zero port snapshot to this cloud batch."""
-        if snapshot.status != "OK" or snapshot.timestamp == self.port_snapshot_timestamp:
+        """Keep only the latest non-zero reading per port for this 10-minute cloud bucket."""
+        if snapshot.status != "OK":
             return
 
         for inverter in snapshot.inverters:
@@ -342,18 +342,16 @@ class CloudBatchState:
                 ):
                     continue
 
-                self.port_rows.append(
-                    {
-                        "timestamp": snapshot.timestamp,
-                        "inverter_serial": inverter.serial_number,
-                        "port_number": port.port_number,
-                        "dc_power_w": float(port.power_w),
-                        "dc_voltage_v": float(port.voltage_v),
-                        "energy_daily_wh": float(port.energy_daily_raw),
-                    }
-                )
-
-        self.port_snapshot_timestamp = snapshot.timestamp
+                # Keying by (serial, port) ensures only 1 row per port exists in this batch
+                key = (inverter.serial_number, port.port_number)
+                self.port_readings[key] = {
+                    "timestamp": self.bucket_start,  # Align with the 10-minute batch window
+                    "inverter_serial": inverter.serial_number,
+                    "port_number": port.port_number,
+                    "dc_power_w": float(port.power_w),
+                    "dc_voltage_v": float(port.voltage_v),
+                    "energy_daily_wh": float(port.energy_daily_raw),
+                }
 
 
 def decode_float32_be(registers: list[int]) -> float:
@@ -1605,12 +1603,13 @@ async def sync_supabase_port_rows(
 
 
 async def flush_cloud_batch(session: aiohttp.ClientSession, batch: Optional[CloudBatchState]) -> None:
-    if batch is None or (batch.sample_count == 0 and not batch.port_rows):
+    if batch is None or (batch.sample_count == 0 and not batch.port_readings):
         return
 
     if batch.sample_count > 0:
         await sync_supabase_batch(session, batch)
-    await sync_supabase_port_rows(session, batch.port_rows)
+    if batch.port_readings:
+        await sync_supabase_port_rows(session, list(batch.port_readings.values()))
 
 
 def queue_cloud_batch_flush(

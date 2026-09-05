@@ -78,10 +78,54 @@ class HoymilesRelayTest(unittest.TestCase):
         batch.add_hoymiles_snapshot(snapshot)
         batch.add_hoymiles_snapshot(snapshot)
 
-        self.assertEqual(len(batch.port_rows), 2)
-        self.assertEqual(batch.port_rows[0]["inverter_serial"], "inv-1")
-        self.assertEqual(batch.port_rows[0]["port_number"], 1)
-        self.assertEqual(batch.port_rows[1]["dc_power_w"], 200.0)
+        self.assertEqual(len(batch.port_readings), 2)
+        self.assertEqual(batch.port_readings[("inv-1", 1)]["inverter_serial"], "inv-1")
+        self.assertEqual(batch.port_readings[("inv-1", 1)]["port_number"], 1)
+        self.assertEqual(batch.port_readings[("inv-1", 3)]["dc_power_w"], 200.0)
+        for row in batch.port_readings.values():
+            self.assertEqual(row["timestamp"], "2026-08-02T12:00:00Z")
+
+    def test_cloud_batch_dedupes_ports_across_polling_ticks(self):
+        relay = load_relay_module()
+        batch = relay.CloudBatchState(bucket_start="2026-08-02T12:00:00Z", local_day="2026-08-02")
+
+        def tick_snapshot(timestamp, power_w):
+            return relay.HoymilesSnapshot(
+                timestamp=timestamp,
+                device_serial_number="dtu",
+                status="OK",
+                error=None,
+                total_active_power_w=power_w,
+                daily_yield_wh=100,
+                inverter_count=1,
+                port_count=1,
+                inverters=[
+                    relay.HoymilesInverterReading(
+                        serial_number="inv-1",
+                        ports=[
+                            relay.HoymilesPortReading(
+                                serial_number="inv-1",
+                                port_number=1,
+                                power_w=power_w,
+                                voltage_v=40.0,
+                                energy_daily_raw=25,
+                            ),
+                        ],
+                    )
+                ],
+            )
+
+        # Simulate 120 polling ticks with a fresh timestamp each time.
+        for tick in range(120):
+            batch.add_hoymiles_snapshot(
+                tick_snapshot(f"2026-08-02T12:{tick // 60:02d}:{tick % 60:02d}Z", 100 + tick)
+            )
+
+        # One row per port per batch, stamped with the bucket start, latest wins.
+        self.assertEqual(len(batch.port_readings), 1)
+        row = batch.port_readings[("inv-1", 1)]
+        self.assertEqual(row["timestamp"], "2026-08-02T12:00:00Z")
+        self.assertEqual(row["dc_power_w"], 219.0)
 
     def test_reads_48_ports_in_safe_chunks_and_groups_four_ports_per_inverter(self):
         relay = load_relay_module()
