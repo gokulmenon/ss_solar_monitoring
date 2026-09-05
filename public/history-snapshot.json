@@ -1,955 +1,5071 @@
 {
   "source": "csv",
-  "generated_at": "2026-07-27T16:45:19.077Z",
+  "generated_at": "2026-09-05T15:37:02.507Z",
   "window_hours": 720,
   "points": [
     {
-      "timestamp": "2026-07-19T03:00:00.000Z",
-      "net_grid_w": 30997,
-      "solar_production_w": null,
-      "phase_a_voltage_v": 245,
-      "sample_count": 3114
-    },
-    {
-      "timestamp": "2026-07-19T04:00:00.000Z",
-      "net_grid_w": 48160,
-      "solar_production_w": null,
-      "phase_a_voltage_v": 245.35,
-      "sample_count": 3295
-    },
-    {
-      "timestamp": "2026-07-19T05:00:00.000Z",
-      "net_grid_w": 41530,
-      "solar_production_w": null,
-      "phase_a_voltage_v": 245.56,
-      "sample_count": 3295
-    },
-    {
-      "timestamp": "2026-07-19T06:00:00.000Z",
-      "net_grid_w": 35420,
-      "solar_production_w": null,
-      "phase_a_voltage_v": 245.75,
-      "sample_count": 3295
-    },
-    {
-      "timestamp": "2026-07-19T07:00:00.000Z",
-      "net_grid_w": 23298,
-      "solar_production_w": null,
-      "phase_a_voltage_v": 246.4,
-      "sample_count": 3297
-    },
-    {
-      "timestamp": "2026-07-19T08:00:00.000Z",
-      "net_grid_w": 16232,
-      "solar_production_w": null,
-      "phase_a_voltage_v": 247.46,
-      "sample_count": 3298
-    },
-    {
-      "timestamp": "2026-07-19T09:00:00.000Z",
-      "net_grid_w": 13960,
-      "solar_production_w": null,
-      "phase_a_voltage_v": 247.26,
-      "sample_count": 3298
-    },
-    {
-      "timestamp": "2026-07-19T10:00:00.000Z",
-      "net_grid_w": 8693,
-      "solar_production_w": null,
-      "phase_a_voltage_v": 247.89,
-      "sample_count": 3299
-    },
-    {
-      "timestamp": "2026-07-19T11:00:00.000Z",
-      "net_grid_w": 8663,
-      "solar_production_w": null,
-      "phase_a_voltage_v": 247.47,
-      "sample_count": 3300
-    },
-    {
-      "timestamp": "2026-07-19T12:00:00.000Z",
-      "net_grid_w": 20116,
-      "solar_production_w": null,
-      "phase_a_voltage_v": 247.68,
-      "sample_count": 3299
-    },
-    {
-      "timestamp": "2026-07-19T13:00:00.000Z",
-      "net_grid_w": 24301,
-      "solar_production_w": null,
-      "phase_a_voltage_v": 248.25,
-      "sample_count": 3304
-    },
-    {
-      "timestamp": "2026-07-19T14:00:00.000Z",
-      "net_grid_w": 27787,
-      "solar_production_w": null,
-      "phase_a_voltage_v": 248.04,
-      "sample_count": 3299
-    },
-    {
-      "timestamp": "2026-07-19T15:00:00.000Z",
-      "net_grid_w": 34631,
-      "solar_production_w": null,
-      "phase_a_voltage_v": 247.92,
-      "sample_count": 3300
-    },
-    {
-      "timestamp": "2026-07-19T16:00:00.000Z",
-      "net_grid_w": 15947,
-      "solar_production_w": null,
-      "phase_a_voltage_v": 248.91,
-      "sample_count": 3151
-    },
-    {
-      "timestamp": "2026-07-19T17:00:00.000Z",
-      "net_grid_w": 17248,
-      "solar_production_w": null,
-      "phase_a_voltage_v": 248.83,
-      "sample_count": 2938
-    },
-    {
-      "timestamp": "2026-07-19T18:00:00.000Z",
-      "net_grid_w": 19928,
-      "solar_production_w": null,
-      "phase_a_voltage_v": 247.99,
-      "sample_count": 1350
-    },
-    {
-      "timestamp": "2026-07-19T19:00:00.000Z",
-      "net_grid_w": 16888,
-      "solar_production_w": 0,
-      "phase_a_voltage_v": 248.88,
-      "sample_count": 2673
-    },
-    {
-      "timestamp": "2026-07-19T20:00:00.000Z",
-      "net_grid_w": 18188,
-      "solar_production_w": 0,
-      "phase_a_voltage_v": 247.53,
-      "sample_count": 3360
-    },
-    {
-      "timestamp": "2026-07-19T21:00:00.000Z",
-      "net_grid_w": 19847,
-      "solar_production_w": 0,
-      "phase_a_voltage_v": 246.15,
-      "sample_count": 3359
-    },
-    {
-      "timestamp": "2026-07-19T22:00:00.000Z",
-      "net_grid_w": 18630,
-      "solar_production_w": 0,
-      "phase_a_voltage_v": 245.61,
-      "sample_count": 3359
-    },
-    {
-      "timestamp": "2026-07-19T23:00:00.000Z",
-      "net_grid_w": 19309,
-      "solar_production_w": 82,
-      "phase_a_voltage_v": 246.17,
-      "sample_count": 3359
-    },
-    {
-      "timestamp": "2026-07-20T00:00:00.000Z",
-      "net_grid_w": 18757,
-      "solar_production_w": 66,
-      "phase_a_voltage_v": 246.06,
-      "sample_count": 3359
-    },
-    {
-      "timestamp": "2026-07-20T01:00:00.000Z",
-      "net_grid_w": 24650,
-      "solar_production_w": 0,
-      "phase_a_voltage_v": 245.33,
-      "sample_count": 296
-    },
-    {
-      "timestamp": "2026-07-20T02:00:00.000Z",
-      "net_grid_w": 24554,
-      "solar_production_w": 0,
-      "phase_a_voltage_v": 246.37,
-      "sample_count": 60
-    },
-    {
-      "timestamp": "2026-07-20T03:00:00.000Z",
-      "net_grid_w": 32112,
-      "solar_production_w": 0,
-      "phase_a_voltage_v": 246.54,
-      "sample_count": 60
-    },
-    {
-      "timestamp": "2026-07-20T04:00:00.000Z",
-      "net_grid_w": 32856,
-      "solar_production_w": 0,
-      "phase_a_voltage_v": 246.56,
-      "sample_count": 59
-    },
-    {
-      "timestamp": "2026-07-20T05:00:00.000Z",
-      "net_grid_w": 26709,
-      "solar_production_w": 0,
-      "phase_a_voltage_v": 247.43,
-      "sample_count": 60
-    },
-    {
-      "timestamp": "2026-07-20T06:00:00.000Z",
-      "net_grid_w": 21986,
-      "solar_production_w": 0,
-      "phase_a_voltage_v": 247.95,
-      "sample_count": 60
-    },
-    {
-      "timestamp": "2026-07-20T07:00:00.000Z",
-      "net_grid_w": 12609,
-      "solar_production_w": 0,
-      "phase_a_voltage_v": 248.66,
-      "sample_count": 60
-    },
-    {
-      "timestamp": "2026-07-20T08:00:00.000Z",
-      "net_grid_w": 5102,
-      "solar_production_w": 0,
-      "phase_a_voltage_v": 248.89,
-      "sample_count": 60
-    },
-    {
-      "timestamp": "2026-07-20T09:00:00.000Z",
-      "net_grid_w": 4837,
-      "solar_production_w": 20,
-      "phase_a_voltage_v": 248.13,
-      "sample_count": 60
-    },
-    {
-      "timestamp": "2026-07-20T10:00:00.000Z",
-      "net_grid_w": 5198,
-      "solar_production_w": 552,
-      "phase_a_voltage_v": 248.03,
-      "sample_count": 59
-    },
-    {
-      "timestamp": "2026-07-20T11:00:00.000Z",
-      "net_grid_w": 5029,
-      "solar_production_w": 1743,
-      "phase_a_voltage_v": 248.92,
-      "sample_count": 60
-    },
-    {
-      "timestamp": "2026-07-20T12:00:00.000Z",
-      "net_grid_w": 18656,
-      "solar_production_w": 4731,
-      "phase_a_voltage_v": 248.97,
-      "sample_count": 60
-    },
-    {
-      "timestamp": "2026-07-20T13:00:00.000Z",
-      "net_grid_w": 23075,
-      "solar_production_w": 8880,
-      "phase_a_voltage_v": 250.23,
-      "sample_count": 60
-    },
-    {
-      "timestamp": "2026-07-20T14:00:00.000Z",
-      "net_grid_w": 30746,
-      "solar_production_w": 11385,
-      "phase_a_voltage_v": 249.95,
-      "sample_count": 60
-    },
-    {
-      "timestamp": "2026-07-20T15:00:00.000Z",
-      "net_grid_w": 31869,
-      "solar_production_w": 13390,
-      "phase_a_voltage_v": 249.76,
-      "sample_count": 60
-    },
-    {
-      "timestamp": "2026-07-20T16:00:00.000Z",
-      "net_grid_w": 12229,
-      "solar_production_w": 14568,
-      "phase_a_voltage_v": 250.58,
-      "sample_count": 59
-    },
-    {
-      "timestamp": "2026-07-20T17:00:00.000Z",
-      "net_grid_w": 13961,
-      "solar_production_w": 14620,
-      "phase_a_voltage_v": 249.4,
-      "sample_count": 60
-    },
-    {
-      "timestamp": "2026-07-20T18:00:00.000Z",
-      "net_grid_w": 13365,
-      "solar_production_w": 14200,
-      "phase_a_voltage_v": 249.19,
-      "sample_count": 60
-    },
-    {
-      "timestamp": "2026-07-20T19:00:00.000Z",
-      "net_grid_w": 17085,
-      "solar_production_w": 12962,
-      "phase_a_voltage_v": 249.1,
-      "sample_count": 60
-    },
-    {
-      "timestamp": "2026-07-20T20:00:00.000Z",
-      "net_grid_w": 21618,
-      "solar_production_w": 10690,
-      "phase_a_voltage_v": 246.35,
-      "sample_count": 60
-    },
-    {
-      "timestamp": "2026-07-20T21:00:00.000Z",
-      "net_grid_w": 21705,
-      "solar_production_w": 7782,
-      "phase_a_voltage_v": 245.96,
-      "sample_count": 45
-    },
-    {
-      "timestamp": "2026-07-20T22:00:00.000Z",
-      "net_grid_w": 10109,
-      "solar_production_w": 4474,
-      "phase_a_voltage_v": 245.28,
-      "sample_count": 61
-    },
-    {
-      "timestamp": "2026-07-20T23:00:00.000Z",
-      "net_grid_w": 2439,
-      "solar_production_w": 1249,
-      "phase_a_voltage_v": 244.72,
-      "sample_count": 60
-    },
-    {
-      "timestamp": "2026-07-21T00:00:00.000Z",
-      "net_grid_w": 2730,
-      "solar_production_w": 63,
-      "phase_a_voltage_v": 244.77,
-      "sample_count": 59
-    },
-    {
-      "timestamp": "2026-07-21T01:00:00.000Z",
-      "net_grid_w": 3130,
-      "solar_production_w": 0,
-      "phase_a_voltage_v": 244.89,
-      "sample_count": 60
-    },
-    {
-      "timestamp": "2026-07-21T02:00:00.000Z",
-      "net_grid_w": 4013,
-      "solar_production_w": 0,
-      "phase_a_voltage_v": 243.88,
-      "sample_count": 60
-    },
-    {
-      "timestamp": "2026-07-21T03:00:00.000Z",
-      "net_grid_w": 3845,
-      "solar_production_w": 0,
-      "phase_a_voltage_v": 245.33,
-      "sample_count": 60
-    },
-    {
-      "timestamp": "2026-07-21T04:00:00.000Z",
-      "net_grid_w": 3596,
-      "solar_production_w": 0,
-      "phase_a_voltage_v": 246.09,
-      "sample_count": 60
-    },
-    {
-      "timestamp": "2026-07-21T05:00:00.000Z",
-      "net_grid_w": 3227,
-      "solar_production_w": 0,
-      "phase_a_voltage_v": 246.53,
-      "sample_count": 60
-    },
-    {
-      "timestamp": "2026-07-21T06:00:00.000Z",
-      "net_grid_w": 2344,
-      "solar_production_w": 0,
-      "phase_a_voltage_v": 247.26,
-      "sample_count": 59
-    },
-    {
-      "timestamp": "2026-07-21T07:00:00.000Z",
-      "net_grid_w": 1403,
-      "solar_production_w": 0,
-      "phase_a_voltage_v": 248.23,
-      "sample_count": 60
-    },
-    {
-      "timestamp": "2026-07-21T08:00:00.000Z",
-      "net_grid_w": 867,
-      "solar_production_w": 0,
-      "phase_a_voltage_v": 248,
-      "sample_count": 60
-    },
-    {
-      "timestamp": "2026-07-21T09:00:00.000Z",
-      "net_grid_w": 719,
-      "solar_production_w": 1,
-      "phase_a_voltage_v": 247.45,
-      "sample_count": 60
-    },
-    {
-      "timestamp": "2026-07-21T10:00:00.000Z",
-      "net_grid_w": 954,
-      "solar_production_w": 234,
-      "phase_a_voltage_v": 246.93,
-      "sample_count": 60
-    },
-    {
-      "timestamp": "2026-07-21T11:00:00.000Z",
-      "net_grid_w": 1137,
-      "solar_production_w": 296,
-      "phase_a_voltage_v": 246.19,
-      "sample_count": 60
-    },
-    {
-      "timestamp": "2026-07-21T12:00:00.000Z",
-      "net_grid_w": 1923,
-      "solar_production_w": 649,
-      "phase_a_voltage_v": 245.68,
-      "sample_count": 59
-    },
-    {
-      "timestamp": "2026-07-21T13:00:00.000Z",
-      "net_grid_w": 2614,
-      "solar_production_w": 342,
-      "phase_a_voltage_v": 244.59,
-      "sample_count": 60
-    },
-    {
-      "timestamp": "2026-07-21T14:00:00.000Z",
-      "net_grid_w": 2966,
-      "solar_production_w": 396,
-      "phase_a_voltage_v": 244.35,
-      "sample_count": 60
-    },
-    {
-      "timestamp": "2026-07-21T15:00:00.000Z",
-      "net_grid_w": 2952,
-      "solar_production_w": 1264,
-      "phase_a_voltage_v": 245.7,
-      "sample_count": 60
-    },
-    {
-      "timestamp": "2026-07-21T16:00:00.000Z",
-      "net_grid_w": 1225,
-      "solar_production_w": 9206,
-      "phase_a_voltage_v": 247.91,
-      "sample_count": 60
-    },
-    {
-      "timestamp": "2026-07-21T17:00:00.000Z",
-      "net_grid_w": 956,
-      "solar_production_w": 3577,
-      "phase_a_voltage_v": 245.26,
-      "sample_count": 60
-    },
-    {
-      "timestamp": "2026-07-21T18:00:00.000Z",
-      "net_grid_w": 1799,
-      "solar_production_w": 539,
-      "phase_a_voltage_v": 244.78,
-      "sample_count": 59
-    },
-    {
-      "timestamp": "2026-07-21T19:00:00.000Z",
-      "net_grid_w": 2265,
-      "solar_production_w": 55,
-      "phase_a_voltage_v": 245.59,
-      "sample_count": 60
-    },
-    {
-      "timestamp": "2026-07-21T20:00:00.000Z",
-      "net_grid_w": 1708,
-      "solar_production_w": 1689,
-      "phase_a_voltage_v": 246.49,
-      "sample_count": 60
-    },
-    {
-      "timestamp": "2026-07-21T21:00:00.000Z",
-      "net_grid_w": 1726,
-      "solar_production_w": 2285,
-      "phase_a_voltage_v": 245.37,
-      "sample_count": 60
-    },
-    {
-      "timestamp": "2026-07-21T22:00:00.000Z",
-      "net_grid_w": 1911,
-      "solar_production_w": 891,
-      "phase_a_voltage_v": 244.81,
-      "sample_count": 60
-    },
-    {
-      "timestamp": "2026-07-21T23:00:00.000Z",
-      "net_grid_w": 2070,
-      "solar_production_w": 990,
-      "phase_a_voltage_v": 244.87,
-      "sample_count": 60
-    },
-    {
-      "timestamp": "2026-07-22T00:00:00.000Z",
-      "net_grid_w": 2787,
-      "solar_production_w": 20,
-      "phase_a_voltage_v": 243.64,
-      "sample_count": 59
-    },
-    {
-      "timestamp": "2026-07-22T01:00:00.000Z",
-      "net_grid_w": 2900,
-      "solar_production_w": 0,
-      "phase_a_voltage_v": 243.44,
-      "sample_count": 60
-    },
-    {
-      "timestamp": "2026-07-22T02:00:00.000Z",
-      "net_grid_w": 3208,
-      "solar_production_w": 0,
-      "phase_a_voltage_v": 244.72,
-      "sample_count": 60
-    },
-    {
-      "timestamp": "2026-07-22T03:00:00.000Z",
-      "net_grid_w": 3769,
-      "solar_production_w": 0,
-      "phase_a_voltage_v": 244.93,
-      "sample_count": 60
-    },
-    {
-      "timestamp": "2026-07-22T04:00:00.000Z",
-      "net_grid_w": 9039,
-      "solar_production_w": 0,
-      "phase_a_voltage_v": 243,
-      "sample_count": 60
-    },
-    {
-      "timestamp": "2026-07-22T05:00:00.000Z",
-      "net_grid_w": 11300,
-      "solar_production_w": 0,
-      "phase_a_voltage_v": 241.95,
-      "sample_count": 60
-    },
-    {
-      "timestamp": "2026-07-22T06:00:00.000Z",
-      "net_grid_w": 9096,
-      "solar_production_w": 0,
-      "phase_a_voltage_v": 243.42,
-      "sample_count": 59
-    },
-    {
-      "timestamp": "2026-07-22T07:00:00.000Z",
-      "net_grid_w": 2312,
-      "solar_production_w": 0,
-      "phase_a_voltage_v": 246.9,
-      "sample_count": 60
-    },
-    {
-      "timestamp": "2026-07-22T08:00:00.000Z",
-      "net_grid_w": 1632,
-      "solar_production_w": 0,
-      "phase_a_voltage_v": 246.86,
-      "sample_count": 60
-    },
-    {
-      "timestamp": "2026-07-22T09:00:00.000Z",
-      "net_grid_w": 1536,
-      "solar_production_w": 5,
-      "phase_a_voltage_v": 245.53,
-      "sample_count": 60
-    },
-    {
-      "timestamp": "2026-07-22T10:00:00.000Z",
-      "net_grid_w": 1144,
-      "solar_production_w": 240,
-      "phase_a_voltage_v": 245.94,
-      "sample_count": 60
-    },
-    {
-      "timestamp": "2026-07-22T11:00:00.000Z",
-      "net_grid_w": 1129,
-      "solar_production_w": 1261,
-      "phase_a_voltage_v": 247.07,
-      "sample_count": 59
-    },
-    {
-      "timestamp": "2026-07-22T12:00:00.000Z",
-      "net_grid_w": 2263,
-      "solar_production_w": 2399,
-      "phase_a_voltage_v": 245.56,
-      "sample_count": 60
-    },
-    {
-      "timestamp": "2026-07-22T13:00:00.000Z",
-      "net_grid_w": 2975,
-      "solar_production_w": 6185,
-      "phase_a_voltage_v": 245.74,
-      "sample_count": 60
-    },
-    {
-      "timestamp": "2026-07-22T14:00:00.000Z",
-      "net_grid_w": 3431,
-      "solar_production_w": 10598,
-      "phase_a_voltage_v": 245.75,
-      "sample_count": 60
-    },
-    {
-      "timestamp": "2026-07-22T15:00:00.000Z",
-      "net_grid_w": 3559,
-      "solar_production_w": 13702,
-      "phase_a_voltage_v": 246.04,
-      "sample_count": 60
-    },
-    {
-      "timestamp": "2026-07-22T16:00:00.000Z",
-      "net_grid_w": 2435,
-      "solar_production_w": 14513,
-      "phase_a_voltage_v": 246.11,
-      "sample_count": 60
-    },
-    {
-      "timestamp": "2026-07-22T17:00:00.000Z",
-      "net_grid_w": 2563,
-      "solar_production_w": 9714,
-      "phase_a_voltage_v": 245.27,
-      "sample_count": 59
-    },
-    {
-      "timestamp": "2026-07-22T18:00:00.000Z",
-      "net_grid_w": 2878,
-      "solar_production_w": 14607,
-      "phase_a_voltage_v": 244.7,
-      "sample_count": 60
-    },
-    {
-      "timestamp": "2026-07-22T19:00:00.000Z",
-      "net_grid_w": 3403,
-      "solar_production_w": 12097,
-      "phase_a_voltage_v": 244.12,
-      "sample_count": 60
-    },
-    {
-      "timestamp": "2026-07-22T20:00:00.000Z",
-      "net_grid_w": 3329,
-      "solar_production_w": 8543,
-      "phase_a_voltage_v": 243.9,
-      "sample_count": 60
-    },
-    {
-      "timestamp": "2026-07-22T21:00:00.000Z",
-      "net_grid_w": 3211,
-      "solar_production_w": 6797,
-      "phase_a_voltage_v": 241.57,
-      "sample_count": 60
-    },
-    {
-      "timestamp": "2026-07-22T22:00:00.000Z",
-      "net_grid_w": 2824,
-      "solar_production_w": 4263,
-      "phase_a_voltage_v": 241.97,
-      "sample_count": 60
-    },
-    {
-      "timestamp": "2026-07-22T23:00:00.000Z",
-      "net_grid_w": 2885,
-      "solar_production_w": 1079,
-      "phase_a_voltage_v": 243.14,
-      "sample_count": 59
-    },
-    {
-      "timestamp": "2026-07-23T00:00:00.000Z",
-      "net_grid_w": 2881,
-      "solar_production_w": 61,
-      "phase_a_voltage_v": 243.18,
-      "sample_count": 60
-    },
-    {
-      "timestamp": "2026-07-23T01:00:00.000Z",
-      "net_grid_w": 2910,
-      "solar_production_w": 0,
-      "phase_a_voltage_v": 243.36,
-      "sample_count": 60
-    },
-    {
-      "timestamp": "2026-07-23T02:00:00.000Z",
-      "net_grid_w": 2767,
-      "solar_production_w": 0,
-      "phase_a_voltage_v": 244.01,
-      "sample_count": 60
-    },
-    {
-      "timestamp": "2026-07-23T03:00:00.000Z",
-      "net_grid_w": 3241,
-      "solar_production_w": 0,
-      "phase_a_voltage_v": 243.41,
-      "sample_count": 60
-    },
-    {
-      "timestamp": "2026-07-23T04:00:00.000Z",
-      "net_grid_w": 3534,
-      "solar_production_w": 0,
-      "phase_a_voltage_v": 244.68,
-      "sample_count": 60
-    },
-    {
-      "timestamp": "2026-07-23T05:00:00.000Z",
-      "net_grid_w": 3161,
-      "solar_production_w": 0,
-      "phase_a_voltage_v": 245.56,
-      "sample_count": 59
-    },
-    {
-      "timestamp": "2026-07-23T06:00:00.000Z",
-      "net_grid_w": 2253,
-      "solar_production_w": 0,
-      "phase_a_voltage_v": 246.8,
-      "sample_count": 60
-    },
-    {
-      "timestamp": "2026-07-23T07:00:00.000Z",
-      "net_grid_w": 1147,
-      "solar_production_w": 0,
-      "phase_a_voltage_v": 247.4,
-      "sample_count": 60
-    },
-    {
-      "timestamp": "2026-07-23T08:00:00.000Z",
-      "net_grid_w": 631,
-      "solar_production_w": 0,
-      "phase_a_voltage_v": 247.72,
-      "sample_count": 60
-    },
-    {
-      "timestamp": "2026-07-23T09:00:00.000Z",
-      "net_grid_w": 661,
-      "solar_production_w": 11,
-      "phase_a_voltage_v": 247.18,
-      "sample_count": 60
-    },
-    {
-      "timestamp": "2026-07-23T10:00:00.000Z",
-      "net_grid_w": 645,
-      "solar_production_w": 417,
-      "phase_a_voltage_v": 247.17,
-      "sample_count": 60
-    },
-    {
-      "timestamp": "2026-07-23T11:00:00.000Z",
-      "net_grid_w": 712,
-      "solar_production_w": 1484,
-      "phase_a_voltage_v": 246.84,
-      "sample_count": 59
-    },
-    {
-      "timestamp": "2026-07-23T12:00:00.000Z",
-      "net_grid_w": 1850,
-      "solar_production_w": 4274,
-      "phase_a_voltage_v": 246.99,
-      "sample_count": 60
-    },
-    {
-      "timestamp": "2026-07-23T13:00:00.000Z",
-      "net_grid_w": 2404,
-      "solar_production_w": 8796,
-      "phase_a_voltage_v": 248.3,
-      "sample_count": 60
-    },
-    {
-      "timestamp": "2026-07-23T14:00:00.000Z",
-      "net_grid_w": 2573,
-      "solar_production_w": 11622,
-      "phase_a_voltage_v": 248.71,
-      "sample_count": 60
-    },
-    {
-      "timestamp": "2026-07-23T15:00:00.000Z",
-      "net_grid_w": 2729,
-      "solar_production_w": 13547,
-      "phase_a_voltage_v": 248.36,
-      "sample_count": 60
-    },
-    {
-      "timestamp": "2026-07-23T16:00:00.000Z",
-      "net_grid_w": 1716,
-      "solar_production_w": 14669,
-      "phase_a_voltage_v": 249.13,
-      "sample_count": 60
-    },
-    {
-      "timestamp": "2026-07-23T17:00:00.000Z",
-      "net_grid_w": 1792,
-      "solar_production_w": 14179,
-      "phase_a_voltage_v": 249.09,
-      "sample_count": 59
-    },
-    {
-      "timestamp": "2026-07-23T18:00:00.000Z",
-      "net_grid_w": 1874,
-      "solar_production_w": 13948,
-      "phase_a_voltage_v": 248.41,
-      "sample_count": 60
-    },
-    {
-      "timestamp": "2026-07-23T19:00:00.000Z",
-      "net_grid_w": 2126,
-      "solar_production_w": 12584,
-      "phase_a_voltage_v": 246.7,
-      "sample_count": 60
-    },
-    {
-      "timestamp": "2026-07-23T20:00:00.000Z",
-      "net_grid_w": 2336,
-      "solar_production_w": 10379,
-      "phase_a_voltage_v": 244.77,
-      "sample_count": 60
-    },
-    {
-      "timestamp": "2026-07-23T21:00:00.000Z",
-      "net_grid_w": 2177,
-      "solar_production_w": 7704,
-      "phase_a_voltage_v": 244.87,
-      "sample_count": 60
-    },
-    {
-      "timestamp": "2026-07-23T22:00:00.000Z",
-      "net_grid_w": 2321,
-      "solar_production_w": 4308,
+      "timestamp": "2026-08-06T15:00:00.000Z",
+      "net_grid_w": 3636,
+      "solar_production_w": 8268,
       "phase_a_voltage_v": 245.4,
-      "sample_count": 60
+      "sample_count": 252
     },
     {
-      "timestamp": "2026-07-23T23:00:00.000Z",
-      "net_grid_w": 2464,
-      "solar_production_w": 1190,
-      "phase_a_voltage_v": 243.59,
-      "sample_count": 59
+      "timestamp": "2026-08-06T16:00:00.000Z",
+      "net_grid_w": 4171,
+      "solar_production_w": 10674,
+      "phase_a_voltage_v": 243.99,
+      "sample_count": 653
     },
     {
-      "timestamp": "2026-07-24T00:00:00.000Z",
-      "net_grid_w": 2485,
-      "solar_production_w": 79,
+      "timestamp": "2026-08-06T17:00:00.000Z",
+      "net_grid_w": 3845,
+      "solar_production_w": 13623,
+      "phase_a_voltage_v": 244.79,
+      "sample_count": 656
+    },
+    {
+      "timestamp": "2026-08-06T18:00:00.000Z",
+      "net_grid_w": 3990,
+      "solar_production_w": 10460,
+      "phase_a_voltage_v": 244.25,
+      "sample_count": 656
+    },
+    {
+      "timestamp": "2026-08-06T19:00:00.000Z",
+      "net_grid_w": 3633,
+      "solar_production_w": 13450,
       "phase_a_voltage_v": 243.41,
-      "sample_count": 60
+      "sample_count": 656
     },
     {
-      "timestamp": "2026-07-24T01:00:00.000Z",
-      "net_grid_w": 2737,
+      "timestamp": "2026-08-06T20:00:00.000Z",
+      "net_grid_w": 3599,
+      "solar_production_w": 3559,
+      "phase_a_voltage_v": 239.96,
+      "sample_count": 656
+    },
+    {
+      "timestamp": "2026-08-06T21:00:00.000Z",
+      "net_grid_w": 3646,
+      "solar_production_w": 6467,
+      "phase_a_voltage_v": 241.5,
+      "sample_count": 654
+    },
+    {
+      "timestamp": "2026-08-06T22:00:00.000Z",
+      "net_grid_w": 4798,
+      "solar_production_w": 2362,
+      "phase_a_voltage_v": 239.73,
+      "sample_count": 657
+    },
+    {
+      "timestamp": "2026-08-06T23:00:00.000Z",
+      "net_grid_w": 4612,
+      "solar_production_w": 1624,
+      "phase_a_voltage_v": 240.69,
+      "sample_count": 656
+    },
+    {
+      "timestamp": "2026-08-07T00:00:00.000Z",
+      "net_grid_w": 4504,
+      "solar_production_w": 138,
+      "phase_a_voltage_v": 240.54,
+      "sample_count": 656
+    },
+    {
+      "timestamp": "2026-08-07T01:00:00.000Z",
+      "net_grid_w": 4538,
       "solar_production_w": 0,
-      "phase_a_voltage_v": 243.96,
-      "sample_count": 60
+      "phase_a_voltage_v": 239.84,
+      "sample_count": 656
     },
     {
-      "timestamp": "2026-07-24T02:00:00.000Z",
-      "net_grid_w": 2389,
+      "timestamp": "2026-08-07T02:00:00.000Z",
+      "net_grid_w": 3878,
       "solar_production_w": 0,
-      "phase_a_voltage_v": 245.11,
-      "sample_count": 60
+      "phase_a_voltage_v": 242.27,
+      "sample_count": 657
     },
     {
-      "timestamp": "2026-07-24T03:00:00.000Z",
-      "net_grid_w": 2367,
+      "timestamp": "2026-08-07T03:00:00.000Z",
+      "net_grid_w": 5761,
       "solar_production_w": 0,
-      "phase_a_voltage_v": 245.54,
-      "sample_count": 60
+      "phase_a_voltage_v": 241.73,
+      "sample_count": 656
     },
     {
-      "timestamp": "2026-07-24T04:00:00.000Z",
+      "timestamp": "2026-08-07T04:00:00.000Z",
+      "net_grid_w": 12418,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 238.83,
+      "sample_count": 656
+    },
+    {
+      "timestamp": "2026-08-07T05:00:00.000Z",
+      "net_grid_w": 12317,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 239.07,
+      "sample_count": 655
+    },
+    {
+      "timestamp": "2026-08-07T06:00:00.000Z",
+      "net_grid_w": 6631,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 242.57,
+      "sample_count": 656
+    },
+    {
+      "timestamp": "2026-08-07T07:00:00.000Z",
+      "net_grid_w": 2417,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 245.32,
+      "sample_count": 657
+    },
+    {
+      "timestamp": "2026-08-07T08:00:00.000Z",
+      "net_grid_w": 2302,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 245.72,
+      "sample_count": 656
+    },
+    {
+      "timestamp": "2026-08-07T09:00:00.000Z",
+      "net_grid_w": 2156,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 245.46,
+      "sample_count": 657
+    },
+    {
+      "timestamp": "2026-08-07T10:00:00.000Z",
+      "net_grid_w": 2039,
+      "solar_production_w": 89,
+      "phase_a_voltage_v": 245.3,
+      "sample_count": 656
+    },
+    {
+      "timestamp": "2026-08-07T11:00:00.000Z",
+      "net_grid_w": 2591,
+      "solar_production_w": 832,
+      "phase_a_voltage_v": 245.02,
+      "sample_count": 657
+    },
+    {
+      "timestamp": "2026-08-07T12:00:00.000Z",
+      "net_grid_w": 3779,
+      "solar_production_w": 1674,
+      "phase_a_voltage_v": 244.21,
+      "sample_count": 656
+    },
+    {
+      "timestamp": "2026-08-07T13:00:00.000Z",
+      "net_grid_w": 4485,
+      "solar_production_w": 6312,
+      "phase_a_voltage_v": 245,
+      "sample_count": 655
+    },
+    {
+      "timestamp": "2026-08-07T14:00:00.000Z",
+      "net_grid_w": 4442,
+      "solar_production_w": 9709,
+      "phase_a_voltage_v": 244.39,
+      "sample_count": 655
+    },
+    {
+      "timestamp": "2026-08-07T15:00:00.000Z",
+      "net_grid_w": 4529,
+      "solar_production_w": 11133,
+      "phase_a_voltage_v": 244.22,
+      "sample_count": 657
+    },
+    {
+      "timestamp": "2026-08-07T16:00:00.000Z",
+      "net_grid_w": 3917,
+      "solar_production_w": 11879,
+      "phase_a_voltage_v": 244.77,
+      "sample_count": 656
+    },
+    {
+      "timestamp": "2026-08-07T17:00:00.000Z",
+      "net_grid_w": 3990,
+      "solar_production_w": 12030,
+      "phase_a_voltage_v": 242.64,
+      "sample_count": 654
+    },
+    {
+      "timestamp": "2026-08-07T18:00:00.000Z",
+      "net_grid_w": 4117,
+      "solar_production_w": 8859,
+      "phase_a_voltage_v": 240.65,
+      "sample_count": 656
+    },
+    {
+      "timestamp": "2026-08-07T19:00:00.000Z",
+      "net_grid_w": 3964,
+      "solar_production_w": 4442,
+      "phase_a_voltage_v": 240.39,
+      "sample_count": 657
+    },
+    {
+      "timestamp": "2026-08-07T20:00:00.000Z",
+      "net_grid_w": 4221,
+      "solar_production_w": 6643,
+      "phase_a_voltage_v": 241.83,
+      "sample_count": 655
+    },
+    {
+      "timestamp": "2026-08-07T21:00:00.000Z",
+      "net_grid_w": 4090,
+      "solar_production_w": 2635,
+      "phase_a_voltage_v": 240.96,
+      "sample_count": 655
+    },
+    {
+      "timestamp": "2026-08-07T22:00:00.000Z",
+      "net_grid_w": 3335,
+      "solar_production_w": 36,
+      "phase_a_voltage_v": 243.13,
+      "sample_count": 657
+    },
+    {
+      "timestamp": "2026-08-07T23:00:00.000Z",
+      "net_grid_w": 2020,
+      "solar_production_w": 2,
+      "phase_a_voltage_v": 243.41,
+      "sample_count": 655
+    },
+    {
+      "timestamp": "2026-08-08T00:00:00.000Z",
+      "net_grid_w": 2467,
+      "solar_production_w": 2,
+      "phase_a_voltage_v": 243.29,
+      "sample_count": 655
+    },
+    {
+      "timestamp": "2026-08-08T01:00:00.000Z",
+      "net_grid_w": 2982,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 243.07,
+      "sample_count": 655
+    },
+    {
+      "timestamp": "2026-08-08T02:00:00.000Z",
+      "net_grid_w": 3009,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 243.5,
+      "sample_count": 656
+    },
+    {
+      "timestamp": "2026-08-08T03:00:00.000Z",
+      "net_grid_w": 3745,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 243.76,
+      "sample_count": 656
+    },
+    {
+      "timestamp": "2026-08-08T04:00:00.000Z",
+      "net_grid_w": 3959,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 244.1,
+      "sample_count": 655
+    },
+    {
+      "timestamp": "2026-08-08T05:00:00.000Z",
+      "net_grid_w": 4482,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 244.02,
+      "sample_count": 657
+    },
+    {
+      "timestamp": "2026-08-08T06:00:00.000Z",
+      "net_grid_w": 3328,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 244.51,
+      "sample_count": 656
+    },
+    {
+      "timestamp": "2026-08-08T07:00:00.000Z",
+      "net_grid_w": 1858,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 245.97,
+      "sample_count": 656
+    },
+    {
+      "timestamp": "2026-08-08T08:00:00.000Z",
+      "net_grid_w": 1692,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 246.21,
+      "sample_count": 656
+    },
+    {
+      "timestamp": "2026-08-08T09:00:00.000Z",
+      "net_grid_w": 1637,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 246.27,
+      "sample_count": 656
+    },
+    {
+      "timestamp": "2026-08-08T10:00:00.000Z",
+      "net_grid_w": 1438,
+      "solar_production_w": 85,
+      "phase_a_voltage_v": 246.56,
+      "sample_count": 656
+    },
+    {
+      "timestamp": "2026-08-08T11:00:00.000Z",
+      "net_grid_w": 1776,
+      "solar_production_w": 911,
+      "phase_a_voltage_v": 246.12,
+      "sample_count": 657
+    },
+    {
+      "timestamp": "2026-08-08T12:00:00.000Z",
+      "net_grid_w": 2824,
+      "solar_production_w": 2008,
+      "phase_a_voltage_v": 244.99,
+      "sample_count": 656
+    },
+    {
+      "timestamp": "2026-08-08T13:00:00.000Z",
+      "net_grid_w": 2845,
+      "solar_production_w": 3966,
+      "phase_a_voltage_v": 244.49,
+      "sample_count": 656
+    },
+    {
+      "timestamp": "2026-08-08T14:00:00.000Z",
+      "net_grid_w": 3638,
+      "solar_production_w": 10122,
+      "phase_a_voltage_v": 245.18,
+      "sample_count": 655
+    },
+    {
+      "timestamp": "2026-08-08T15:00:00.000Z",
+      "net_grid_w": 3166,
+      "solar_production_w": 10813,
+      "phase_a_voltage_v": 245.24,
+      "sample_count": 656
+    },
+    {
+      "timestamp": "2026-08-08T16:00:00.000Z",
+      "net_grid_w": 2922,
+      "solar_production_w": 13885,
+      "phase_a_voltage_v": 245.75,
+      "sample_count": 655
+    },
+    {
+      "timestamp": "2026-08-08T17:00:00.000Z",
+      "net_grid_w": 3177,
+      "solar_production_w": 14572,
+      "phase_a_voltage_v": 244.77,
+      "sample_count": 657
+    },
+    {
+      "timestamp": "2026-08-08T18:00:00.000Z",
+      "net_grid_w": 3634,
+      "solar_production_w": 13583,
+      "phase_a_voltage_v": 242.79,
+      "sample_count": 656
+    },
+    {
+      "timestamp": "2026-08-08T19:00:00.000Z",
+      "net_grid_w": 3589,
+      "solar_production_w": 9768,
+      "phase_a_voltage_v": 242.81,
+      "sample_count": 656
+    },
+    {
+      "timestamp": "2026-08-08T20:00:00.000Z",
+      "net_grid_w": 3726,
+      "solar_production_w": 6205,
+      "phase_a_voltage_v": 243.89,
+      "sample_count": 656
+    },
+    {
+      "timestamp": "2026-08-08T21:00:00.000Z",
+      "net_grid_w": 3595,
+      "solar_production_w": 5684,
+      "phase_a_voltage_v": 243.21,
+      "sample_count": 655
+    },
+    {
+      "timestamp": "2026-08-08T22:00:00.000Z",
+      "net_grid_w": 3725,
+      "solar_production_w": 3849,
+      "phase_a_voltage_v": 241.18,
+      "sample_count": 656
+    },
+    {
+      "timestamp": "2026-08-08T23:00:00.000Z",
+      "net_grid_w": 3375,
+      "solar_production_w": 2007,
+      "phase_a_voltage_v": 242.43,
+      "sample_count": 656
+    },
+    {
+      "timestamp": "2026-08-09T00:00:00.000Z",
+      "net_grid_w": 3671,
+      "solar_production_w": 136,
+      "phase_a_voltage_v": 241.97,
+      "sample_count": 656
+    },
+    {
+      "timestamp": "2026-08-09T01:00:00.000Z",
+      "net_grid_w": 3662,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 242.61,
+      "sample_count": 656
+    },
+    {
+      "timestamp": "2026-08-09T02:00:00.000Z",
+      "net_grid_w": 4582,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 242.24,
+      "sample_count": 655
+    },
+    {
+      "timestamp": "2026-08-09T03:00:00.000Z",
+      "net_grid_w": 4606,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 243.53,
+      "sample_count": 656
+    },
+    {
+      "timestamp": "2026-08-09T04:00:00.000Z",
+      "net_grid_w": 4141,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 244.65,
+      "sample_count": 656
+    },
+    {
+      "timestamp": "2026-08-09T05:00:00.000Z",
+      "net_grid_w": 3961,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 244.77,
+      "sample_count": 657
+    },
+    {
+      "timestamp": "2026-08-09T06:00:00.000Z",
+      "net_grid_w": 3164,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 245.82,
+      "sample_count": 655
+    },
+    {
+      "timestamp": "2026-08-09T07:00:00.000Z",
+      "net_grid_w": 1909,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 246.45,
+      "sample_count": 657
+    },
+    {
+      "timestamp": "2026-08-09T08:00:00.000Z",
+      "net_grid_w": 1891,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 247.16,
+      "sample_count": 656
+    },
+    {
+      "timestamp": "2026-08-09T09:00:00.000Z",
+      "net_grid_w": 1828,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 247.69,
+      "sample_count": 656
+    },
+    {
+      "timestamp": "2026-08-09T10:00:00.000Z",
+      "net_grid_w": 1517,
+      "solar_production_w": 97,
+      "phase_a_voltage_v": 248.06,
+      "sample_count": 656
+    },
+    {
+      "timestamp": "2026-08-09T11:00:00.000Z",
+      "net_grid_w": 2017,
+      "solar_production_w": 1168,
+      "phase_a_voltage_v": 247.83,
+      "sample_count": 657
+    },
+    {
+      "timestamp": "2026-08-09T12:00:00.000Z",
+      "net_grid_w": 2961,
+      "solar_production_w": 1734,
+      "phase_a_voltage_v": 246.38,
+      "sample_count": 656
+    },
+    {
+      "timestamp": "2026-08-09T13:00:00.000Z",
+      "net_grid_w": 3307,
+      "solar_production_w": 6916,
+      "phase_a_voltage_v": 246.12,
+      "sample_count": 657
+    },
+    {
+      "timestamp": "2026-08-09T14:00:00.000Z",
+      "net_grid_w": 3693,
+      "solar_production_w": 9356,
+      "phase_a_voltage_v": 246.02,
+      "sample_count": 653
+    },
+    {
+      "timestamp": "2026-08-09T15:00:00.000Z",
+      "net_grid_w": 3163,
+      "solar_production_w": 8601,
+      "phase_a_voltage_v": 247.04,
+      "sample_count": 656
+    },
+    {
+      "timestamp": "2026-08-09T16:00:00.000Z",
+      "net_grid_w": 2584,
+      "solar_production_w": 13951,
+      "phase_a_voltage_v": 247.42,
+      "sample_count": 657
+    },
+    {
+      "timestamp": "2026-08-09T17:00:00.000Z",
+      "net_grid_w": 2853,
+      "solar_production_w": 14780,
+      "phase_a_voltage_v": 246.62,
+      "sample_count": 654
+    },
+    {
+      "timestamp": "2026-08-09T18:00:00.000Z",
+      "net_grid_w": 3775,
+      "solar_production_w": 14233,
+      "phase_a_voltage_v": 246.5,
+      "sample_count": 657
+    },
+    {
+      "timestamp": "2026-08-09T19:00:00.000Z",
+      "net_grid_w": 3506,
+      "solar_production_w": 13207,
+      "phase_a_voltage_v": 245.46,
+      "sample_count": 656
+    },
+    {
+      "timestamp": "2026-08-09T20:00:00.000Z",
+      "net_grid_w": 3756,
+      "solar_production_w": 8997,
+      "phase_a_voltage_v": 245.05,
+      "sample_count": 654
+    },
+    {
+      "timestamp": "2026-08-09T21:00:00.000Z",
+      "net_grid_w": 4808,
+      "solar_production_w": 6767,
+      "phase_a_voltage_v": 243.37,
+      "sample_count": 651
+    },
+    {
+      "timestamp": "2026-08-09T22:00:00.000Z",
+      "net_grid_w": 5100,
+      "solar_production_w": 4371,
+      "phase_a_voltage_v": 242.73,
+      "sample_count": 655
+    },
+    {
+      "timestamp": "2026-08-09T23:00:00.000Z",
+      "net_grid_w": 4452,
+      "solar_production_w": 1365,
+      "phase_a_voltage_v": 242.36,
+      "sample_count": 656
+    },
+    {
+      "timestamp": "2026-08-10T00:00:00.000Z",
+      "net_grid_w": 4306,
+      "solar_production_w": 135,
+      "phase_a_voltage_v": 241.79,
+      "sample_count": 657
+    },
+    {
+      "timestamp": "2026-08-10T01:00:00.000Z",
+      "net_grid_w": 4628,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 242.99,
+      "sample_count": 655
+    },
+    {
+      "timestamp": "2026-08-10T02:00:00.000Z",
+      "net_grid_w": 4123,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 243.79,
+      "sample_count": 656
+    },
+    {
+      "timestamp": "2026-08-10T03:00:00.000Z",
+      "net_grid_w": 4121,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 244.21,
+      "sample_count": 656
+    },
+    {
+      "timestamp": "2026-08-10T04:00:00.000Z",
+      "net_grid_w": 3691,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 244.95,
+      "sample_count": 656
+    },
+    {
+      "timestamp": "2026-08-10T05:00:00.000Z",
+      "net_grid_w": 3633,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 245.92,
+      "sample_count": 656
+    },
+    {
+      "timestamp": "2026-08-10T06:00:00.000Z",
+      "net_grid_w": 2707,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 246.14,
+      "sample_count": 656
+    },
+    {
+      "timestamp": "2026-08-10T07:00:00.000Z",
+      "net_grid_w": 1494,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 247.06,
+      "sample_count": 656
+    },
+    {
+      "timestamp": "2026-08-10T08:00:00.000Z",
+      "net_grid_w": 1333,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 246.94,
+      "sample_count": 656
+    },
+    {
+      "timestamp": "2026-08-10T09:00:00.000Z",
+      "net_grid_w": 1223,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 246.65,
+      "sample_count": 656
+    },
+    {
+      "timestamp": "2026-08-10T10:00:00.000Z",
+      "net_grid_w": 1222,
+      "solar_production_w": 56,
+      "phase_a_voltage_v": 246.86,
+      "sample_count": 657
+    },
+    {
+      "timestamp": "2026-08-10T11:00:00.000Z",
+      "net_grid_w": 1751,
+      "solar_production_w": 705,
+      "phase_a_voltage_v": 246.64,
+      "sample_count": 657
+    },
+    {
+      "timestamp": "2026-08-10T12:00:00.000Z",
+      "net_grid_w": 2968,
+      "solar_production_w": 1746,
+      "phase_a_voltage_v": 245.42,
+      "sample_count": 656
+    },
+    {
+      "timestamp": "2026-08-10T13:00:00.000Z",
+      "net_grid_w": 3139,
+      "solar_production_w": 4997,
+      "phase_a_voltage_v": 245.89,
+      "sample_count": 652
+    },
+    {
+      "timestamp": "2026-08-10T14:00:00.000Z",
+      "net_grid_w": 3543,
+      "solar_production_w": 8423,
+      "phase_a_voltage_v": 245.22,
+      "sample_count": 654
+    },
+    {
+      "timestamp": "2026-08-10T15:00:00.000Z",
+      "net_grid_w": 3073,
+      "solar_production_w": 10682,
+      "phase_a_voltage_v": 246.21,
+      "sample_count": 655
+    },
+    {
+      "timestamp": "2026-08-10T16:00:00.000Z",
+      "net_grid_w": 2750,
+      "solar_production_w": 8683,
+      "phase_a_voltage_v": 245.18,
+      "sample_count": 657
+    },
+    {
+      "timestamp": "2026-08-10T17:00:00.000Z",
+      "net_grid_w": 2796,
+      "solar_production_w": 10954,
+      "phase_a_voltage_v": 244.9,
+      "sample_count": 656
+    },
+    {
+      "timestamp": "2026-08-10T18:00:00.000Z",
       "net_grid_w": 3083,
-      "solar_production_w": 0,
-      "phase_a_voltage_v": 245.35,
-      "sample_count": 60
+      "solar_production_w": 14078,
+      "phase_a_voltage_v": 244.21,
+      "sample_count": 655
     },
     {
-      "timestamp": "2026-07-24T05:00:00.000Z",
-      "net_grid_w": 2844,
-      "solar_production_w": 0,
-      "phase_a_voltage_v": 246.39,
-      "sample_count": 59
+      "timestamp": "2026-08-10T19:00:00.000Z",
+      "net_grid_w": 3356,
+      "solar_production_w": 10943,
+      "phase_a_voltage_v": 243.82,
+      "sample_count": 656
     },
     {
-      "timestamp": "2026-07-24T06:00:00.000Z",
-      "net_grid_w": 2652,
-      "solar_production_w": 0,
-      "phase_a_voltage_v": 245.52,
-      "sample_count": 60
+      "timestamp": "2026-08-10T20:00:00.000Z",
+      "net_grid_w": 3381,
+      "solar_production_w": 6521,
+      "phase_a_voltage_v": 242.32,
+      "sample_count": 656
     },
     {
-      "timestamp": "2026-07-24T07:00:00.000Z",
-      "net_grid_w": 1313,
+      "timestamp": "2026-08-10T21:00:00.000Z",
+      "net_grid_w": 3063,
+      "solar_production_w": 1293,
+      "phase_a_voltage_v": 242.51,
+      "sample_count": 655
+    },
+    {
+      "timestamp": "2026-08-10T22:00:00.000Z",
+      "net_grid_w": 3088,
+      "solar_production_w": 857,
+      "phase_a_voltage_v": 245.03,
+      "sample_count": 656
+    },
+    {
+      "timestamp": "2026-08-10T23:00:00.000Z",
+      "net_grid_w": 3180,
+      "solar_production_w": 441,
+      "phase_a_voltage_v": 244.68,
+      "sample_count": 656
+    },
+    {
+      "timestamp": "2026-08-11T00:00:00.000Z",
+      "net_grid_w": 3067,
+      "solar_production_w": 56,
+      "phase_a_voltage_v": 244.02,
+      "sample_count": 656
+    },
+    {
+      "timestamp": "2026-08-11T01:00:00.000Z",
+      "net_grid_w": 3482,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 244.96,
+      "sample_count": 655
+    },
+    {
+      "timestamp": "2026-08-11T02:00:00.000Z",
+      "net_grid_w": 3084,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 245.57,
+      "sample_count": 657
+    },
+    {
+      "timestamp": "2026-08-11T03:00:00.000Z",
+      "net_grid_w": 5217,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 244.51,
+      "sample_count": 656
+    },
+    {
+      "timestamp": "2026-08-11T04:00:00.000Z",
+      "net_grid_w": 4351,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 246.25,
+      "sample_count": 656
+    },
+    {
+      "timestamp": "2026-08-11T05:00:00.000Z",
+      "net_grid_w": 3968,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 245.93,
+      "sample_count": 655
+    },
+    {
+      "timestamp": "2026-08-11T06:00:00.000Z",
+      "net_grid_w": 3288,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 246.87,
+      "sample_count": 656
+    },
+    {
+      "timestamp": "2026-08-11T07:00:00.000Z",
+      "net_grid_w": 1946,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 247.27,
+      "sample_count": 656
+    },
+    {
+      "timestamp": "2026-08-11T08:00:00.000Z",
+      "net_grid_w": 1864,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 247.99,
+      "sample_count": 654
+    },
+    {
+      "timestamp": "2026-08-11T09:00:00.000Z",
+      "net_grid_w": 1728,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 247.59,
+      "sample_count": 652
+    },
+    {
+      "timestamp": "2026-08-11T10:00:00.000Z",
+      "net_grid_w": 1564,
+      "solar_production_w": 36,
+      "phase_a_voltage_v": 247.13,
+      "sample_count": 654
+    },
+    {
+      "timestamp": "2026-08-11T11:00:00.000Z",
+      "net_grid_w": 1832,
+      "solar_production_w": 703,
+      "phase_a_voltage_v": 246.59,
+      "sample_count": 654
+    },
+    {
+      "timestamp": "2026-08-11T12:00:00.000Z",
+      "net_grid_w": 3114,
+      "solar_production_w": 2026,
+      "phase_a_voltage_v": 244.8,
+      "sample_count": 653
+    },
+    {
+      "timestamp": "2026-08-11T13:00:00.000Z",
+      "net_grid_w": 2879,
+      "solar_production_w": 4836,
+      "phase_a_voltage_v": 245.18,
+      "sample_count": 653
+    },
+    {
+      "timestamp": "2026-08-11T14:00:00.000Z",
+      "net_grid_w": 3383,
+      "solar_production_w": 8493,
+      "phase_a_voltage_v": 245.94,
+      "sample_count": 654
+    },
+    {
+      "timestamp": "2026-08-11T15:00:00.000Z",
+      "net_grid_w": 3125,
+      "solar_production_w": 8228,
+      "phase_a_voltage_v": 246.66,
+      "sample_count": 653
+    },
+    {
+      "timestamp": "2026-08-11T16:00:00.000Z",
+      "net_grid_w": 2676,
+      "solar_production_w": 11407,
+      "phase_a_voltage_v": 246.9,
+      "sample_count": 654
+    },
+    {
+      "timestamp": "2026-08-11T17:00:00.000Z",
+      "net_grid_w": 2607,
+      "solar_production_w": 13126,
+      "phase_a_voltage_v": 245.53,
+      "sample_count": 654
+    },
+    {
+      "timestamp": "2026-08-11T18:00:00.000Z",
+      "net_grid_w": 2725,
+      "solar_production_w": 10312,
+      "phase_a_voltage_v": 245.06,
+      "sample_count": 654
+    },
+    {
+      "timestamp": "2026-08-11T19:00:00.000Z",
+      "net_grid_w": 2888,
+      "solar_production_w": 6064,
+      "phase_a_voltage_v": 244.48,
+      "sample_count": 653
+    },
+    {
+      "timestamp": "2026-08-11T20:00:00.000Z",
+      "net_grid_w": 3028,
+      "solar_production_w": 6560,
+      "phase_a_voltage_v": 243.35,
+      "sample_count": 654
+    },
+    {
+      "timestamp": "2026-08-11T21:00:00.000Z",
+      "net_grid_w": 2569,
+      "solar_production_w": 2938,
+      "phase_a_voltage_v": 242.35,
+      "sample_count": 651
+    },
+    {
+      "timestamp": "2026-08-11T22:00:00.000Z",
+      "net_grid_w": 2596,
+      "solar_production_w": 1005,
+      "phase_a_voltage_v": 242.46,
+      "sample_count": 653
+    },
+    {
+      "timestamp": "2026-08-11T23:00:00.000Z",
+      "net_grid_w": 2742,
+      "solar_production_w": 532,
+      "phase_a_voltage_v": 242.44,
+      "sample_count": 654
+    },
+    {
+      "timestamp": "2026-08-12T00:00:00.000Z",
+      "net_grid_w": 2450,
+      "solar_production_w": 82,
+      "phase_a_voltage_v": 241.95,
+      "sample_count": 653
+    },
+    {
+      "timestamp": "2026-08-12T01:00:00.000Z",
+      "net_grid_w": 2911,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 243.54,
+      "sample_count": 652
+    },
+    {
+      "timestamp": "2026-08-12T02:00:00.000Z",
+      "net_grid_w": 2934,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 244.14,
+      "sample_count": 652
+    },
+    {
+      "timestamp": "2026-08-12T03:00:00.000Z",
+      "net_grid_w": 5213,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 243.51,
+      "sample_count": 654
+    },
+    {
+      "timestamp": "2026-08-12T04:00:00.000Z",
+      "net_grid_w": 4422,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 245.16,
+      "sample_count": 653
+    },
+    {
+      "timestamp": "2026-08-12T05:00:00.000Z",
+      "net_grid_w": 3870,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 244.98,
+      "sample_count": 654
+    },
+    {
+      "timestamp": "2026-08-12T06:00:00.000Z",
+      "net_grid_w": 2810,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 246.34,
+      "sample_count": 654
+    },
+    {
+      "timestamp": "2026-08-12T07:00:00.000Z",
+      "net_grid_w": 1628,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 246.74,
+      "sample_count": 654
+    },
+    {
+      "timestamp": "2026-08-12T08:00:00.000Z",
+      "net_grid_w": 1486,
       "solar_production_w": 0,
       "phase_a_voltage_v": 246.95,
-      "sample_count": 60
+      "sample_count": 653
     },
     {
-      "timestamp": "2026-07-24T08:00:00.000Z",
-      "net_grid_w": 737,
+      "timestamp": "2026-08-12T09:00:00.000Z",
+      "net_grid_w": 1519,
       "solar_production_w": 0,
-      "phase_a_voltage_v": 247.01,
-      "sample_count": 60
+      "phase_a_voltage_v": 246.65,
+      "sample_count": 654
     },
     {
-      "timestamp": "2026-07-24T09:00:00.000Z",
-      "net_grid_w": 680,
-      "solar_production_w": 12,
-      "phase_a_voltage_v": 246.92,
-      "sample_count": 60
+      "timestamp": "2026-08-12T10:00:00.000Z",
+      "net_grid_w": 1451,
+      "solar_production_w": 42,
+      "phase_a_voltage_v": 246.1,
+      "sample_count": 654
     },
     {
-      "timestamp": "2026-07-24T10:00:00.000Z",
-      "net_grid_w": 562,
-      "solar_production_w": 423,
-      "phase_a_voltage_v": 247.47,
-      "sample_count": 59
+      "timestamp": "2026-08-12T11:00:00.000Z",
+      "net_grid_w": 1987,
+      "solar_production_w": 767,
+      "phase_a_voltage_v": 245.95,
+      "sample_count": 654
     },
     {
-      "timestamp": "2026-07-24T11:00:00.000Z",
-      "net_grid_w": 690,
-      "solar_production_w": 1555,
-      "phase_a_voltage_v": 248.13,
-      "sample_count": 60
+      "timestamp": "2026-08-12T12:00:00.000Z",
+      "net_grid_w": 3067,
+      "solar_production_w": 1824,
+      "phase_a_voltage_v": 246.34,
+      "sample_count": 653
     },
     {
-      "timestamp": "2026-07-24T12:00:00.000Z",
-      "net_grid_w": 1626,
-      "solar_production_w": 4272,
-      "phase_a_voltage_v": 247.94,
-      "sample_count": 60
+      "timestamp": "2026-08-12T13:00:00.000Z",
+      "net_grid_w": 3115,
+      "solar_production_w": 5954,
+      "phase_a_voltage_v": 246.51,
+      "sample_count": 653
     },
     {
-      "timestamp": "2026-07-24T13:00:00.000Z",
-      "net_grid_w": 2477,
-      "solar_production_w": 8470,
-      "phase_a_voltage_v": 248.61,
-      "sample_count": 60
+      "timestamp": "2026-08-12T14:00:00.000Z",
+      "net_grid_w": 3291,
+      "solar_production_w": 8880,
+      "phase_a_voltage_v": 246.97,
+      "sample_count": 654
     },
     {
-      "timestamp": "2026-07-24T14:00:00.000Z",
-      "net_grid_w": 3286,
-      "solar_production_w": 10965,
-      "phase_a_voltage_v": 248.16,
-      "sample_count": 61
+      "timestamp": "2026-08-12T15:00:00.000Z",
+      "net_grid_w": 3050,
+      "solar_production_w": 10728,
+      "phase_a_voltage_v": 246.39,
+      "sample_count": 653
     },
     {
-      "timestamp": "2026-07-24T15:00:00.000Z",
-      "net_grid_w": 3467,
-      "solar_production_w": 10894,
+      "timestamp": "2026-08-12T16:00:00.000Z",
+      "net_grid_w": 2611,
+      "solar_production_w": 12914,
+      "phase_a_voltage_v": 247.57,
+      "sample_count": 654
+    },
+    {
+      "timestamp": "2026-08-12T17:00:00.000Z",
+      "net_grid_w": 2746,
+      "solar_production_w": 13663,
+      "phase_a_voltage_v": 247.43,
+      "sample_count": 653
+    },
+    {
+      "timestamp": "2026-08-12T18:00:00.000Z",
+      "net_grid_w": 2946,
+      "solar_production_w": 12567,
+      "phase_a_voltage_v": 245.47,
+      "sample_count": 654
+    },
+    {
+      "timestamp": "2026-08-12T19:00:00.000Z",
+      "net_grid_w": 2758,
+      "solar_production_w": 12008,
+      "phase_a_voltage_v": 244.98,
+      "sample_count": 654
+    },
+    {
+      "timestamp": "2026-08-12T20:00:00.000Z",
+      "net_grid_w": 3001,
+      "solar_production_w": 10178,
+      "phase_a_voltage_v": 244.14,
+      "sample_count": 654
+    },
+    {
+      "timestamp": "2026-08-12T21:00:00.000Z",
+      "net_grid_w": 2449,
+      "solar_production_w": 6624,
+      "phase_a_voltage_v": 243.28,
+      "sample_count": 654
+    },
+    {
+      "timestamp": "2026-08-12T22:00:00.000Z",
+      "net_grid_w": 2651,
+      "solar_production_w": 3741,
+      "phase_a_voltage_v": 242.39,
+      "sample_count": 652
+    },
+    {
+      "timestamp": "2026-08-12T23:00:00.000Z",
+      "net_grid_w": 2886,
+      "solar_production_w": 930,
+      "phase_a_voltage_v": 243.16,
+      "sample_count": 654
+    },
+    {
+      "timestamp": "2026-08-13T00:00:00.000Z",
+      "net_grid_w": 2680,
+      "solar_production_w": 73,
+      "phase_a_voltage_v": 243.22,
+      "sample_count": 649
+    },
+    {
+      "timestamp": "2026-08-13T01:00:00.000Z",
+      "net_grid_w": 3196,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 242.34,
+      "sample_count": 653
+    },
+    {
+      "timestamp": "2026-08-13T02:00:00.000Z",
+      "net_grid_w": 7696,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 241.59,
+      "sample_count": 651
+    },
+    {
+      "timestamp": "2026-08-13T03:00:00.000Z",
+      "net_grid_w": 12162,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 240.27,
+      "sample_count": 653
+    },
+    {
+      "timestamp": "2026-08-13T04:00:00.000Z",
+      "net_grid_w": 11850,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 241.15,
+      "sample_count": 653
+    },
+    {
+      "timestamp": "2026-08-13T05:00:00.000Z",
+      "net_grid_w": 11333,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 240.57,
+      "sample_count": 654
+    },
+    {
+      "timestamp": "2026-08-13T06:00:00.000Z",
+      "net_grid_w": 9447,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 242.36,
+      "sample_count": 653
+    },
+    {
+      "timestamp": "2026-08-13T07:00:00.000Z",
+      "net_grid_w": 1959,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 246.22,
+      "sample_count": 653
+    },
+    {
+      "timestamp": "2026-08-13T08:00:00.000Z",
+      "net_grid_w": 2097,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 246.8,
+      "sample_count": 654
+    },
+    {
+      "timestamp": "2026-08-13T09:00:00.000Z",
+      "net_grid_w": 1838,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 246.51,
+      "sample_count": 654
+    },
+    {
+      "timestamp": "2026-08-13T10:00:00.000Z",
+      "net_grid_w": 1510,
+      "solar_production_w": 30,
+      "phase_a_voltage_v": 246.29,
+      "sample_count": 654
+    },
+    {
+      "timestamp": "2026-08-13T11:00:00.000Z",
+      "net_grid_w": 1989,
+      "solar_production_w": 808,
+      "phase_a_voltage_v": 244.92,
+      "sample_count": 653
+    },
+    {
+      "timestamp": "2026-08-13T12:00:00.000Z",
+      "net_grid_w": 2900,
+      "solar_production_w": 1982,
+      "phase_a_voltage_v": 245.21,
+      "sample_count": 654
+    },
+    {
+      "timestamp": "2026-08-13T13:00:00.000Z",
+      "net_grid_w": 2940,
+      "solar_production_w": 5488,
+      "phase_a_voltage_v": 245.6,
+      "sample_count": 654
+    },
+    {
+      "timestamp": "2026-08-13T14:00:00.000Z",
+      "net_grid_w": 3383,
+      "solar_production_w": 7871,
+      "phase_a_voltage_v": 245.69,
+      "sample_count": 653
+    },
+    {
+      "timestamp": "2026-08-13T15:00:00.000Z",
+      "net_grid_w": 3272,
+      "solar_production_w": 9941,
+      "phase_a_voltage_v": 245.77,
+      "sample_count": 654
+    },
+    {
+      "timestamp": "2026-08-13T16:00:00.000Z",
+      "net_grid_w": 2761,
+      "solar_production_w": 9493,
+      "phase_a_voltage_v": 245.45,
+      "sample_count": 652
+    },
+    {
+      "timestamp": "2026-08-13T17:00:00.000Z",
+      "net_grid_w": 3030,
+      "solar_production_w": 9740,
+      "phase_a_voltage_v": 244.64,
+      "sample_count": 654
+    },
+    {
+      "timestamp": "2026-08-13T18:00:00.000Z",
+      "net_grid_w": 3156,
+      "solar_production_w": 14346,
+      "phase_a_voltage_v": 245.46,
+      "sample_count": 652
+    },
+    {
+      "timestamp": "2026-08-13T19:00:00.000Z",
+      "net_grid_w": 3200,
+      "solar_production_w": 12925,
+      "phase_a_voltage_v": 245.92,
+      "sample_count": 654
+    },
+    {
+      "timestamp": "2026-08-13T20:00:00.000Z",
+      "net_grid_w": 3097,
+      "solar_production_w": 10020,
+      "phase_a_voltage_v": 244.68,
+      "sample_count": 654
+    },
+    {
+      "timestamp": "2026-08-13T21:00:00.000Z",
+      "net_grid_w": 3003,
+      "solar_production_w": 6775,
+      "phase_a_voltage_v": 243.44,
+      "sample_count": 654
+    },
+    {
+      "timestamp": "2026-08-13T22:00:00.000Z",
+      "net_grid_w": 3166,
+      "solar_production_w": 3695,
+      "phase_a_voltage_v": 242.54,
+      "sample_count": 650
+    },
+    {
+      "timestamp": "2026-08-13T23:00:00.000Z",
+      "net_grid_w": 2863,
+      "solar_production_w": 772,
+      "phase_a_voltage_v": 243.47,
+      "sample_count": 654
+    },
+    {
+      "timestamp": "2026-08-14T00:00:00.000Z",
+      "net_grid_w": 2350,
+      "solar_production_w": 79,
+      "phase_a_voltage_v": 243.95,
+      "sample_count": 654
+    },
+    {
+      "timestamp": "2026-08-14T01:00:00.000Z",
+      "net_grid_w": 2963,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 242.87,
+      "sample_count": 654
+    },
+    {
+      "timestamp": "2026-08-14T02:00:00.000Z",
+      "net_grid_w": 3259,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 245.12,
+      "sample_count": 654
+    },
+    {
+      "timestamp": "2026-08-14T03:00:00.000Z",
+      "net_grid_w": 4580,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 244.59,
+      "sample_count": 654
+    },
+    {
+      "timestamp": "2026-08-14T04:00:00.000Z",
+      "net_grid_w": 3869,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 245.51,
+      "sample_count": 653
+    },
+    {
+      "timestamp": "2026-08-14T05:00:00.000Z",
+      "net_grid_w": 9661,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 243.14,
+      "sample_count": 654
+    },
+    {
+      "timestamp": "2026-08-14T06:00:00.000Z",
+      "net_grid_w": 10278,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 243.4,
+      "sample_count": 650
+    },
+    {
+      "timestamp": "2026-08-14T07:00:00.000Z",
+      "net_grid_w": 4163,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 246.86,
+      "sample_count": 654
+    },
+    {
+      "timestamp": "2026-08-14T08:00:00.000Z",
+      "net_grid_w": 1332,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 248.67,
+      "sample_count": 654
+    },
+    {
+      "timestamp": "2026-08-14T09:00:00.000Z",
+      "net_grid_w": 1297,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 248.38,
+      "sample_count": 654
+    },
+    {
+      "timestamp": "2026-08-14T10:00:00.000Z",
+      "net_grid_w": 1239,
+      "solar_production_w": 51,
+      "phase_a_voltage_v": 248.1,
+      "sample_count": 654
+    },
+    {
+      "timestamp": "2026-08-14T11:00:00.000Z",
+      "net_grid_w": 1703,
+      "solar_production_w": 623,
+      "phase_a_voltage_v": 247.22,
+      "sample_count": 653
+    },
+    {
+      "timestamp": "2026-08-14T12:00:00.000Z",
+      "net_grid_w": 2726,
+      "solar_production_w": 1495,
+      "phase_a_voltage_v": 245.75,
+      "sample_count": 652
+    },
+    {
+      "timestamp": "2026-08-14T13:00:00.000Z",
+      "net_grid_w": 2866,
+      "solar_production_w": 6088,
+      "phase_a_voltage_v": 246.2,
+      "sample_count": 654
+    },
+    {
+      "timestamp": "2026-08-14T14:00:00.000Z",
+      "net_grid_w": 3343,
+      "solar_production_w": 8974,
+      "phase_a_voltage_v": 246.05,
+      "sample_count": 653
+    },
+    {
+      "timestamp": "2026-08-14T15:00:00.000Z",
+      "net_grid_w": 3204,
+      "solar_production_w": 10237,
+      "phase_a_voltage_v": 246.53,
+      "sample_count": 653
+    },
+    {
+      "timestamp": "2026-08-14T16:00:00.000Z",
+      "net_grid_w": 4040,
+      "solar_production_w": 12893,
+      "phase_a_voltage_v": 245.86,
+      "sample_count": 650
+    },
+    {
+      "timestamp": "2026-08-14T17:00:00.000Z",
+      "net_grid_w": 3859,
+      "solar_production_w": 13904,
+      "phase_a_voltage_v": 244.98,
+      "sample_count": 653
+    },
+    {
+      "timestamp": "2026-08-14T18:00:00.000Z",
+      "net_grid_w": 3028,
+      "solar_production_w": 14764,
+      "phase_a_voltage_v": 244.37,
+      "sample_count": 654
+    },
+    {
+      "timestamp": "2026-08-14T19:00:00.000Z",
+      "net_grid_w": 2851,
+      "solar_production_w": 12790,
+      "phase_a_voltage_v": 244.78,
+      "sample_count": 653
+    },
+    {
+      "timestamp": "2026-08-14T20:00:00.000Z",
+      "net_grid_w": 3237,
+      "solar_production_w": 10698,
+      "phase_a_voltage_v": 243.89,
+      "sample_count": 654
+    },
+    {
+      "timestamp": "2026-08-14T21:00:00.000Z",
+      "net_grid_w": 3028,
+      "solar_production_w": 5899,
+      "phase_a_voltage_v": 241.8,
+      "sample_count": 650
+    },
+    {
+      "timestamp": "2026-08-14T22:00:00.000Z",
+      "net_grid_w": 3018,
+      "solar_production_w": 2846,
+      "phase_a_voltage_v": 242.91,
+      "sample_count": 653
+    },
+    {
+      "timestamp": "2026-08-14T23:00:00.000Z",
+      "net_grid_w": 3521,
+      "solar_production_w": 1103,
+      "phase_a_voltage_v": 242.81,
+      "sample_count": 654
+    },
+    {
+      "timestamp": "2026-08-15T00:00:00.000Z",
+      "net_grid_w": 3848,
+      "solar_production_w": 49,
+      "phase_a_voltage_v": 242.92,
+      "sample_count": 653
+    },
+    {
+      "timestamp": "2026-08-15T01:00:00.000Z",
+      "net_grid_w": 4112,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 242.68,
+      "sample_count": 653
+    },
+    {
+      "timestamp": "2026-08-15T02:00:00.000Z",
+      "net_grid_w": 8609,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 241.82,
+      "sample_count": 654
+    },
+    {
+      "timestamp": "2026-08-15T03:00:00.000Z",
+      "net_grid_w": 11513,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 241.74,
+      "sample_count": 653
+    },
+    {
+      "timestamp": "2026-08-15T04:00:00.000Z",
+      "net_grid_w": 11276,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 241.61,
+      "sample_count": 653
+    },
+    {
+      "timestamp": "2026-08-15T05:00:00.000Z",
+      "net_grid_w": 10740,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 242.66,
+      "sample_count": 653
+    },
+    {
+      "timestamp": "2026-08-15T06:00:00.000Z",
+      "net_grid_w": 3265,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 246.64,
+      "sample_count": 654
+    },
+    {
+      "timestamp": "2026-08-15T07:00:00.000Z",
+      "net_grid_w": 1454,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 247.72,
+      "sample_count": 654
+    },
+    {
+      "timestamp": "2026-08-15T08:00:00.000Z",
+      "net_grid_w": 1555,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 248.28,
+      "sample_count": 654
+    },
+    {
+      "timestamp": "2026-08-15T09:00:00.000Z",
+      "net_grid_w": 1359,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 247.67,
+      "sample_count": 654
+    },
+    {
+      "timestamp": "2026-08-15T10:00:00.000Z",
+      "net_grid_w": 1330,
+      "solar_production_w": 46,
+      "phase_a_voltage_v": 248.59,
+      "sample_count": 654
+    },
+    {
+      "timestamp": "2026-08-15T11:00:00.000Z",
+      "net_grid_w": 1780,
+      "solar_production_w": 478,
+      "phase_a_voltage_v": 248.48,
+      "sample_count": 654
+    },
+    {
+      "timestamp": "2026-08-15T12:00:00.000Z",
+      "net_grid_w": 2713,
+      "solar_production_w": 1140,
+      "phase_a_voltage_v": 247.06,
+      "sample_count": 654
+    },
+    {
+      "timestamp": "2026-08-15T13:00:00.000Z",
+      "net_grid_w": 2689,
+      "solar_production_w": 6400,
       "phase_a_voltage_v": 247.39,
-      "sample_count": 59
+      "sample_count": 652
     },
     {
-      "timestamp": "2026-07-24T16:00:00.000Z",
+      "timestamp": "2026-08-15T14:00:00.000Z",
+      "net_grid_w": 3503,
+      "solar_production_w": 10066,
+      "phase_a_voltage_v": 247.89,
+      "sample_count": 653
+    },
+    {
+      "timestamp": "2026-08-15T15:00:00.000Z",
+      "net_grid_w": 3408,
+      "solar_production_w": 11901,
+      "phase_a_voltage_v": 247.5,
+      "sample_count": 653
+    },
+    {
+      "timestamp": "2026-08-15T16:00:00.000Z",
+      "net_grid_w": 2845,
+      "solar_production_w": 13840,
+      "phase_a_voltage_v": 247.34,
+      "sample_count": 653
+    },
+    {
+      "timestamp": "2026-08-15T17:00:00.000Z",
+      "net_grid_w": 2596,
+      "solar_production_w": 14742,
+      "phase_a_voltage_v": 247.55,
+      "sample_count": 654
+    },
+    {
+      "timestamp": "2026-08-15T18:00:00.000Z",
+      "net_grid_w": 2485,
+      "solar_production_w": 13662,
+      "phase_a_voltage_v": 247.22,
+      "sample_count": 653
+    },
+    {
+      "timestamp": "2026-08-15T19:00:00.000Z",
+      "net_grid_w": 2816,
+      "solar_production_w": 12898,
+      "phase_a_voltage_v": 246.53,
+      "sample_count": 654
+    },
+    {
+      "timestamp": "2026-08-15T20:00:00.000Z",
+      "net_grid_w": 2952,
+      "solar_production_w": 11584,
+      "phase_a_voltage_v": 245.31,
+      "sample_count": 654
+    },
+    {
+      "timestamp": "2026-08-15T21:00:00.000Z",
+      "net_grid_w": 3236,
+      "solar_production_w": 7679,
+      "phase_a_voltage_v": 244.36,
+      "sample_count": 653
+    },
+    {
+      "timestamp": "2026-08-15T22:00:00.000Z",
+      "net_grid_w": 3174,
+      "solar_production_w": 3894,
+      "phase_a_voltage_v": 244.13,
+      "sample_count": 654
+    },
+    {
+      "timestamp": "2026-08-15T23:00:00.000Z",
+      "net_grid_w": 2876,
+      "solar_production_w": 1113,
+      "phase_a_voltage_v": 243.48,
+      "sample_count": 654
+    },
+    {
+      "timestamp": "2026-08-16T00:00:00.000Z",
+      "net_grid_w": 2781,
+      "solar_production_w": 69,
+      "phase_a_voltage_v": 243.66,
+      "sample_count": 653
+    },
+    {
+      "timestamp": "2026-08-16T01:00:00.000Z",
+      "net_grid_w": 3005,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 243.57,
+      "sample_count": 654
+    },
+    {
+      "timestamp": "2026-08-16T02:00:00.000Z",
+      "net_grid_w": 2711,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 244.53,
+      "sample_count": 654
+    },
+    {
+      "timestamp": "2026-08-16T03:00:00.000Z",
+      "net_grid_w": 1747,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 245.81,
+      "sample_count": 653
+    },
+    {
+      "timestamp": "2026-08-16T04:00:00.000Z",
+      "net_grid_w": 1519,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 246.83,
+      "sample_count": 654
+    },
+    {
+      "timestamp": "2026-08-16T05:00:00.000Z",
+      "net_grid_w": 1529,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 247.39,
+      "sample_count": 653
+    },
+    {
+      "timestamp": "2026-08-16T06:00:00.000Z",
+      "net_grid_w": 1172,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 247.99,
+      "sample_count": 654
+    },
+    {
+      "timestamp": "2026-08-16T07:00:00.000Z",
+      "net_grid_w": 1583,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 247.72,
+      "sample_count": 654
+    },
+    {
+      "timestamp": "2026-08-16T08:00:00.000Z",
+      "net_grid_w": 2524,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 247.82,
+      "sample_count": 654
+    },
+    {
+      "timestamp": "2026-08-16T09:00:00.000Z",
+      "net_grid_w": 2542,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 247.89,
+      "sample_count": 654
+    },
+    {
+      "timestamp": "2026-08-16T10:00:00.000Z",
+      "net_grid_w": 2521,
+      "solar_production_w": 52,
+      "phase_a_voltage_v": 248.35,
+      "sample_count": 653
+    },
+    {
+      "timestamp": "2026-08-16T11:00:00.000Z",
+      "net_grid_w": 1978,
+      "solar_production_w": 670,
+      "phase_a_voltage_v": 248.86,
+      "sample_count": 654
+    },
+    {
+      "timestamp": "2026-08-16T12:00:00.000Z",
+      "net_grid_w": 1094,
+      "solar_production_w": 1921,
+      "phase_a_voltage_v": 248.82,
+      "sample_count": 654
+    },
+    {
+      "timestamp": "2026-08-16T13:00:00.000Z",
+      "net_grid_w": 1141,
+      "solar_production_w": 5871,
+      "phase_a_voltage_v": 248.26,
+      "sample_count": 653
+    },
+    {
+      "timestamp": "2026-08-16T14:00:00.000Z",
+      "net_grid_w": 1065,
+      "solar_production_w": 9694,
+      "phase_a_voltage_v": 248.29,
+      "sample_count": 654
+    },
+    {
+      "timestamp": "2026-08-16T15:00:00.000Z",
+      "net_grid_w": 1222,
+      "solar_production_w": 11816,
+      "phase_a_voltage_v": 248.46,
+      "sample_count": 653
+    },
+    {
+      "timestamp": "2026-08-16T16:00:00.000Z",
+      "net_grid_w": 1462,
+      "solar_production_w": 10375,
+      "phase_a_voltage_v": 246.67,
+      "sample_count": 654
+    },
+    {
+      "timestamp": "2026-08-16T17:00:00.000Z",
+      "net_grid_w": 1499,
+      "solar_production_w": 3435,
+      "phase_a_voltage_v": 244.51,
+      "sample_count": 654
+    },
+    {
+      "timestamp": "2026-08-16T18:00:00.000Z",
+      "net_grid_w": 1317,
+      "solar_production_w": 2272,
+      "phase_a_voltage_v": 245.51,
+      "sample_count": 654
+    },
+    {
+      "timestamp": "2026-08-16T19:00:00.000Z",
+      "net_grid_w": 1488,
+      "solar_production_w": 1913,
+      "phase_a_voltage_v": 246.39,
+      "sample_count": 654
+    },
+    {
+      "timestamp": "2026-08-16T20:00:00.000Z",
+      "net_grid_w": 1306,
+      "solar_production_w": 2635,
+      "phase_a_voltage_v": 247.03,
+      "sample_count": 654
+    },
+    {
+      "timestamp": "2026-08-16T21:00:00.000Z",
+      "net_grid_w": 1262,
+      "solar_production_w": 1480,
+      "phase_a_voltage_v": 246.31,
+      "sample_count": 653
+    },
+    {
+      "timestamp": "2026-08-16T22:00:00.000Z",
+      "net_grid_w": 1374,
+      "solar_production_w": 907,
+      "phase_a_voltage_v": 245.69,
+      "sample_count": 654
+    },
+    {
+      "timestamp": "2026-08-16T23:00:00.000Z",
+      "net_grid_w": 2498,
+      "solar_production_w": 188,
+      "phase_a_voltage_v": 245.23,
+      "sample_count": 653
+    },
+    {
+      "timestamp": "2026-08-17T00:00:00.000Z",
+      "net_grid_w": 2441,
+      "solar_production_w": 4,
+      "phase_a_voltage_v": 244.62,
+      "sample_count": 654
+    },
+    {
+      "timestamp": "2026-08-17T01:00:00.000Z",
+      "net_grid_w": 2844,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 244.56,
+      "sample_count": 654
+    },
+    {
+      "timestamp": "2026-08-17T02:00:00.000Z",
+      "net_grid_w": 2627,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 245.54,
+      "sample_count": 654
+    },
+    {
+      "timestamp": "2026-08-17T03:00:00.000Z",
+      "net_grid_w": 1553,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 246.72,
+      "sample_count": 653
+    },
+    {
+      "timestamp": "2026-08-17T04:00:00.000Z",
+      "net_grid_w": 1576,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 247.17,
+      "sample_count": 654
+    },
+    {
+      "timestamp": "2026-08-17T05:00:00.000Z",
+      "net_grid_w": 1597,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 246.97,
+      "sample_count": 653
+    },
+    {
+      "timestamp": "2026-08-17T06:00:00.000Z",
+      "net_grid_w": 1140,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 247.4,
+      "sample_count": 653
+    },
+    {
+      "timestamp": "2026-08-17T07:00:00.000Z",
+      "net_grid_w": 1549,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 247.24,
+      "sample_count": 655
+    },
+    {
+      "timestamp": "2026-08-17T08:00:00.000Z",
+      "net_grid_w": 2412,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 246.92,
+      "sample_count": 654
+    },
+    {
+      "timestamp": "2026-08-17T09:00:00.000Z",
+      "net_grid_w": 2364,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 247.06,
+      "sample_count": 654
+    },
+    {
+      "timestamp": "2026-08-17T10:00:00.000Z",
+      "net_grid_w": 2406,
+      "solar_production_w": 2,
+      "phase_a_voltage_v": 246.56,
+      "sample_count": 653
+    },
+    {
+      "timestamp": "2026-08-17T11:00:00.000Z",
+      "net_grid_w": 1851,
+      "solar_production_w": 240,
+      "phase_a_voltage_v": 246.69,
+      "sample_count": 654
+    },
+    {
+      "timestamp": "2026-08-17T12:00:00.000Z",
+      "net_grid_w": 1111,
+      "solar_production_w": 1510,
+      "phase_a_voltage_v": 247.24,
+      "sample_count": 653
+    },
+    {
+      "timestamp": "2026-08-17T13:00:00.000Z",
+      "net_grid_w": 1111,
+      "solar_production_w": 1413,
+      "phase_a_voltage_v": 246.62,
+      "sample_count": 654
+    },
+    {
+      "timestamp": "2026-08-17T14:00:00.000Z",
+      "net_grid_w": 1109,
+      "solar_production_w": 3649,
+      "phase_a_voltage_v": 247.35,
+      "sample_count": 654
+    },
+    {
+      "timestamp": "2026-08-17T15:00:00.000Z",
+      "net_grid_w": 1214,
+      "solar_production_w": 3825,
+      "phase_a_voltage_v": 247.16,
+      "sample_count": 654
+    },
+    {
+      "timestamp": "2026-08-17T16:00:00.000Z",
+      "net_grid_w": 1247,
+      "solar_production_w": 5375,
+      "phase_a_voltage_v": 247.47,
+      "sample_count": 653
+    },
+    {
+      "timestamp": "2026-08-17T17:00:00.000Z",
+      "net_grid_w": 1277,
+      "solar_production_w": 5941,
+      "phase_a_voltage_v": 247.79,
+      "sample_count": 654
+    },
+    {
+      "timestamp": "2026-08-17T18:00:00.000Z",
+      "net_grid_w": 1417,
+      "solar_production_w": 8213,
+      "phase_a_voltage_v": 247.05,
+      "sample_count": 654
+    },
+    {
+      "timestamp": "2026-08-17T19:00:00.000Z",
+      "net_grid_w": 1544,
+      "solar_production_w": 6299,
+      "phase_a_voltage_v": 244.47,
+      "sample_count": 654
+    },
+    {
+      "timestamp": "2026-08-17T20:00:00.000Z",
+      "net_grid_w": 2799,
+      "solar_production_w": 4824,
+      "phase_a_voltage_v": 244.99,
+      "sample_count": 653
+    },
+    {
+      "timestamp": "2026-08-17T21:00:00.000Z",
+      "net_grid_w": 3353,
+      "solar_production_w": 6157,
+      "phase_a_voltage_v": 244.02,
+      "sample_count": 653
+    },
+    {
+      "timestamp": "2026-08-17T22:00:00.000Z",
+      "net_grid_w": 3456,
+      "solar_production_w": 2084,
+      "phase_a_voltage_v": 242.78,
+      "sample_count": 654
+    },
+    {
+      "timestamp": "2026-08-17T23:00:00.000Z",
+      "net_grid_w": 4656,
+      "solar_production_w": 696,
+      "phase_a_voltage_v": 243.01,
+      "sample_count": 653
+    },
+    {
+      "timestamp": "2026-08-18T00:00:00.000Z",
+      "net_grid_w": 5030,
+      "solar_production_w": 91,
+      "phase_a_voltage_v": 242.44,
+      "sample_count": 646
+    },
+    {
+      "timestamp": "2026-08-18T01:00:00.000Z",
+      "net_grid_w": 4941,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 242.64,
+      "sample_count": 650
+    },
+    {
+      "timestamp": "2026-08-18T02:00:00.000Z",
+      "net_grid_w": 3820,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 244.31,
+      "sample_count": 652
+    },
+    {
+      "timestamp": "2026-08-18T03:00:00.000Z",
+      "net_grid_w": 6199,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 244.4,
+      "sample_count": 650
+    },
+    {
+      "timestamp": "2026-08-18T04:00:00.000Z",
+      "net_grid_w": 10350,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 242.8,
+      "sample_count": 652
+    },
+    {
+      "timestamp": "2026-08-18T05:00:00.000Z",
+      "net_grid_w": 9870,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 242.77,
+      "sample_count": 652
+    },
+    {
+      "timestamp": "2026-08-18T06:00:00.000Z",
+      "net_grid_w": 9795,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 243.62,
+      "sample_count": 651
+    },
+    {
+      "timestamp": "2026-08-18T07:00:00.000Z",
+      "net_grid_w": 4685,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 245.97,
+      "sample_count": 640
+    },
+    {
+      "timestamp": "2026-08-18T08:00:00.000Z",
+      "net_grid_w": 3744,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 246.26,
+      "sample_count": 651
+    },
+    {
+      "timestamp": "2026-08-18T09:00:00.000Z",
+      "net_grid_w": 3131,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 245.95,
+      "sample_count": 651
+    },
+    {
+      "timestamp": "2026-08-18T10:00:00.000Z",
+      "net_grid_w": 3255,
+      "solar_production_w": 1,
+      "phase_a_voltage_v": 246.62,
+      "sample_count": 651
+    },
+    {
+      "timestamp": "2026-08-18T11:00:00.000Z",
+      "net_grid_w": 2482,
+      "solar_production_w": 499,
+      "phase_a_voltage_v": 247.52,
+      "sample_count": 651
+    },
+    {
+      "timestamp": "2026-08-18T12:00:00.000Z",
+      "net_grid_w": 2048,
+      "solar_production_w": 1790,
+      "phase_a_voltage_v": 246.7,
+      "sample_count": 653
+    },
+    {
+      "timestamp": "2026-08-18T13:00:00.000Z",
+      "net_grid_w": 2223,
+      "solar_production_w": 5018,
+      "phase_a_voltage_v": 247.72,
+      "sample_count": 652
+    },
+    {
+      "timestamp": "2026-08-18T14:00:00.000Z",
+      "net_grid_w": 2623,
+      "solar_production_w": 7962,
+      "phase_a_voltage_v": 247.97,
+      "sample_count": 652
+    },
+    {
+      "timestamp": "2026-08-18T15:00:00.000Z",
+      "net_grid_w": 2276,
+      "solar_production_w": 8562,
+      "phase_a_voltage_v": 246.21,
+      "sample_count": 652
+    },
+    {
+      "timestamp": "2026-08-18T16:00:00.000Z",
+      "net_grid_w": 2811,
+      "solar_production_w": 14934,
+      "phase_a_voltage_v": 247.87,
+      "sample_count": 652
+    },
+    {
+      "timestamp": "2026-08-18T17:00:00.000Z",
+      "net_grid_w": 3237,
+      "solar_production_w": 10311,
+      "phase_a_voltage_v": 246.5,
+      "sample_count": 654
+    },
+    {
+      "timestamp": "2026-08-18T18:00:00.000Z",
+      "net_grid_w": 2919,
+      "solar_production_w": 7065,
+      "phase_a_voltage_v": 244.85,
+      "sample_count": 652
+    },
+    {
+      "timestamp": "2026-08-18T19:00:00.000Z",
+      "net_grid_w": 314,
+      "solar_production_w": 6345,
+      "phase_a_voltage_v": 30.72,
+      "sample_count": 552
+    },
+    {
+      "timestamp": "2026-08-18T20:00:00.000Z",
+      "net_grid_w": 129,
+      "solar_production_w": 3975,
+      "phase_a_voltage_v": 7.31,
+      "sample_count": 503
+    },
+    {
+      "timestamp": "2026-08-18T21:00:00.000Z",
+      "net_grid_w": 0,
+      "solar_production_w": 4393,
+      "phase_a_voltage_v": 0,
+      "sample_count": 480
+    },
+    {
+      "timestamp": "2026-08-18T22:00:00.000Z",
+      "net_grid_w": 0,
+      "solar_production_w": 2761,
+      "phase_a_voltage_v": 0,
+      "sample_count": 259
+    },
+    {
+      "timestamp": "2026-08-18T23:00:00.000Z",
+      "net_grid_w": 3312,
+      "solar_production_w": 683,
+      "phase_a_voltage_v": 76.14,
+      "sample_count": 504
+    },
+    {
+      "timestamp": "2026-08-19T00:00:00.000Z",
+      "net_grid_w": 5163,
+      "solar_production_w": 33,
+      "phase_a_voltage_v": 122.49,
+      "sample_count": 667
+    },
+    {
+      "timestamp": "2026-08-19T01:00:00.000Z",
+      "net_grid_w": 4885,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 122.44,
+      "sample_count": 665
+    },
+    {
+      "timestamp": "2026-08-19T02:00:00.000Z",
+      "net_grid_w": 4331,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 123.29,
+      "sample_count": 667
+    },
+    {
+      "timestamp": "2026-08-19T03:00:00.000Z",
+      "net_grid_w": 6860,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 123.38,
+      "sample_count": 665
+    },
+    {
+      "timestamp": "2026-08-19T04:00:00.000Z",
+      "net_grid_w": 1970,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 124.41,
+      "sample_count": 666
+    },
+    {
+      "timestamp": "2026-08-19T05:00:00.000Z",
+      "net_grid_w": 1493,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 123.61,
+      "sample_count": 667
+    },
+    {
+      "timestamp": "2026-08-19T06:00:00.000Z",
+      "net_grid_w": 1212,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 123.93,
+      "sample_count": 666
+    },
+    {
+      "timestamp": "2026-08-19T07:00:00.000Z",
+      "net_grid_w": 1618,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 123.81,
+      "sample_count": 667
+    },
+    {
+      "timestamp": "2026-08-19T08:00:00.000Z",
+      "net_grid_w": 2514,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 123.68,
+      "sample_count": 666
+    },
+    {
+      "timestamp": "2026-08-19T09:00:00.000Z",
+      "net_grid_w": 2468,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 123.71,
+      "sample_count": 666
+    },
+    {
+      "timestamp": "2026-08-19T10:00:00.000Z",
+      "net_grid_w": 2326,
+      "solar_production_w": 62,
+      "phase_a_voltage_v": 123.52,
+      "sample_count": 667
+    },
+    {
+      "timestamp": "2026-08-19T11:00:00.000Z",
+      "net_grid_w": 1720,
+      "solar_production_w": 588,
+      "phase_a_voltage_v": 123.95,
+      "sample_count": 666
+    },
+    {
+      "timestamp": "2026-08-19T12:00:00.000Z",
+      "net_grid_w": 1257,
+      "solar_production_w": 2000,
+      "phase_a_voltage_v": 123.81,
+      "sample_count": 662
+    },
+    {
+      "timestamp": "2026-08-19T13:00:00.000Z",
+      "net_grid_w": 1384,
+      "solar_production_w": 6722,
+      "phase_a_voltage_v": 123.41,
+      "sample_count": 665
+    },
+    {
+      "timestamp": "2026-08-19T14:00:00.000Z",
+      "net_grid_w": 1458,
+      "solar_production_w": 9826,
+      "phase_a_voltage_v": 123.11,
+      "sample_count": 667
+    },
+    {
+      "timestamp": "2026-08-19T15:00:00.000Z",
+      "net_grid_w": 1577,
+      "solar_production_w": 11817,
+      "phase_a_voltage_v": 124.2,
+      "sample_count": 666
+    },
+    {
+      "timestamp": "2026-08-19T16:00:00.000Z",
+      "net_grid_w": 1825,
+      "solar_production_w": 13006,
+      "phase_a_voltage_v": 123.91,
+      "sample_count": 666
+    },
+    {
+      "timestamp": "2026-08-19T17:00:00.000Z",
+      "net_grid_w": 1959,
+      "solar_production_w": 13697,
+      "phase_a_voltage_v": 124.08,
+      "sample_count": 667
+    },
+    {
+      "timestamp": "2026-08-19T18:00:00.000Z",
+      "net_grid_w": 2607,
+      "solar_production_w": 13116,
+      "phase_a_voltage_v": 123.73,
+      "sample_count": 666
+    },
+    {
+      "timestamp": "2026-08-19T19:00:00.000Z",
+      "net_grid_w": 2819,
+      "solar_production_w": 12510,
+      "phase_a_voltage_v": 123.23,
+      "sample_count": 665
+    },
+    {
+      "timestamp": "2026-08-19T20:00:00.000Z",
+      "net_grid_w": 3013,
+      "solar_production_w": 8837,
+      "phase_a_voltage_v": 122.31,
+      "sample_count": 666
+    },
+    {
+      "timestamp": "2026-08-19T21:00:00.000Z",
+      "net_grid_w": 2783,
+      "solar_production_w": 5217,
+      "phase_a_voltage_v": 122.74,
+      "sample_count": 666
+    },
+    {
+      "timestamp": "2026-08-19T22:00:00.000Z",
+      "net_grid_w": 2736,
+      "solar_production_w": 2359,
+      "phase_a_voltage_v": 122.89,
+      "sample_count": 664
+    },
+    {
+      "timestamp": "2026-08-19T23:00:00.000Z",
+      "net_grid_w": 3585,
+      "solar_production_w": 650,
+      "phase_a_voltage_v": 121.54,
+      "sample_count": 666
+    },
+    {
+      "timestamp": "2026-08-20T00:00:00.000Z",
+      "net_grid_w": 3984,
+      "solar_production_w": 12,
+      "phase_a_voltage_v": 121.98,
+      "sample_count": 665
+    },
+    {
+      "timestamp": "2026-08-20T01:00:00.000Z",
+      "net_grid_w": 4282,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 122.66,
+      "sample_count": 665
+    },
+    {
+      "timestamp": "2026-08-20T02:00:00.000Z",
+      "net_grid_w": 4559,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 122.9,
+      "sample_count": 666
+    },
+    {
+      "timestamp": "2026-08-20T03:00:00.000Z",
+      "net_grid_w": 3337,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 122.17,
+      "sample_count": 666
+    },
+    {
+      "timestamp": "2026-08-20T04:00:00.000Z",
+      "net_grid_w": 2391,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 123.82,
+      "sample_count": 666
+    },
+    {
+      "timestamp": "2026-08-20T05:00:00.000Z",
+      "net_grid_w": 1886,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 123.36,
+      "sample_count": 666
+    },
+    {
+      "timestamp": "2026-08-20T06:00:00.000Z",
+      "net_grid_w": 1595,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 123.64,
+      "sample_count": 667
+    },
+    {
+      "timestamp": "2026-08-20T07:00:00.000Z",
+      "net_grid_w": 1842,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 123.45,
+      "sample_count": 665
+    },
+    {
+      "timestamp": "2026-08-20T08:00:00.000Z",
+      "net_grid_w": 2520,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 123.82,
+      "sample_count": 667
+    },
+    {
+      "timestamp": "2026-08-20T09:00:00.000Z",
+      "net_grid_w": 2532,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 123.74,
+      "sample_count": 666
+    },
+    {
+      "timestamp": "2026-08-20T10:00:00.000Z",
+      "net_grid_w": 2454,
+      "solar_production_w": 60,
+      "phase_a_voltage_v": 123.78,
+      "sample_count": 666
+    },
+    {
+      "timestamp": "2026-08-20T11:00:00.000Z",
+      "net_grid_w": 1870,
+      "solar_production_w": 551,
+      "phase_a_voltage_v": 122.31,
+      "sample_count": 666
+    },
+    {
+      "timestamp": "2026-08-20T12:00:00.000Z",
+      "net_grid_w": 1468,
+      "solar_production_w": 1553,
+      "phase_a_voltage_v": 123.45,
+      "sample_count": 667
+    },
+    {
+      "timestamp": "2026-08-20T13:00:00.000Z",
+      "net_grid_w": 1570,
+      "solar_production_w": 6398,
+      "phase_a_voltage_v": 124.02,
+      "sample_count": 664
+    },
+    {
+      "timestamp": "2026-08-20T14:00:00.000Z",
+      "net_grid_w": 2569,
+      "solar_production_w": 9219,
+      "phase_a_voltage_v": 124.03,
+      "sample_count": 665
+    },
+    {
+      "timestamp": "2026-08-20T15:00:00.000Z",
+      "net_grid_w": 2714,
+      "solar_production_w": 11408,
+      "phase_a_voltage_v": 123.33,
+      "sample_count": 661
+    },
+    {
+      "timestamp": "2026-08-20T16:00:00.000Z",
+      "net_grid_w": 2964,
+      "solar_production_w": 5289,
+      "phase_a_voltage_v": 121.96,
+      "sample_count": 665
+    },
+    {
+      "timestamp": "2026-08-20T17:00:00.000Z",
+      "net_grid_w": 2839,
+      "solar_production_w": 2865,
+      "phase_a_voltage_v": 123.43,
+      "sample_count": 663
+    },
+    {
+      "timestamp": "2026-08-20T18:00:00.000Z",
+      "net_grid_w": 2340,
+      "solar_production_w": 2540,
+      "phase_a_voltage_v": 123.12,
+      "sample_count": 665
+    },
+    {
+      "timestamp": "2026-08-20T19:00:00.000Z",
+      "net_grid_w": 2045,
+      "solar_production_w": 928,
+      "phase_a_voltage_v": 122.26,
+      "sample_count": 663
+    },
+    {
+      "timestamp": "2026-08-20T20:00:00.000Z",
+      "net_grid_w": 2338,
+      "solar_production_w": 2094,
+      "phase_a_voltage_v": 124.17,
+      "sample_count": 656
+    },
+    {
+      "timestamp": "2026-08-20T21:00:00.000Z",
+      "net_grid_w": 2066,
+      "solar_production_w": 182,
+      "phase_a_voltage_v": 121.93,
+      "sample_count": 666
+    },
+    {
+      "timestamp": "2026-08-20T22:00:00.000Z",
+      "net_grid_w": 2255,
+      "solar_production_w": 35,
+      "phase_a_voltage_v": 123.35,
+      "sample_count": 666
+    },
+    {
+      "timestamp": "2026-08-20T23:00:00.000Z",
+      "net_grid_w": 4224,
+      "solar_production_w": 8,
+      "phase_a_voltage_v": 123.23,
+      "sample_count": 666
+    },
+    {
+      "timestamp": "2026-08-21T00:00:00.000Z",
+      "net_grid_w": 4516,
+      "solar_production_w": 4,
+      "phase_a_voltage_v": 122.92,
+      "sample_count": 664
+    },
+    {
+      "timestamp": "2026-08-21T01:00:00.000Z",
+      "net_grid_w": 4250,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 122.53,
+      "sample_count": 667
+    },
+    {
+      "timestamp": "2026-08-21T02:00:00.000Z",
+      "net_grid_w": 3344,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 124.42,
+      "sample_count": 666
+    },
+    {
+      "timestamp": "2026-08-21T03:00:00.000Z",
+      "net_grid_w": 1567,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 124.48,
+      "sample_count": 665
+    },
+    {
+      "timestamp": "2026-08-21T04:00:00.000Z",
+      "net_grid_w": 1332,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 124.55,
+      "sample_count": 667
+    },
+    {
+      "timestamp": "2026-08-21T05:00:00.000Z",
+      "net_grid_w": 1259,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 124.81,
+      "sample_count": 666
+    },
+    {
+      "timestamp": "2026-08-21T06:00:00.000Z",
+      "net_grid_w": 1145,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 124.43,
+      "sample_count": 666
+    },
+    {
+      "timestamp": "2026-08-21T07:00:00.000Z",
+      "net_grid_w": 1527,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 124.07,
+      "sample_count": 666
+    },
+    {
+      "timestamp": "2026-08-21T08:00:00.000Z",
+      "net_grid_w": 2470,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 124.7,
+      "sample_count": 666
+    },
+    {
+      "timestamp": "2026-08-21T09:00:00.000Z",
+      "net_grid_w": 2310,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 124.57,
+      "sample_count": 667
+    },
+    {
+      "timestamp": "2026-08-21T10:00:00.000Z",
+      "net_grid_w": 2463,
+      "solar_production_w": 11,
+      "phase_a_voltage_v": 124.37,
+      "sample_count": 666
+    },
+    {
+      "timestamp": "2026-08-21T11:00:00.000Z",
+      "net_grid_w": 1972,
+      "solar_production_w": 701,
+      "phase_a_voltage_v": 123.29,
+      "sample_count": 666
+    },
+    {
+      "timestamp": "2026-08-21T12:00:00.000Z",
+      "net_grid_w": 1222,
+      "solar_production_w": 1761,
+      "phase_a_voltage_v": 124.29,
+      "sample_count": 665
+    },
+    {
+      "timestamp": "2026-08-21T13:00:00.000Z",
+      "net_grid_w": 1328,
+      "solar_production_w": 7029,
+      "phase_a_voltage_v": 123.89,
+      "sample_count": 666
+    },
+    {
+      "timestamp": "2026-08-21T14:00:00.000Z",
+      "net_grid_w": 1939,
+      "solar_production_w": 8144,
+      "phase_a_voltage_v": 123.72,
+      "sample_count": 666
+    },
+    {
+      "timestamp": "2026-08-21T15:00:00.000Z",
+      "net_grid_w": 2011,
+      "solar_production_w": 9903,
+      "phase_a_voltage_v": 123.22,
+      "sample_count": 666
+    },
+    {
+      "timestamp": "2026-08-21T16:00:00.000Z",
+      "net_grid_w": 2024,
+      "solar_production_w": 13316,
+      "phase_a_voltage_v": 125.12,
+      "sample_count": 664
+    },
+    {
+      "timestamp": "2026-08-21T17:00:00.000Z",
+      "net_grid_w": 2121,
+      "solar_production_w": 9479,
+      "phase_a_voltage_v": 123.11,
+      "sample_count": 667
+    },
+    {
+      "timestamp": "2026-08-21T18:00:00.000Z",
+      "net_grid_w": 2190,
+      "solar_production_w": 10201,
+      "phase_a_voltage_v": 123.54,
+      "sample_count": 666
+    },
+    {
+      "timestamp": "2026-08-21T19:00:00.000Z",
+      "net_grid_w": 2410,
+      "solar_production_w": 9487,
+      "phase_a_voltage_v": 123.95,
+      "sample_count": 663
+    },
+    {
+      "timestamp": "2026-08-21T20:00:00.000Z",
+      "net_grid_w": 3023,
+      "solar_production_w": 7323,
+      "phase_a_voltage_v": 122.8,
+      "sample_count": 663
+    },
+    {
+      "timestamp": "2026-08-21T21:00:00.000Z",
+      "net_grid_w": 2612,
+      "solar_production_w": 4514,
+      "phase_a_voltage_v": 122.18,
+      "sample_count": 665
+    },
+    {
+      "timestamp": "2026-08-21T22:00:00.000Z",
+      "net_grid_w": 2857,
+      "solar_production_w": 1860,
+      "phase_a_voltage_v": 121.39,
+      "sample_count": 665
+    },
+    {
+      "timestamp": "2026-08-21T23:00:00.000Z",
+      "net_grid_w": 4275,
+      "solar_production_w": 685,
+      "phase_a_voltage_v": 122.99,
+      "sample_count": 666
+    },
+    {
+      "timestamp": "2026-08-22T00:00:00.000Z",
+      "net_grid_w": 4033,
+      "solar_production_w": 25,
+      "phase_a_voltage_v": 121.54,
+      "sample_count": 666
+    },
+    {
+      "timestamp": "2026-08-22T01:00:00.000Z",
+      "net_grid_w": 3436,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 122.49,
+      "sample_count": 666
+    },
+    {
+      "timestamp": "2026-08-22T02:00:00.000Z",
+      "net_grid_w": 3012,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 122.3,
+      "sample_count": 666
+    },
+    {
+      "timestamp": "2026-08-22T03:00:00.000Z",
+      "net_grid_w": 1745,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 123.38,
+      "sample_count": 666
+    },
+    {
+      "timestamp": "2026-08-22T04:00:00.000Z",
+      "net_grid_w": 1632,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 123.85,
+      "sample_count": 666
+    },
+    {
+      "timestamp": "2026-08-22T05:00:00.000Z",
+      "net_grid_w": 1772,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 124.08,
+      "sample_count": 667
+    },
+    {
+      "timestamp": "2026-08-22T06:00:00.000Z",
+      "net_grid_w": 1402,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 124.21,
+      "sample_count": 666
+    },
+    {
+      "timestamp": "2026-08-22T07:00:00.000Z",
+      "net_grid_w": 1699,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 124.11,
+      "sample_count": 667
+    },
+    {
+      "timestamp": "2026-08-22T08:00:00.000Z",
+      "net_grid_w": 2532,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 123.45,
+      "sample_count": 665
+    },
+    {
+      "timestamp": "2026-08-22T09:00:00.000Z",
+      "net_grid_w": 2550,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 123.89,
+      "sample_count": 666
+    },
+    {
+      "timestamp": "2026-08-22T10:00:00.000Z",
+      "net_grid_w": 2409,
+      "solar_production_w": 19,
+      "phase_a_voltage_v": 123.45,
+      "sample_count": 667
+    },
+    {
+      "timestamp": "2026-08-22T11:00:00.000Z",
+      "net_grid_w": 2083,
+      "solar_production_w": 788,
+      "phase_a_voltage_v": 124.46,
+      "sample_count": 666
+    },
+    {
+      "timestamp": "2026-08-22T12:00:00.000Z",
+      "net_grid_w": 1293,
+      "solar_production_w": 2240,
+      "phase_a_voltage_v": 124.58,
+      "sample_count": 666
+    },
+    {
+      "timestamp": "2026-08-22T13:00:00.000Z",
+      "net_grid_w": 1546,
+      "solar_production_w": 3275,
+      "phase_a_voltage_v": 124.04,
+      "sample_count": 666
+    },
+    {
+      "timestamp": "2026-08-22T14:00:00.000Z",
+      "net_grid_w": -250,
+      "solar_production_w": 5064,
+      "phase_a_voltage_v": 123.88,
+      "sample_count": 660
+    },
+    {
+      "timestamp": "2026-08-22T15:00:00.000Z",
+      "net_grid_w": 393,
+      "solar_production_w": 7682,
+      "phase_a_voltage_v": 125.21,
+      "sample_count": 664
+    },
+    {
+      "timestamp": "2026-08-22T16:00:00.000Z",
+      "net_grid_w": 2844,
+      "solar_production_w": 8946,
+      "phase_a_voltage_v": 125.31,
+      "sample_count": 663
+    },
+    {
+      "timestamp": "2026-08-22T17:00:00.000Z",
+      "net_grid_w": 3003,
+      "solar_production_w": 7061,
+      "phase_a_voltage_v": 124.6,
+      "sample_count": 667
+    },
+    {
+      "timestamp": "2026-08-22T18:00:00.000Z",
+      "net_grid_w": 2766,
+      "solar_production_w": 6976,
+      "phase_a_voltage_v": 123.96,
+      "sample_count": 665
+    },
+    {
+      "timestamp": "2026-08-22T19:00:00.000Z",
+      "net_grid_w": 2857,
+      "solar_production_w": 10994,
+      "phase_a_voltage_v": 125.09,
+      "sample_count": 665
+    },
+    {
+      "timestamp": "2026-08-22T20:00:00.000Z",
+      "net_grid_w": 3915,
+      "solar_production_w": 10009,
+      "phase_a_voltage_v": 123.93,
+      "sample_count": 665
+    },
+    {
+      "timestamp": "2026-08-22T21:00:00.000Z",
+      "net_grid_w": 4714,
+      "solar_production_w": 5885,
+      "phase_a_voltage_v": 123.07,
+      "sample_count": 667
+    },
+    {
+      "timestamp": "2026-08-22T22:00:00.000Z",
+      "net_grid_w": 3957,
+      "solar_production_w": 1974,
+      "phase_a_voltage_v": 121.53,
+      "sample_count": 666
+    },
+    {
+      "timestamp": "2026-08-22T23:00:00.000Z",
+      "net_grid_w": 2324,
+      "solar_production_w": 520,
+      "phase_a_voltage_v": 71,
+      "sample_count": 621
+    },
+    {
+      "timestamp": "2026-08-23T00:00:00.000Z",
+      "net_grid_w": 0,
+      "solar_production_w": 11,
+      "phase_a_voltage_v": 0,
+      "sample_count": 667
+    },
+    {
+      "timestamp": "2026-08-23T01:00:00.000Z",
+      "net_grid_w": 0,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 0,
+      "sample_count": 666
+    },
+    {
+      "timestamp": "2026-08-23T02:00:00.000Z",
+      "net_grid_w": 0,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 0,
+      "sample_count": 652
+    },
+    {
+      "timestamp": "2026-08-23T03:00:00.000Z",
+      "net_grid_w": 466,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 31.04,
+      "sample_count": 607
+    },
+    {
+      "timestamp": "2026-08-23T04:00:00.000Z",
+      "net_grid_w": 1660,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 123.9,
+      "sample_count": 668
+    },
+    {
+      "timestamp": "2026-08-23T05:00:00.000Z",
+      "net_grid_w": 1269,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 123.78,
+      "sample_count": 667
+    },
+    {
+      "timestamp": "2026-08-23T06:00:00.000Z",
+      "net_grid_w": 1263,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 124.43,
+      "sample_count": 666
+    },
+    {
+      "timestamp": "2026-08-23T07:00:00.000Z",
+      "net_grid_w": 1724,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 124.47,
+      "sample_count": 667
+    },
+    {
+      "timestamp": "2026-08-23T08:00:00.000Z",
+      "net_grid_w": 2739,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 124.39,
+      "sample_count": 667
+    },
+    {
+      "timestamp": "2026-08-23T09:00:00.000Z",
+      "net_grid_w": 2680,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 123.75,
+      "sample_count": 667
+    },
+    {
+      "timestamp": "2026-08-23T10:00:00.000Z",
+      "net_grid_w": 2649,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 123.66,
+      "sample_count": 667
+    },
+    {
+      "timestamp": "2026-08-23T11:00:00.000Z",
+      "net_grid_w": 2011,
+      "solar_production_w": 29,
+      "phase_a_voltage_v": 123.89,
+      "sample_count": 667
+    },
+    {
+      "timestamp": "2026-08-23T12:00:00.000Z",
+      "net_grid_w": 1357,
+      "solar_production_w": 1633,
+      "phase_a_voltage_v": 124.64,
+      "sample_count": 666
+    },
+    {
+      "timestamp": "2026-08-23T13:00:00.000Z",
+      "net_grid_w": 1442,
+      "solar_production_w": 4857,
+      "phase_a_voltage_v": 123.98,
+      "sample_count": 667
+    },
+    {
+      "timestamp": "2026-08-23T14:00:00.000Z",
+      "net_grid_w": 2728,
+      "solar_production_w": 9786,
+      "phase_a_voltage_v": 124.35,
+      "sample_count": 666
+    },
+    {
+      "timestamp": "2026-08-23T15:00:00.000Z",
+      "net_grid_w": 4150,
+      "solar_production_w": 8581,
+      "phase_a_voltage_v": 124.08,
+      "sample_count": 666
+    },
+    {
+      "timestamp": "2026-08-23T16:00:00.000Z",
+      "net_grid_w": 3360,
+      "solar_production_w": 10085,
+      "phase_a_voltage_v": 124.34,
+      "sample_count": 662
+    },
+    {
+      "timestamp": "2026-08-23T17:00:00.000Z",
+      "net_grid_w": 2534,
+      "solar_production_w": 10050,
+      "phase_a_voltage_v": 123.83,
+      "sample_count": 667
+    },
+    {
+      "timestamp": "2026-08-23T18:00:00.000Z",
+      "net_grid_w": 2484,
+      "solar_production_w": 10561,
+      "phase_a_voltage_v": 123.88,
+      "sample_count": 667
+    },
+    {
+      "timestamp": "2026-08-23T19:00:00.000Z",
+      "net_grid_w": 2469,
+      "solar_production_w": 12143,
+      "phase_a_voltage_v": 123.84,
+      "sample_count": 667
+    },
+    {
+      "timestamp": "2026-08-23T20:00:00.000Z",
+      "net_grid_w": 2448,
+      "solar_production_w": 10354,
+      "phase_a_voltage_v": 124,
+      "sample_count": 666
+    },
+    {
+      "timestamp": "2026-08-23T21:00:00.000Z",
+      "net_grid_w": 2374,
+      "solar_production_w": 5288,
+      "phase_a_voltage_v": 121.97,
+      "sample_count": 667
+    },
+    {
+      "timestamp": "2026-08-23T22:00:00.000Z",
+      "net_grid_w": 2409,
+      "solar_production_w": 2089,
+      "phase_a_voltage_v": 123.19,
+      "sample_count": 666
+    },
+    {
+      "timestamp": "2026-08-23T23:00:00.000Z",
+      "net_grid_w": 2646,
+      "solar_production_w": 397,
+      "phase_a_voltage_v": 123.45,
+      "sample_count": 667
+    },
+    {
+      "timestamp": "2026-08-24T00:00:00.000Z",
+      "net_grid_w": 2699,
+      "solar_production_w": 2,
+      "phase_a_voltage_v": 122.57,
+      "sample_count": 667
+    },
+    {
+      "timestamp": "2026-08-24T01:00:00.000Z",
+      "net_grid_w": 2747,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 121.88,
+      "sample_count": 667
+    },
+    {
+      "timestamp": "2026-08-24T02:00:00.000Z",
+      "net_grid_w": 2531,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 123.46,
+      "sample_count": 663
+    },
+    {
+      "timestamp": "2026-08-24T03:00:00.000Z",
+      "net_grid_w": 1527,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 123.61,
+      "sample_count": 666
+    },
+    {
+      "timestamp": "2026-08-24T04:00:00.000Z",
+      "net_grid_w": 1257,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 124.24,
+      "sample_count": 667
+    },
+    {
+      "timestamp": "2026-08-24T05:00:00.000Z",
+      "net_grid_w": 1107,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 124.29,
+      "sample_count": 667
+    },
+    {
+      "timestamp": "2026-08-24T06:00:00.000Z",
+      "net_grid_w": 1074,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 123.89,
+      "sample_count": 667
+    },
+    {
+      "timestamp": "2026-08-24T07:00:00.000Z",
+      "net_grid_w": 1469,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 123.93,
+      "sample_count": 666
+    },
+    {
+      "timestamp": "2026-08-24T08:00:00.000Z",
+      "net_grid_w": 2405,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 124.2,
+      "sample_count": 667
+    },
+    {
+      "timestamp": "2026-08-24T09:00:00.000Z",
+      "net_grid_w": 2371,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 123.6,
+      "sample_count": 667
+    },
+    {
+      "timestamp": "2026-08-24T10:00:00.000Z",
+      "net_grid_w": 2317,
+      "solar_production_w": 46,
+      "phase_a_voltage_v": 123.87,
+      "sample_count": 666
+    },
+    {
+      "timestamp": "2026-08-24T11:00:00.000Z",
+      "net_grid_w": 1745,
+      "solar_production_w": 548,
+      "phase_a_voltage_v": 122.71,
+      "sample_count": 662
+    },
+    {
+      "timestamp": "2026-08-24T12:00:00.000Z",
+      "net_grid_w": 714,
+      "solar_production_w": 2221,
+      "phase_a_voltage_v": 124.01,
+      "sample_count": 666
+    },
+    {
+      "timestamp": "2026-08-24T13:00:00.000Z",
+      "net_grid_w": 727,
+      "solar_production_w": 4386,
+      "phase_a_voltage_v": 123.97,
+      "sample_count": 665
+    },
+    {
+      "timestamp": "2026-08-24T14:00:00.000Z",
+      "net_grid_w": 840,
+      "solar_production_w": 7284,
+      "phase_a_voltage_v": 124.54,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-08-24T15:00:00.000Z",
+      "net_grid_w": 1016,
+      "solar_production_w": 7040,
+      "phase_a_voltage_v": 123.76,
+      "sample_count": 668
+    },
+    {
+      "timestamp": "2026-08-24T16:00:00.000Z",
+      "net_grid_w": 1079,
+      "solar_production_w": 13304,
+      "phase_a_voltage_v": 125.71,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-08-24T17:00:00.000Z",
+      "net_grid_w": 1106,
+      "solar_production_w": 13096,
+      "phase_a_voltage_v": 125.55,
+      "sample_count": 668
+    },
+    {
+      "timestamp": "2026-08-24T18:00:00.000Z",
+      "net_grid_w": 1001,
+      "solar_production_w": 11105,
+      "phase_a_voltage_v": 124.48,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-08-24T19:00:00.000Z",
+      "net_grid_w": 1039,
+      "solar_production_w": 10360,
+      "phase_a_voltage_v": 123.98,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-08-24T20:00:00.000Z",
+      "net_grid_w": 1065,
+      "solar_production_w": 9223,
+      "phase_a_voltage_v": 124.54,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-08-24T21:00:00.000Z",
+      "net_grid_w": 1074,
+      "solar_production_w": 4479,
+      "phase_a_voltage_v": 123.88,
+      "sample_count": 668
+    },
+    {
+      "timestamp": "2026-08-24T22:00:00.000Z",
+      "net_grid_w": 1176,
+      "solar_production_w": 1836,
+      "phase_a_voltage_v": 121.78,
+      "sample_count": 668
+    },
+    {
+      "timestamp": "2026-08-24T23:00:00.000Z",
+      "net_grid_w": 2937,
+      "solar_production_w": 425,
+      "phase_a_voltage_v": 123.03,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-08-25T00:00:00.000Z",
+      "net_grid_w": 3017,
+      "solar_production_w": 9,
+      "phase_a_voltage_v": 122.85,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-08-25T01:00:00.000Z",
+      "net_grid_w": 3026,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 122.53,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-08-25T02:00:00.000Z",
+      "net_grid_w": 2704,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 123.46,
+      "sample_count": 668
+    },
+    {
+      "timestamp": "2026-08-25T03:00:00.000Z",
+      "net_grid_w": 1443,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 123.2,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-08-25T04:00:00.000Z",
+      "net_grid_w": 1132,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 124.3,
+      "sample_count": 668
+    },
+    {
+      "timestamp": "2026-08-25T05:00:00.000Z",
+      "net_grid_w": 1012,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 124.32,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-08-25T06:00:00.000Z",
+      "net_grid_w": 865,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 124.73,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-08-25T07:00:00.000Z",
+      "net_grid_w": 1386,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 124.64,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-08-25T08:00:00.000Z",
+      "net_grid_w": 2321,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 123.39,
+      "sample_count": 668
+    },
+    {
+      "timestamp": "2026-08-25T09:00:00.000Z",
+      "net_grid_w": 2260,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 124.02,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-08-25T10:00:00.000Z",
+      "net_grid_w": 2213,
+      "solar_production_w": 35,
+      "phase_a_voltage_v": 123.05,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-08-25T11:00:00.000Z",
+      "net_grid_w": 1520,
+      "solar_production_w": 402,
+      "phase_a_voltage_v": 123.03,
+      "sample_count": 668
+    },
+    {
+      "timestamp": "2026-08-25T12:00:00.000Z",
+      "net_grid_w": 690,
+      "solar_production_w": 1195,
+      "phase_a_voltage_v": 123.96,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-08-25T13:00:00.000Z",
+      "net_grid_w": 646,
+      "solar_production_w": 6621,
+      "phase_a_voltage_v": 123.88,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-08-25T14:00:00.000Z",
+      "net_grid_w": 740,
+      "solar_production_w": 9812,
+      "phase_a_voltage_v": 123.62,
+      "sample_count": 668
+    },
+    {
+      "timestamp": "2026-08-25T15:00:00.000Z",
+      "net_grid_w": 1007,
+      "solar_production_w": 10760,
+      "phase_a_voltage_v": 124.43,
+      "sample_count": 668
+    },
+    {
+      "timestamp": "2026-08-25T16:00:00.000Z",
+      "net_grid_w": 1048,
+      "solar_production_w": 7077,
+      "phase_a_voltage_v": 124.09,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-08-25T17:00:00.000Z",
+      "net_grid_w": 1027,
+      "solar_production_w": 9634,
+      "phase_a_voltage_v": 124.61,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-08-25T18:00:00.000Z",
+      "net_grid_w": 1035,
+      "solar_production_w": 11728,
+      "phase_a_voltage_v": 124.45,
+      "sample_count": 668
+    },
+    {
+      "timestamp": "2026-08-25T19:00:00.000Z",
+      "net_grid_w": 1009,
+      "solar_production_w": 12570,
+      "phase_a_voltage_v": 124.53,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-08-25T20:00:00.000Z",
+      "net_grid_w": 1018,
+      "solar_production_w": 9290,
+      "phase_a_voltage_v": 123.82,
+      "sample_count": 668
+    },
+    {
+      "timestamp": "2026-08-25T21:00:00.000Z",
+      "net_grid_w": 1004,
+      "solar_production_w": 3471,
+      "phase_a_voltage_v": 122.66,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-08-25T22:00:00.000Z",
+      "net_grid_w": 1193,
+      "solar_production_w": 2146,
+      "phase_a_voltage_v": 122.63,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-08-25T23:00:00.000Z",
+      "net_grid_w": 2833,
+      "solar_production_w": 375,
+      "phase_a_voltage_v": 122.8,
+      "sample_count": 668
+    },
+    {
+      "timestamp": "2026-08-26T00:00:00.000Z",
+      "net_grid_w": 2900,
+      "solar_production_w": 3,
+      "phase_a_voltage_v": 122.65,
+      "sample_count": 667
+    },
+    {
+      "timestamp": "2026-08-26T01:00:00.000Z",
+      "net_grid_w": 2930,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 122.85,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-08-26T02:00:00.000Z",
+      "net_grid_w": 2664,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 123.17,
+      "sample_count": 668
+    },
+    {
+      "timestamp": "2026-08-26T03:00:00.000Z",
+      "net_grid_w": 1497,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 124.42,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-08-26T04:00:00.000Z",
+      "net_grid_w": 1203,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 122.93,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-08-26T05:00:00.000Z",
+      "net_grid_w": 1039,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 123.52,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-08-26T06:00:00.000Z",
+      "net_grid_w": 842,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 123.11,
+      "sample_count": 668
+    },
+    {
+      "timestamp": "2026-08-26T07:00:00.000Z",
+      "net_grid_w": 1294,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 123.49,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-08-26T08:00:00.000Z",
+      "net_grid_w": 2232,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 124.07,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-08-26T09:00:00.000Z",
+      "net_grid_w": 2179,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 123.55,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-08-26T10:00:00.000Z",
+      "net_grid_w": 2173,
+      "solar_production_w": 46,
+      "phase_a_voltage_v": 123.94,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-08-26T11:00:00.000Z",
+      "net_grid_w": 1592,
+      "solar_production_w": 460,
+      "phase_a_voltage_v": 124.07,
+      "sample_count": 668
+    },
+    {
+      "timestamp": "2026-08-26T12:00:00.000Z",
+      "net_grid_w": 708,
+      "solar_production_w": 1324,
+      "phase_a_voltage_v": 124.17,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-08-26T13:00:00.000Z",
+      "net_grid_w": 700,
+      "solar_production_w": 6780,
+      "phase_a_voltage_v": 124.83,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-08-26T14:00:00.000Z",
+      "net_grid_w": 797,
+      "solar_production_w": 9226,
+      "phase_a_voltage_v": 124.06,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-08-26T15:00:00.000Z",
+      "net_grid_w": 1018,
+      "solar_production_w": 11667,
+      "phase_a_voltage_v": 124.99,
+      "sample_count": 666
+    },
+    {
+      "timestamp": "2026-08-26T16:00:00.000Z",
+      "net_grid_w": 1025,
+      "solar_production_w": 13354,
+      "phase_a_voltage_v": 124.74,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-08-26T17:00:00.000Z",
+      "net_grid_w": 1022,
+      "solar_production_w": 14147,
+      "phase_a_voltage_v": 124.1,
+      "sample_count": 668
+    },
+    {
+      "timestamp": "2026-08-26T18:00:00.000Z",
+      "net_grid_w": 1016,
+      "solar_production_w": 13862,
+      "phase_a_voltage_v": 124.51,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-08-26T19:00:00.000Z",
+      "net_grid_w": 1045,
+      "solar_production_w": 12198,
+      "phase_a_voltage_v": 123.99,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-08-26T20:00:00.000Z",
+      "net_grid_w": 948,
+      "solar_production_w": 7702,
+      "phase_a_voltage_v": 123,
+      "sample_count": 668
+    },
+    {
+      "timestamp": "2026-08-26T21:00:00.000Z",
+      "net_grid_w": 1017,
+      "solar_production_w": 4995,
+      "phase_a_voltage_v": 122.84,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-08-26T22:00:00.000Z",
+      "net_grid_w": 1137,
+      "solar_production_w": 1839,
+      "phase_a_voltage_v": 122.87,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-08-26T23:00:00.000Z",
+      "net_grid_w": 2819,
+      "solar_production_w": 540,
+      "phase_a_voltage_v": 121.89,
+      "sample_count": 668
+    },
+    {
+      "timestamp": "2026-08-27T00:00:00.000Z",
+      "net_grid_w": 2956,
+      "solar_production_w": 4,
+      "phase_a_voltage_v": 123.05,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-08-27T01:00:00.000Z",
+      "net_grid_w": 2933,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 122.43,
+      "sample_count": 668
+    },
+    {
+      "timestamp": "2026-08-27T02:00:00.000Z",
+      "net_grid_w": 2816,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 123.11,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-08-27T03:00:00.000Z",
+      "net_grid_w": 1436,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 124.2,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-08-27T04:00:00.000Z",
+      "net_grid_w": 1204,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 123.43,
+      "sample_count": 668
+    },
+    {
+      "timestamp": "2026-08-27T05:00:00.000Z",
+      "net_grid_w": 1010,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 123.71,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-08-27T06:00:00.000Z",
+      "net_grid_w": 986,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 124.34,
+      "sample_count": 668
+    },
+    {
+      "timestamp": "2026-08-27T07:00:00.000Z",
+      "net_grid_w": 1474,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 124.23,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-08-27T08:00:00.000Z",
+      "net_grid_w": 2569,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 123.99,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-08-27T09:00:00.000Z",
+      "net_grid_w": 2522,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 122.74,
+      "sample_count": 667
+    },
+    {
+      "timestamp": "2026-08-27T10:00:00.000Z",
+      "net_grid_w": 2524,
+      "solar_production_w": 26,
+      "phase_a_voltage_v": 123.34,
+      "sample_count": 668
+    },
+    {
+      "timestamp": "2026-08-27T11:00:00.000Z",
+      "net_grid_w": 1909,
+      "solar_production_w": 834,
+      "phase_a_voltage_v": 123.86,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-08-27T12:00:00.000Z",
+      "net_grid_w": 1007,
+      "solar_production_w": 932,
+      "phase_a_voltage_v": 123.36,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-08-27T13:00:00.000Z",
+      "net_grid_w": 1035,
+      "solar_production_w": 199,
+      "phase_a_voltage_v": 123.41,
+      "sample_count": 668
+    },
+    {
+      "timestamp": "2026-08-27T14:00:00.000Z",
+      "net_grid_w": 1026,
+      "solar_production_w": 1811,
+      "phase_a_voltage_v": 123.28,
+      "sample_count": 668
+    },
+    {
+      "timestamp": "2026-08-27T15:00:00.000Z",
+      "net_grid_w": 1008,
+      "solar_production_w": 4871,
+      "phase_a_voltage_v": 124.16,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-08-27T16:00:00.000Z",
+      "net_grid_w": 999,
+      "solar_production_w": 9016,
+      "phase_a_voltage_v": 124.75,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-08-27T17:00:00.000Z",
+      "net_grid_w": 983,
+      "solar_production_w": 2598,
+      "phase_a_voltage_v": 123.78,
+      "sample_count": 668
+    },
+    {
+      "timestamp": "2026-08-27T18:00:00.000Z",
+      "net_grid_w": 1050,
+      "solar_production_w": 815,
+      "phase_a_voltage_v": 123.56,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-08-27T19:00:00.000Z",
+      "net_grid_w": 1029,
+      "solar_production_w": 3208,
+      "phase_a_voltage_v": 123.99,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-08-27T20:00:00.000Z",
+      "net_grid_w": 1053,
+      "solar_production_w": 4032,
+      "phase_a_voltage_v": 124.55,
+      "sample_count": 668
+    },
+    {
+      "timestamp": "2026-08-27T21:00:00.000Z",
+      "net_grid_w": 1031,
+      "solar_production_w": 1811,
+      "phase_a_voltage_v": 124.02,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-08-27T22:00:00.000Z",
+      "net_grid_w": 1163,
+      "solar_production_w": 640,
+      "phase_a_voltage_v": 123.57,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-08-27T23:00:00.000Z",
+      "net_grid_w": 2816,
+      "solar_production_w": 355,
+      "phase_a_voltage_v": 122.22,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-08-28T00:00:00.000Z",
+      "net_grid_w": 2907,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 122.58,
+      "sample_count": 668
+    },
+    {
+      "timestamp": "2026-08-28T01:00:00.000Z",
+      "net_grid_w": 2923,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 122.93,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-08-28T02:00:00.000Z",
+      "net_grid_w": 2589,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 123.2,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-08-28T03:00:00.000Z",
+      "net_grid_w": 1449,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 123.65,
+      "sample_count": 668
+    },
+    {
+      "timestamp": "2026-08-28T04:00:00.000Z",
+      "net_grid_w": 1193,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 123.36,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-08-28T05:00:00.000Z",
+      "net_grid_w": 1046,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 124.09,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-08-28T06:00:00.000Z",
+      "net_grid_w": 1046,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 124.19,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-08-28T07:00:00.000Z",
+      "net_grid_w": 1528,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 123.96,
+      "sample_count": 668
+    },
+    {
+      "timestamp": "2026-08-28T08:00:00.000Z",
+      "net_grid_w": 2494,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 122.68,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-08-28T09:00:00.000Z",
+      "net_grid_w": 2441,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 123.7,
+      "sample_count": 668
+    },
+    {
+      "timestamp": "2026-08-28T10:00:00.000Z",
+      "net_grid_w": 2320,
+      "solar_production_w": 9,
+      "phase_a_voltage_v": 123.21,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-08-28T11:00:00.000Z",
+      "net_grid_w": 1668,
+      "solar_production_w": 521,
+      "phase_a_voltage_v": 123.52,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-08-28T12:00:00.000Z",
+      "net_grid_w": 808,
+      "solar_production_w": 2667,
+      "phase_a_voltage_v": 123.73,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-08-28T13:00:00.000Z",
+      "net_grid_w": 812,
+      "solar_production_w": 4025,
+      "phase_a_voltage_v": 124.35,
+      "sample_count": 668
+    },
+    {
+      "timestamp": "2026-08-28T14:00:00.000Z",
+      "net_grid_w": 968,
+      "solar_production_w": 8403,
+      "phase_a_voltage_v": 125.11,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-08-28T15:00:00.000Z",
+      "net_grid_w": 1048,
+      "solar_production_w": 10614,
+      "phase_a_voltage_v": 124.59,
+      "sample_count": 668
+    },
+    {
+      "timestamp": "2026-08-28T16:00:00.000Z",
+      "net_grid_w": 1039,
+      "solar_production_w": 12623,
+      "phase_a_voltage_v": 123.94,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-08-28T17:00:00.000Z",
+      "net_grid_w": 1033,
+      "solar_production_w": 13535,
+      "phase_a_voltage_v": 124.47,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-08-28T18:00:00.000Z",
+      "net_grid_w": 1036,
+      "solar_production_w": 9088,
+      "phase_a_voltage_v": 124.09,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-08-28T19:00:00.000Z",
+      "net_grid_w": 992,
+      "solar_production_w": 11760,
+      "phase_a_voltage_v": 123.84,
+      "sample_count": 668
+    },
+    {
+      "timestamp": "2026-08-28T20:00:00.000Z",
+      "net_grid_w": 1040,
+      "solar_production_w": 7731,
+      "phase_a_voltage_v": 122.84,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-08-28T21:00:00.000Z",
+      "net_grid_w": 1012,
+      "solar_production_w": 4924,
+      "phase_a_voltage_v": 123.14,
+      "sample_count": 668
+    },
+    {
+      "timestamp": "2026-08-28T22:00:00.000Z",
+      "net_grid_w": 1106,
+      "solar_production_w": 1956,
+      "phase_a_voltage_v": 122.85,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-08-28T23:00:00.000Z",
+      "net_grid_w": 2788,
+      "solar_production_w": 674,
+      "phase_a_voltage_v": 122.05,
+      "sample_count": 668
+    },
+    {
+      "timestamp": "2026-08-29T00:00:00.000Z",
+      "net_grid_w": 2877,
+      "solar_production_w": 14,
+      "phase_a_voltage_v": 122.13,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-08-29T01:00:00.000Z",
+      "net_grid_w": 2914,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 122.41,
+      "sample_count": 668
+    },
+    {
+      "timestamp": "2026-08-29T02:00:00.000Z",
+      "net_grid_w": 2630,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 122.69,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-08-29T03:00:00.000Z",
+      "net_grid_w": 1486,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 123.69,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-08-29T04:00:00.000Z",
+      "net_grid_w": 1230,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 122.27,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-08-29T05:00:00.000Z",
+      "net_grid_w": 1000,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 123.75,
+      "sample_count": 668
+    },
+    {
+      "timestamp": "2026-08-29T06:00:00.000Z",
+      "net_grid_w": 1034,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 123.89,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-08-29T07:00:00.000Z",
+      "net_grid_w": 1355,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 124.57,
+      "sample_count": 668
+    },
+    {
+      "timestamp": "2026-08-29T08:00:00.000Z",
       "net_grid_w": 2288,
-      "solar_production_w": 9967,
-      "phase_a_voltage_v": 247.74,
-      "sample_count": 35
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 123.87,
+      "sample_count": 668
+    },
+    {
+      "timestamp": "2026-08-29T09:00:00.000Z",
+      "net_grid_w": 2211,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 124.39,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-08-29T10:00:00.000Z",
+      "net_grid_w": 2187,
+      "solar_production_w": 17,
+      "phase_a_voltage_v": 124.35,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-08-29T11:00:00.000Z",
+      "net_grid_w": 1622,
+      "solar_production_w": 413,
+      "phase_a_voltage_v": 124.21,
+      "sample_count": 668
+    },
+    {
+      "timestamp": "2026-08-29T12:00:00.000Z",
+      "net_grid_w": 689,
+      "solar_production_w": 1147,
+      "phase_a_voltage_v": 123.83,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-08-29T13:00:00.000Z",
+      "net_grid_w": 683,
+      "solar_production_w": 6847,
+      "phase_a_voltage_v": 124.45,
+      "sample_count": 668
+    },
+    {
+      "timestamp": "2026-08-29T14:00:00.000Z",
+      "net_grid_w": 784,
+      "solar_production_w": 9989,
+      "phase_a_voltage_v": 124.84,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-08-29T15:00:00.000Z",
+      "net_grid_w": 930,
+      "solar_production_w": 11819,
+      "phase_a_voltage_v": 125.13,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-08-29T16:00:00.000Z",
+      "net_grid_w": 1034,
+      "solar_production_w": 13549,
+      "phase_a_voltage_v": 125.27,
+      "sample_count": 668
+    },
+    {
+      "timestamp": "2026-08-29T17:00:00.000Z",
+      "net_grid_w": 1021,
+      "solar_production_w": 14260,
+      "phase_a_voltage_v": 125.06,
+      "sample_count": 667
+    },
+    {
+      "timestamp": "2026-08-29T18:00:00.000Z",
+      "net_grid_w": 990,
+      "solar_production_w": 13946,
+      "phase_a_voltage_v": 124.86,
+      "sample_count": 668
+    },
+    {
+      "timestamp": "2026-08-29T19:00:00.000Z",
+      "net_grid_w": 987,
+      "solar_production_w": 12848,
+      "phase_a_voltage_v": 123.58,
+      "sample_count": 668
+    },
+    {
+      "timestamp": "2026-08-29T20:00:00.000Z",
+      "net_grid_w": 1042,
+      "solar_production_w": 9980,
+      "phase_a_voltage_v": 124.36,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-08-29T21:00:00.000Z",
+      "net_grid_w": 1031,
+      "solar_production_w": 5226,
+      "phase_a_voltage_v": 124.03,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-08-29T22:00:00.000Z",
+      "net_grid_w": 1130,
+      "solar_production_w": 1533,
+      "phase_a_voltage_v": 122.05,
+      "sample_count": 668
+    },
+    {
+      "timestamp": "2026-08-29T23:00:00.000Z",
+      "net_grid_w": 2770,
+      "solar_production_w": 302,
+      "phase_a_voltage_v": 121.59,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-08-30T00:00:00.000Z",
+      "net_grid_w": 2906,
+      "solar_production_w": 1,
+      "phase_a_voltage_v": 122.82,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-08-30T01:00:00.000Z",
+      "net_grid_w": 2889,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 122.16,
+      "sample_count": 668
+    },
+    {
+      "timestamp": "2026-08-30T02:00:00.000Z",
+      "net_grid_w": 2657,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 122.83,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-08-30T03:00:00.000Z",
+      "net_grid_w": 1359,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 123.81,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-08-30T04:00:00.000Z",
+      "net_grid_w": 958,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 123.7,
+      "sample_count": 668
+    },
+    {
+      "timestamp": "2026-08-30T05:00:00.000Z",
+      "net_grid_w": 817,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 124.13,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-08-30T06:00:00.000Z",
+      "net_grid_w": 868,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 124.28,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-08-30T07:00:00.000Z",
+      "net_grid_w": 1219,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 124.34,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-08-30T08:00:00.000Z",
+      "net_grid_w": 2187,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 124.21,
+      "sample_count": 668
+    },
+    {
+      "timestamp": "2026-08-30T09:00:00.000Z",
+      "net_grid_w": 2178,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 123.71,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-08-30T10:00:00.000Z",
+      "net_grid_w": 2174,
+      "solar_production_w": 18,
+      "phase_a_voltage_v": 123.76,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-08-30T11:00:00.000Z",
+      "net_grid_w": 1524,
+      "solar_production_w": 705,
+      "phase_a_voltage_v": 124.72,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-08-30T12:00:00.000Z",
+      "net_grid_w": 694,
+      "solar_production_w": 1571,
+      "phase_a_voltage_v": 124.6,
+      "sample_count": 668
+    },
+    {
+      "timestamp": "2026-08-30T13:00:00.000Z",
+      "net_grid_w": 660,
+      "solar_production_w": 6458,
+      "phase_a_voltage_v": 124.8,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-08-30T14:00:00.000Z",
+      "net_grid_w": 778,
+      "solar_production_w": 8693,
+      "phase_a_voltage_v": 124.56,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-08-30T15:00:00.000Z",
+      "net_grid_w": 918,
+      "solar_production_w": 6249,
+      "phase_a_voltage_v": 123.93,
+      "sample_count": 668
+    },
+    {
+      "timestamp": "2026-08-30T16:00:00.000Z",
+      "net_grid_w": 1048,
+      "solar_production_w": 6084,
+      "phase_a_voltage_v": 124.6,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-08-30T17:00:00.000Z",
+      "net_grid_w": 1034,
+      "solar_production_w": 5359,
+      "phase_a_voltage_v": 123.93,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-08-30T18:00:00.000Z",
+      "net_grid_w": 1039,
+      "solar_production_w": 6368,
+      "phase_a_voltage_v": 124.59,
+      "sample_count": 668
+    },
+    {
+      "timestamp": "2026-08-30T19:00:00.000Z",
+      "net_grid_w": 1049,
+      "solar_production_w": 5765,
+      "phase_a_voltage_v": 124.04,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-08-30T20:00:00.000Z",
+      "net_grid_w": 1012,
+      "solar_production_w": 4717,
+      "phase_a_voltage_v": 124.17,
+      "sample_count": 668
+    },
+    {
+      "timestamp": "2026-08-30T21:00:00.000Z",
+      "net_grid_w": 1033,
+      "solar_production_w": 3258,
+      "phase_a_voltage_v": 123.16,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-08-30T22:00:00.000Z",
+      "net_grid_w": 1165,
+      "solar_production_w": 747,
+      "phase_a_voltage_v": 122.06,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-08-30T23:00:00.000Z",
+      "net_grid_w": 2842,
+      "solar_production_w": 195,
+      "phase_a_voltage_v": 122.99,
+      "sample_count": 668
+    },
+    {
+      "timestamp": "2026-08-31T00:00:00.000Z",
+      "net_grid_w": 2858,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 122.3,
+      "sample_count": 668
+    },
+    {
+      "timestamp": "2026-08-31T01:00:00.000Z",
+      "net_grid_w": 2870,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 122.68,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-08-31T02:00:00.000Z",
+      "net_grid_w": 2634,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 122.45,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-08-31T03:00:00.000Z",
+      "net_grid_w": 1474,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 123.56,
+      "sample_count": 668
+    },
+    {
+      "timestamp": "2026-08-31T04:00:00.000Z",
+      "net_grid_w": 1226,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 123.93,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-08-31T05:00:00.000Z",
+      "net_grid_w": 1303,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 123.13,
+      "sample_count": 668
+    },
+    {
+      "timestamp": "2026-08-31T06:00:00.000Z",
+      "net_grid_w": 2600,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 123.07,
+      "sample_count": 668
+    },
+    {
+      "timestamp": "2026-08-31T07:00:00.000Z",
+      "net_grid_w": 2781,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 123.05,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-08-31T08:00:00.000Z",
+      "net_grid_w": 3201,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 123.56,
+      "sample_count": 668
+    },
+    {
+      "timestamp": "2026-08-31T09:00:00.000Z",
+      "net_grid_w": 2664,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 123.22,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-08-31T10:00:00.000Z",
+      "net_grid_w": 2611,
+      "solar_production_w": 4,
+      "phase_a_voltage_v": 123.44,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-08-31T11:00:00.000Z",
+      "net_grid_w": 1916,
+      "solar_production_w": 557,
+      "phase_a_voltage_v": 123.75,
+      "sample_count": 668
+    },
+    {
+      "timestamp": "2026-08-31T12:00:00.000Z",
+      "net_grid_w": 1164,
+      "solar_production_w": 1518,
+      "phase_a_voltage_v": 123.59,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-08-31T13:00:00.000Z",
+      "net_grid_w": 1206,
+      "solar_production_w": 2855,
+      "phase_a_voltage_v": 123.78,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-08-31T14:00:00.000Z",
+      "net_grid_w": 1390,
+      "solar_production_w": 5334,
+      "phase_a_voltage_v": 124.2,
+      "sample_count": 668
+    },
+    {
+      "timestamp": "2026-08-31T15:00:00.000Z",
+      "net_grid_w": 1782,
+      "solar_production_w": 9654,
+      "phase_a_voltage_v": 124.24,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-08-31T16:00:00.000Z",
+      "net_grid_w": 2059,
+      "solar_production_w": 11067,
+      "phase_a_voltage_v": 123.8,
+      "sample_count": 668
+    },
+    {
+      "timestamp": "2026-08-31T17:00:00.000Z",
+      "net_grid_w": 2522,
+      "solar_production_w": 10838,
+      "phase_a_voltage_v": 123.08,
+      "sample_count": 667
+    },
+    {
+      "timestamp": "2026-08-31T18:00:00.000Z",
+      "net_grid_w": 2714,
+      "solar_production_w": 7904,
+      "phase_a_voltage_v": 123.25,
+      "sample_count": 668
+    },
+    {
+      "timestamp": "2026-08-31T19:00:00.000Z",
+      "net_grid_w": 2329,
+      "solar_production_w": 1716,
+      "phase_a_voltage_v": 123.25,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-08-31T20:00:00.000Z",
+      "net_grid_w": 2062,
+      "solar_production_w": 1932,
+      "phase_a_voltage_v": 121.67,
+      "sample_count": 666
+    },
+    {
+      "timestamp": "2026-08-31T21:00:00.000Z",
+      "net_grid_w": 2068,
+      "solar_production_w": 1921,
+      "phase_a_voltage_v": 123.45,
+      "sample_count": 667
+    },
+    {
+      "timestamp": "2026-08-31T22:00:00.000Z",
+      "net_grid_w": 2263,
+      "solar_production_w": 1000,
+      "phase_a_voltage_v": 123.87,
+      "sample_count": 667
+    },
+    {
+      "timestamp": "2026-08-31T23:00:00.000Z",
+      "net_grid_w": 4135,
+      "solar_production_w": 115,
+      "phase_a_voltage_v": 123.22,
+      "sample_count": 668
+    },
+    {
+      "timestamp": "2026-09-01T00:00:00.000Z",
+      "net_grid_w": 3937,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 122.44,
+      "sample_count": 668
+    },
+    {
+      "timestamp": "2026-09-01T01:00:00.000Z",
+      "net_grid_w": 3878,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 122.82,
+      "sample_count": 668
+    },
+    {
+      "timestamp": "2026-09-01T02:00:00.000Z",
+      "net_grid_w": 8108,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 121.27,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-09-01T03:00:00.000Z",
+      "net_grid_w": 9893,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 122.07,
+      "sample_count": 668
+    },
+    {
+      "timestamp": "2026-09-01T04:00:00.000Z",
+      "net_grid_w": 10360,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 121.88,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-09-01T05:00:00.000Z",
+      "net_grid_w": 8412,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 121.62,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-09-01T06:00:00.000Z",
+      "net_grid_w": 1363,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 123.36,
+      "sample_count": 668
+    },
+    {
+      "timestamp": "2026-09-01T07:00:00.000Z",
+      "net_grid_w": 1755,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 123.19,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-09-01T08:00:00.000Z",
+      "net_grid_w": 3219,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 123.06,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-09-01T09:00:00.000Z",
+      "net_grid_w": 2828,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 123.35,
+      "sample_count": 667
+    },
+    {
+      "timestamp": "2026-09-01T10:00:00.000Z",
+      "net_grid_w": 2793,
+      "solar_production_w": 2,
+      "phase_a_voltage_v": 122.83,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-09-01T11:00:00.000Z",
+      "net_grid_w": 2404,
+      "solar_production_w": 400,
+      "phase_a_voltage_v": 122.85,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-09-01T12:00:00.000Z",
+      "net_grid_w": 1746,
+      "solar_production_w": 1470,
+      "phase_a_voltage_v": 122.97,
+      "sample_count": 668
+    },
+    {
+      "timestamp": "2026-09-01T13:00:00.000Z",
+      "net_grid_w": 1606,
+      "solar_production_w": 1335,
+      "phase_a_voltage_v": 123.3,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-09-01T14:00:00.000Z",
+      "net_grid_w": 2061,
+      "solar_production_w": 1790,
+      "phase_a_voltage_v": 123.39,
+      "sample_count": 668
+    },
+    {
+      "timestamp": "2026-09-01T15:00:00.000Z",
+      "net_grid_w": 1936,
+      "solar_production_w": 805,
+      "phase_a_voltage_v": 122.94,
+      "sample_count": 662
+    },
+    {
+      "timestamp": "2026-09-01T16:00:00.000Z",
+      "net_grid_w": 1689,
+      "solar_production_w": 1658,
+      "phase_a_voltage_v": 123.69,
+      "sample_count": 665
+    },
+    {
+      "timestamp": "2026-09-01T17:00:00.000Z",
+      "net_grid_w": 1567,
+      "solar_production_w": 1820,
+      "phase_a_voltage_v": 123.54,
+      "sample_count": 664
+    },
+    {
+      "timestamp": "2026-09-01T18:00:00.000Z",
+      "net_grid_w": 1299,
+      "solar_production_w": 9591,
+      "phase_a_voltage_v": 124.68,
+      "sample_count": 666
+    },
+    {
+      "timestamp": "2026-09-01T19:00:00.000Z",
+      "net_grid_w": 1993,
+      "solar_production_w": 3448,
+      "phase_a_voltage_v": 123.45,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-09-01T20:00:00.000Z",
+      "net_grid_w": 2273,
+      "solar_production_w": 4879,
+      "phase_a_voltage_v": 122.56,
+      "sample_count": 668
+    },
+    {
+      "timestamp": "2026-09-01T21:00:00.000Z",
+      "net_grid_w": 2424,
+      "solar_production_w": 1780,
+      "phase_a_voltage_v": 122.51,
+      "sample_count": 668
+    },
+    {
+      "timestamp": "2026-09-01T22:00:00.000Z",
+      "net_grid_w": 2911,
+      "solar_production_w": 818,
+      "phase_a_voltage_v": 121.88,
+      "sample_count": 665
+    },
+    {
+      "timestamp": "2026-09-01T23:00:00.000Z",
+      "net_grid_w": 3956,
+      "solar_production_w": 16,
+      "phase_a_voltage_v": 122.35,
+      "sample_count": 668
+    },
+    {
+      "timestamp": "2026-09-02T00:00:00.000Z",
+      "net_grid_w": 4389,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 122.96,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-09-02T01:00:00.000Z",
+      "net_grid_w": 3960,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 123.4,
+      "sample_count": 668
+    },
+    {
+      "timestamp": "2026-09-02T02:00:00.000Z",
+      "net_grid_w": 8469,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 122.84,
+      "sample_count": 666
+    },
+    {
+      "timestamp": "2026-09-02T03:00:00.000Z",
+      "net_grid_w": 7818,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 123.16,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-09-02T04:00:00.000Z",
+      "net_grid_w": 1725,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 123.8,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-09-02T05:00:00.000Z",
+      "net_grid_w": 1358,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 124.2,
+      "sample_count": 668
+    },
+    {
+      "timestamp": "2026-09-02T06:00:00.000Z",
+      "net_grid_w": 1200,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 124.66,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-09-02T07:00:00.000Z",
+      "net_grid_w": 1772,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 124.36,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-09-02T08:00:00.000Z",
+      "net_grid_w": 2542,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 124.35,
+      "sample_count": 668
+    },
+    {
+      "timestamp": "2026-09-02T09:00:00.000Z",
+      "net_grid_w": 2647,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 123.46,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-09-02T10:00:00.000Z",
+      "net_grid_w": 2576,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 123.68,
+      "sample_count": 668
+    },
+    {
+      "timestamp": "2026-09-02T11:00:00.000Z",
+      "net_grid_w": 2157,
+      "solar_production_w": 155,
+      "phase_a_voltage_v": 123.69,
+      "sample_count": 667
+    },
+    {
+      "timestamp": "2026-09-02T12:00:00.000Z",
+      "net_grid_w": 1618,
+      "solar_production_w": 507,
+      "phase_a_voltage_v": 123.98,
+      "sample_count": 665
+    },
+    {
+      "timestamp": "2026-09-02T13:00:00.000Z",
+      "net_grid_w": 1376,
+      "solar_production_w": 993,
+      "phase_a_voltage_v": 124.18,
+      "sample_count": 668
+    },
+    {
+      "timestamp": "2026-09-02T14:00:00.000Z",
+      "net_grid_w": 1330,
+      "solar_production_w": 1645,
+      "phase_a_voltage_v": 124.31,
+      "sample_count": 665
+    },
+    {
+      "timestamp": "2026-09-02T15:00:00.000Z",
+      "net_grid_w": 1133,
+      "solar_production_w": 2400,
+      "phase_a_voltage_v": 124.04,
+      "sample_count": 662
+    },
+    {
+      "timestamp": "2026-09-02T16:00:00.000Z",
+      "net_grid_w": 1372,
+      "solar_production_w": 2414,
+      "phase_a_voltage_v": 124.01,
+      "sample_count": 668
+    },
+    {
+      "timestamp": "2026-09-02T17:00:00.000Z",
+      "net_grid_w": 1502,
+      "solar_production_w": 3140,
+      "phase_a_voltage_v": 123.6,
+      "sample_count": 667
+    },
+    {
+      "timestamp": "2026-09-02T18:00:00.000Z",
+      "net_grid_w": 1866,
+      "solar_production_w": 1210,
+      "phase_a_voltage_v": 124.01,
+      "sample_count": 664
+    },
+    {
+      "timestamp": "2026-09-02T19:00:00.000Z",
+      "net_grid_w": 1481,
+      "solar_production_w": 1765,
+      "phase_a_voltage_v": 124.36,
+      "sample_count": 668
+    },
+    {
+      "timestamp": "2026-09-02T20:00:00.000Z",
+      "net_grid_w": 2396,
+      "solar_production_w": 2481,
+      "phase_a_voltage_v": 123.92,
+      "sample_count": 668
+    },
+    {
+      "timestamp": "2026-09-02T21:00:00.000Z",
+      "net_grid_w": 2055,
+      "solar_production_w": 1074,
+      "phase_a_voltage_v": 123.46,
+      "sample_count": 668
+    },
+    {
+      "timestamp": "2026-09-02T22:00:00.000Z",
+      "net_grid_w": 1874,
+      "solar_production_w": 676,
+      "phase_a_voltage_v": 123.2,
+      "sample_count": 668
+    },
+    {
+      "timestamp": "2026-09-02T23:00:00.000Z",
+      "net_grid_w": 3292,
+      "solar_production_w": 182,
+      "phase_a_voltage_v": 123.33,
+      "sample_count": 662
+    },
+    {
+      "timestamp": "2026-09-03T00:00:00.000Z",
+      "net_grid_w": 3536,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 123.45,
+      "sample_count": 663
+    },
+    {
+      "timestamp": "2026-09-03T01:00:00.000Z",
+      "net_grid_w": 3470,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 123.58,
+      "sample_count": 663
+    },
+    {
+      "timestamp": "2026-09-03T02:00:00.000Z",
+      "net_grid_w": 3200,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 124.37,
+      "sample_count": 667
+    },
+    {
+      "timestamp": "2026-09-03T03:00:00.000Z",
+      "net_grid_w": 1759,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 124.69,
+      "sample_count": 668
+    },
+    {
+      "timestamp": "2026-09-03T04:00:00.000Z",
+      "net_grid_w": 1526,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 124.99,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-09-03T05:00:00.000Z",
+      "net_grid_w": 1067,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 124.89,
+      "sample_count": 668
+    },
+    {
+      "timestamp": "2026-09-03T06:00:00.000Z",
+      "net_grid_w": 1085,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 123.55,
+      "sample_count": 668
+    },
+    {
+      "timestamp": "2026-09-03T07:00:00.000Z",
+      "net_grid_w": 1381,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 124.72,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-09-03T08:00:00.000Z",
+      "net_grid_w": 2571,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 124.49,
+      "sample_count": 668
+    },
+    {
+      "timestamp": "2026-09-03T09:00:00.000Z",
+      "net_grid_w": 2546,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 123.51,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-09-03T10:00:00.000Z",
+      "net_grid_w": 2519,
+      "solar_production_w": 2,
+      "phase_a_voltage_v": 123.27,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-09-03T11:00:00.000Z",
+      "net_grid_w": 2094,
+      "solar_production_w": 546,
+      "phase_a_voltage_v": 123.74,
+      "sample_count": 668
+    },
+    {
+      "timestamp": "2026-09-03T12:00:00.000Z",
+      "net_grid_w": 1474,
+      "solar_production_w": 1630,
+      "phase_a_voltage_v": 123.98,
+      "sample_count": 668
+    },
+    {
+      "timestamp": "2026-09-03T13:00:00.000Z",
+      "net_grid_w": 1465,
+      "solar_production_w": 4776,
+      "phase_a_voltage_v": 124.4,
+      "sample_count": 668
+    },
+    {
+      "timestamp": "2026-09-03T14:00:00.000Z",
+      "net_grid_w": 1515,
+      "solar_production_w": 4885,
+      "phase_a_voltage_v": 124.05,
+      "sample_count": 668
+    },
+    {
+      "timestamp": "2026-09-03T15:00:00.000Z",
+      "net_grid_w": 1896,
+      "solar_production_w": 8624,
+      "phase_a_voltage_v": 123.69,
+      "sample_count": 668
+    },
+    {
+      "timestamp": "2026-09-03T16:00:00.000Z",
+      "net_grid_w": 2000,
+      "solar_production_w": 10409,
+      "phase_a_voltage_v": 124.87,
+      "sample_count": 664
+    },
+    {
+      "timestamp": "2026-09-03T17:00:00.000Z",
+      "net_grid_w": 2640,
+      "solar_production_w": 13205,
+      "phase_a_voltage_v": 124.6,
+      "sample_count": 665
+    },
+    {
+      "timestamp": "2026-09-03T18:00:00.000Z",
+      "net_grid_w": 2866,
+      "solar_production_w": 11661,
+      "phase_a_voltage_v": 121.98,
+      "sample_count": 666
+    },
+    {
+      "timestamp": "2026-09-03T19:00:00.000Z",
+      "net_grid_w": 3085,
+      "solar_production_w": 6283,
+      "phase_a_voltage_v": 121.69,
+      "sample_count": 668
+    },
+    {
+      "timestamp": "2026-09-03T20:00:00.000Z",
+      "net_grid_w": 2983,
+      "solar_production_w": 7344,
+      "phase_a_voltage_v": 122.59,
+      "sample_count": 668
+    },
+    {
+      "timestamp": "2026-09-03T21:00:00.000Z",
+      "net_grid_w": 3041,
+      "solar_production_w": 2800,
+      "phase_a_voltage_v": 121.85,
+      "sample_count": 668
+    },
+    {
+      "timestamp": "2026-09-03T22:00:00.000Z",
+      "net_grid_w": 3194,
+      "solar_production_w": 1419,
+      "phase_a_voltage_v": 121.17,
+      "sample_count": 665
+    },
+    {
+      "timestamp": "2026-09-03T23:00:00.000Z",
+      "net_grid_w": 4857,
+      "solar_production_w": 328,
+      "phase_a_voltage_v": 121.6,
+      "sample_count": 667
+    },
+    {
+      "timestamp": "2026-09-04T00:00:00.000Z",
+      "net_grid_w": 4884,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 121.76,
+      "sample_count": 667
+    },
+    {
+      "timestamp": "2026-09-04T01:00:00.000Z",
+      "net_grid_w": 4873,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 121.06,
+      "sample_count": 664
+    },
+    {
+      "timestamp": "2026-09-04T02:00:00.000Z",
+      "net_grid_w": 4827,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 122.13,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-09-04T03:00:00.000Z",
+      "net_grid_w": 3270,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 123.14,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-09-04T04:00:00.000Z",
+      "net_grid_w": 4259,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 121.38,
+      "sample_count": 668
+    },
+    {
+      "timestamp": "2026-09-04T05:00:00.000Z",
+      "net_grid_w": 2230,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 122.38,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-09-04T06:00:00.000Z",
+      "net_grid_w": 2186,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 122.99,
+      "sample_count": 668
+    },
+    {
+      "timestamp": "2026-09-04T07:00:00.000Z",
+      "net_grid_w": 2499,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 123.44,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-09-04T08:00:00.000Z",
+      "net_grid_w": 3369,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 122.62,
+      "sample_count": 668
+    },
+    {
+      "timestamp": "2026-09-04T09:00:00.000Z",
+      "net_grid_w": 3241,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 123.12,
+      "sample_count": 668
+    },
+    {
+      "timestamp": "2026-09-04T10:00:00.000Z",
+      "net_grid_w": 3233,
+      "solar_production_w": 3,
+      "phase_a_voltage_v": 122.83,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-09-04T11:00:00.000Z",
+      "net_grid_w": 2393,
+      "solar_production_w": 326,
+      "phase_a_voltage_v": 122.74,
+      "sample_count": 668
+    },
+    {
+      "timestamp": "2026-09-04T12:00:00.000Z",
+      "net_grid_w": 1494,
+      "solar_production_w": 1066,
+      "phase_a_voltage_v": 122.01,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-09-04T13:00:00.000Z",
+      "net_grid_w": 1791,
+      "solar_production_w": 5827,
+      "phase_a_voltage_v": 123.61,
+      "sample_count": 668
+    },
+    {
+      "timestamp": "2026-09-04T14:00:00.000Z",
+      "net_grid_w": 2408,
+      "solar_production_w": 8825,
+      "phase_a_voltage_v": 123.85,
+      "sample_count": 668
+    },
+    {
+      "timestamp": "2026-09-04T15:00:00.000Z",
+      "net_grid_w": 2409,
+      "solar_production_w": 10487,
+      "phase_a_voltage_v": 123.41,
+      "sample_count": 665
+    },
+    {
+      "timestamp": "2026-09-04T16:00:00.000Z",
+      "net_grid_w": 1577,
+      "solar_production_w": 11740,
+      "phase_a_voltage_v": 123.68,
+      "sample_count": 663
+    },
+    {
+      "timestamp": "2026-09-04T17:00:00.000Z",
+      "net_grid_w": 1567,
+      "solar_production_w": 9828,
+      "phase_a_voltage_v": 123.48,
+      "sample_count": 667
+    },
+    {
+      "timestamp": "2026-09-04T18:00:00.000Z",
+      "net_grid_w": 2301,
+      "solar_production_w": 13440,
+      "phase_a_voltage_v": 123.12,
+      "sample_count": 667
+    },
+    {
+      "timestamp": "2026-09-04T19:00:00.000Z",
+      "net_grid_w": 2419,
+      "solar_production_w": 9218,
+      "phase_a_voltage_v": 122.42,
+      "sample_count": 667
+    },
+    {
+      "timestamp": "2026-09-04T20:00:00.000Z",
+      "net_grid_w": 2301,
+      "solar_production_w": 8632,
+      "phase_a_voltage_v": 122.91,
+      "sample_count": 666
+    },
+    {
+      "timestamp": "2026-09-04T21:00:00.000Z",
+      "net_grid_w": 2301,
+      "solar_production_w": 4330,
+      "phase_a_voltage_v": 122.82,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-09-04T22:00:00.000Z",
+      "net_grid_w": 3500,
+      "solar_production_w": 1142,
+      "phase_a_voltage_v": 121.2,
+      "sample_count": 667
+    },
+    {
+      "timestamp": "2026-09-04T23:00:00.000Z",
+      "net_grid_w": 4198,
+      "solar_production_w": 205,
+      "phase_a_voltage_v": 122.4,
+      "sample_count": 666
+    },
+    {
+      "timestamp": "2026-09-05T00:00:00.000Z",
+      "net_grid_w": 3949,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 122.37,
+      "sample_count": 666
+    },
+    {
+      "timestamp": "2026-09-05T01:00:00.000Z",
+      "net_grid_w": 3893,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 122.62,
+      "sample_count": 668
+    },
+    {
+      "timestamp": "2026-09-05T02:00:00.000Z",
+      "net_grid_w": 3434,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 123.49,
+      "sample_count": 666
+    },
+    {
+      "timestamp": "2026-09-05T03:00:00.000Z",
+      "net_grid_w": 2258,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 123.44,
+      "sample_count": 667
+    },
+    {
+      "timestamp": "2026-09-05T04:00:00.000Z",
+      "net_grid_w": 4470,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 122.65,
+      "sample_count": 667
+    },
+    {
+      "timestamp": "2026-09-05T05:00:00.000Z",
+      "net_grid_w": 4557,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 121.81,
+      "sample_count": 668
+    },
+    {
+      "timestamp": "2026-09-05T06:00:00.000Z",
+      "net_grid_w": 1400,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 122.98,
+      "sample_count": 668
+    },
+    {
+      "timestamp": "2026-09-05T07:00:00.000Z",
+      "net_grid_w": 1710,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 123.54,
+      "sample_count": 668
+    },
+    {
+      "timestamp": "2026-09-05T08:00:00.000Z",
+      "net_grid_w": 2546,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 123.91,
+      "sample_count": 669
+    },
+    {
+      "timestamp": "2026-09-05T09:00:00.000Z",
+      "net_grid_w": 2555,
+      "solar_production_w": 0,
+      "phase_a_voltage_v": 123.89,
+      "sample_count": 667
+    },
+    {
+      "timestamp": "2026-09-05T10:00:00.000Z",
+      "net_grid_w": 2492,
+      "solar_production_w": 13,
+      "phase_a_voltage_v": 124.05,
+      "sample_count": 668
+    },
+    {
+      "timestamp": "2026-09-05T11:00:00.000Z",
+      "net_grid_w": 1842,
+      "solar_production_w": 345,
+      "phase_a_voltage_v": 124.44,
+      "sample_count": 668
+    },
+    {
+      "timestamp": "2026-09-05T12:00:00.000Z",
+      "net_grid_w": 848,
+      "solar_production_w": 1120,
+      "phase_a_voltage_v": 124.05,
+      "sample_count": 668
+    },
+    {
+      "timestamp": "2026-09-05T13:00:00.000Z",
+      "net_grid_w": 1304,
+      "solar_production_w": 6065,
+      "phase_a_voltage_v": 124.13,
+      "sample_count": 667
+    },
+    {
+      "timestamp": "2026-09-05T14:00:00.000Z",
+      "net_grid_w": 1514,
+      "solar_production_w": 8536,
+      "phase_a_voltage_v": 124.4,
+      "sample_count": 668
+    },
+    {
+      "timestamp": "2026-09-05T15:00:00.000Z",
+      "net_grid_w": 2366,
+      "solar_production_w": 6350,
+      "phase_a_voltage_v": 122.68,
+      "sample_count": 667
+    },
+    {
+      "timestamp": "2026-09-05T16:00:00.000Z",
+      "net_grid_w": 1806,
+      "solar_production_w": 9047,
+      "phase_a_voltage_v": 123.24,
+      "sample_count": 5
     }
   ],
   "summary": {
-    "imported_kwh": 452.71,
-    "exported_kwh": 0,
-    "solar_kwh": 6.95,
-    "average_voltage_v": 246.97,
-    "peak_import_w": 120817,
-    "peak_export_w": 0,
-    "peak_solar_w": 15200,
-    "sample_count": 76500
+    "imported_kwh": 345.26,
+    "exported_kwh": 0.26,
+    "solar_kwh": 422.23,
+    "average_voltage_v": 171.04,
+    "peak_import_w": 21412,
+    "peak_export_w": 3380,
+    "peak_solar_w": 15953,
+    "sample_count": 475743
   }
 }
