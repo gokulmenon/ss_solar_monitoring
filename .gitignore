@@ -1,5 +1,6 @@
 .next
 node_modules
+.npm-cache
 playwright-report
 test-results
 coverage
@@ -12,9 +13,6 @@ coverage
 dist
 __pycache__
 *.pyc
-logs/inverter-port-backups/
-logs/weather-backups/
-
 # site-photo working frames (never commit full frames; see assets/site-photos/README.md)
 assets/site-photos/photos/
 assets/site-photos/incoming/

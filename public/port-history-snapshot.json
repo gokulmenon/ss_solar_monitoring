@@ -1,0 +1,768 @@
+{
+  "source": "csv",
+  "generated_at": "2026-09-05T22:29:05.187Z",
+  "window_hours": 720,
+  "points": [
+    {
+      "timestamp": "2026-09-05T21:00:00.000Z",
+      "inverter_serial": "1420b03145c2",
+      "port_number": 1,
+      "dc_power_w": 234,
+      "dc_voltage_v": 43.4,
+      "energy_daily_wh": 1455
+    },
+    {
+      "timestamp": "2026-09-05T21:00:00.000Z",
+      "inverter_serial": "1420b03145c2",
+      "port_number": 3,
+      "dc_power_w": 235,
+      "dc_voltage_v": 43.4,
+      "energy_daily_wh": 1408
+    },
+    {
+      "timestamp": "2026-09-05T21:00:00.000Z",
+      "inverter_serial": "1420b03145c2",
+      "port_number": 4,
+      "dc_power_w": 235,
+      "dc_voltage_v": 43.3,
+      "energy_daily_wh": 1284
+    },
+    {
+      "timestamp": "2026-09-05T21:00:00.000Z",
+      "inverter_serial": "1420b0314618",
+      "port_number": 1,
+      "dc_power_w": 128,
+      "dc_voltage_v": 42.8,
+      "energy_daily_wh": 1384
+    },
+    {
+      "timestamp": "2026-09-05T21:00:00.000Z",
+      "inverter_serial": "1420b0314618",
+      "port_number": 2,
+      "dc_power_w": 125,
+      "dc_voltage_v": 42.7,
+      "energy_daily_wh": 1355
+    },
+    {
+      "timestamp": "2026-09-05T21:00:00.000Z",
+      "inverter_serial": "1420b0314618",
+      "port_number": 3,
+      "dc_power_w": 125,
+      "dc_voltage_v": 43.2,
+      "energy_daily_wh": 1397
+    },
+    {
+      "timestamp": "2026-09-05T21:00:00.000Z",
+      "inverter_serial": "1420b0314618",
+      "port_number": 4,
+      "dc_power_w": 124,
+      "dc_voltage_v": 42.9,
+      "energy_daily_wh": 1403
+    },
+    {
+      "timestamp": "2026-09-05T21:00:00.000Z",
+      "inverter_serial": "1420b03146bb",
+      "port_number": 1,
+      "dc_power_w": 223,
+      "dc_voltage_v": 42.9,
+      "energy_daily_wh": 1609
+    },
+    {
+      "timestamp": "2026-09-05T21:00:00.000Z",
+      "inverter_serial": "1420b03146bb",
+      "port_number": 2,
+      "dc_power_w": 226,
+      "dc_voltage_v": 43,
+      "energy_daily_wh": 1416
+    },
+    {
+      "timestamp": "2026-09-05T21:00:00.000Z",
+      "inverter_serial": "1420b03146bb",
+      "port_number": 3,
+      "dc_power_w": 0,
+      "dc_voltage_v": 5.3,
+      "energy_daily_wh": 0
+    },
+    {
+      "timestamp": "2026-09-05T21:00:00.000Z",
+      "inverter_serial": "1420b03146bb",
+      "port_number": 4,
+      "dc_power_w": 228,
+      "dc_voltage_v": 43.2,
+      "energy_daily_wh": 1603
+    },
+    {
+      "timestamp": "2026-09-05T21:00:00.000Z",
+      "inverter_serial": "1420b03146fc",
+      "port_number": 1,
+      "dc_power_w": 60,
+      "dc_voltage_v": 42,
+      "energy_daily_wh": 1441
+    },
+    {
+      "timestamp": "2026-09-05T21:00:00.000Z",
+      "inverter_serial": "1420b03146fc",
+      "port_number": 2,
+      "dc_power_w": 58,
+      "dc_voltage_v": 41.9,
+      "energy_daily_wh": 1392
+    },
+    {
+      "timestamp": "2026-09-05T21:00:00.000Z",
+      "inverter_serial": "1420b03146fc",
+      "port_number": 3,
+      "dc_power_w": 60,
+      "dc_voltage_v": 41.8,
+      "energy_daily_wh": 1147
+    },
+    {
+      "timestamp": "2026-09-05T21:00:00.000Z",
+      "inverter_serial": "1420b03146fc",
+      "port_number": 4,
+      "dc_power_w": 61,
+      "dc_voltage_v": 42.4,
+      "energy_daily_wh": 1121
+    },
+    {
+      "timestamp": "2026-09-05T21:00:00.000Z",
+      "inverter_serial": "1420b0314cf5",
+      "port_number": 1,
+      "dc_power_w": 57,
+      "dc_voltage_v": 42.8,
+      "energy_daily_wh": 1546
+    },
+    {
+      "timestamp": "2026-09-05T21:00:00.000Z",
+      "inverter_serial": "1420b0314cf5",
+      "port_number": 2,
+      "dc_power_w": 55,
+      "dc_voltage_v": 42.5,
+      "energy_daily_wh": 1545
+    },
+    {
+      "timestamp": "2026-09-05T21:00:00.000Z",
+      "inverter_serial": "1420b0314cf5",
+      "port_number": 3,
+      "dc_power_w": 57,
+      "dc_voltage_v": 42.5,
+      "energy_daily_wh": 1559
+    },
+    {
+      "timestamp": "2026-09-05T21:00:00.000Z",
+      "inverter_serial": "1420b0314cf5",
+      "port_number": 4,
+      "dc_power_w": 55,
+      "dc_voltage_v": 42.3,
+      "energy_daily_wh": 1548
+    },
+    {
+      "timestamp": "2026-09-05T21:00:00.000Z",
+      "inverter_serial": "1420b0314d19",
+      "port_number": 1,
+      "dc_power_w": 218,
+      "dc_voltage_v": 42.8,
+      "energy_daily_wh": 1628
+    },
+    {
+      "timestamp": "2026-09-05T21:00:00.000Z",
+      "inverter_serial": "1420b0314d19",
+      "port_number": 2,
+      "dc_power_w": 220,
+      "dc_voltage_v": 43.1,
+      "energy_daily_wh": 1551
+    },
+    {
+      "timestamp": "2026-09-05T21:00:00.000Z",
+      "inverter_serial": "1420b0314d19",
+      "port_number": 3,
+      "dc_power_w": 0,
+      "dc_voltage_v": 4,
+      "energy_daily_wh": 0
+    },
+    {
+      "timestamp": "2026-09-05T21:00:00.000Z",
+      "inverter_serial": "1420b0314d19",
+      "port_number": 4,
+      "dc_power_w": 0,
+      "dc_voltage_v": 4.2,
+      "energy_daily_wh": 0
+    },
+    {
+      "timestamp": "2026-09-05T21:00:00.000Z",
+      "inverter_serial": "1420b0314d25",
+      "port_number": 1,
+      "dc_power_w": 61,
+      "dc_voltage_v": 42.9,
+      "energy_daily_wh": 1532
+    },
+    {
+      "timestamp": "2026-09-05T21:00:00.000Z",
+      "inverter_serial": "1420b0314d25",
+      "port_number": 2,
+      "dc_power_w": 55,
+      "dc_voltage_v": 41.6,
+      "energy_daily_wh": 1511
+    },
+    {
+      "timestamp": "2026-09-05T21:00:00.000Z",
+      "inverter_serial": "1420b0314d25",
+      "port_number": 3,
+      "dc_power_w": 62,
+      "dc_voltage_v": 44.2,
+      "energy_daily_wh": 1544
+    },
+    {
+      "timestamp": "2026-09-05T21:00:00.000Z",
+      "inverter_serial": "1420b0314d25",
+      "port_number": 4,
+      "dc_power_w": 55,
+      "dc_voltage_v": 41.7,
+      "energy_daily_wh": 1542
+    },
+    {
+      "timestamp": "2026-09-05T21:00:00.000Z",
+      "inverter_serial": "1420b0314df9",
+      "port_number": 1,
+      "dc_power_w": 230,
+      "dc_voltage_v": 43.4,
+      "energy_daily_wh": 1577
+    },
+    {
+      "timestamp": "2026-09-05T21:00:00.000Z",
+      "inverter_serial": "1420b0314df9",
+      "port_number": 2,
+      "dc_power_w": 228,
+      "dc_voltage_v": 43.1,
+      "energy_daily_wh": 1370
+    },
+    {
+      "timestamp": "2026-09-05T21:00:00.000Z",
+      "inverter_serial": "1420b0314df9",
+      "port_number": 3,
+      "dc_power_w": 228,
+      "dc_voltage_v": 43.4,
+      "energy_daily_wh": 1522
+    },
+    {
+      "timestamp": "2026-09-05T21:00:00.000Z",
+      "inverter_serial": "1420b0314df9",
+      "port_number": 4,
+      "dc_power_w": 228,
+      "dc_voltage_v": 43.5,
+      "energy_daily_wh": 1488
+    },
+    {
+      "timestamp": "2026-09-05T21:00:00.000Z",
+      "inverter_serial": "1420b0314f85",
+      "port_number": 1,
+      "dc_power_w": 101,
+      "dc_voltage_v": 43,
+      "energy_daily_wh": 1262
+    },
+    {
+      "timestamp": "2026-09-05T21:00:00.000Z",
+      "inverter_serial": "1420b0314f85",
+      "port_number": 2,
+      "dc_power_w": 104,
+      "dc_voltage_v": 42.8,
+      "energy_daily_wh": 1250
+    },
+    {
+      "timestamp": "2026-09-05T21:00:00.000Z",
+      "inverter_serial": "1420b0314f85",
+      "port_number": 3,
+      "dc_power_w": 100,
+      "dc_voltage_v": 42.7,
+      "energy_daily_wh": 1272
+    },
+    {
+      "timestamp": "2026-09-05T21:00:00.000Z",
+      "inverter_serial": "1420b0314f85",
+      "port_number": 4,
+      "dc_power_w": 101,
+      "dc_voltage_v": 42.9,
+      "energy_daily_wh": 1273
+    },
+    {
+      "timestamp": "2026-09-05T21:00:00.000Z",
+      "inverter_serial": "1420b03150a1",
+      "port_number": 1,
+      "dc_power_w": 12,
+      "dc_voltage_v": 15.9,
+      "energy_daily_wh": 561
+    },
+    {
+      "timestamp": "2026-09-05T21:00:00.000Z",
+      "inverter_serial": "1420b03150a1",
+      "port_number": 2,
+      "dc_power_w": 110,
+      "dc_voltage_v": 48.5,
+      "energy_daily_wh": 404
+    },
+    {
+      "timestamp": "2026-09-05T21:00:00.000Z",
+      "inverter_serial": "1420b03150a1",
+      "port_number": 3,
+      "dc_power_w": 120,
+      "dc_voltage_v": 43.2,
+      "energy_daily_wh": 1386
+    },
+    {
+      "timestamp": "2026-09-05T21:00:00.000Z",
+      "inverter_serial": "1420b03150a1",
+      "port_number": 4,
+      "dc_power_w": 99,
+      "dc_voltage_v": 45,
+      "energy_daily_wh": 1401
+    },
+    {
+      "timestamp": "2026-09-05T21:00:00.000Z",
+      "inverter_serial": "1420b0315189",
+      "port_number": 1,
+      "dc_power_w": 126,
+      "dc_voltage_v": 42.8,
+      "energy_daily_wh": 1373
+    },
+    {
+      "timestamp": "2026-09-05T21:00:00.000Z",
+      "inverter_serial": "1420b0315189",
+      "port_number": 2,
+      "dc_power_w": 125,
+      "dc_voltage_v": 42.8,
+      "energy_daily_wh": 1359
+    },
+    {
+      "timestamp": "2026-09-05T21:00:00.000Z",
+      "inverter_serial": "1420b0315189",
+      "port_number": 3,
+      "dc_power_w": 122,
+      "dc_voltage_v": 42.8,
+      "energy_daily_wh": 1385
+    },
+    {
+      "timestamp": "2026-09-05T21:00:00.000Z",
+      "inverter_serial": "1420b0315189",
+      "port_number": 4,
+      "dc_power_w": 120,
+      "dc_voltage_v": 43,
+      "energy_daily_wh": 1411
+    },
+    {
+      "timestamp": "2026-09-05T21:00:00.000Z",
+      "inverter_serial": "1420b03153ec",
+      "port_number": 1,
+      "dc_power_w": 69,
+      "dc_voltage_v": 46.5,
+      "energy_daily_wh": 1329
+    },
+    {
+      "timestamp": "2026-09-05T21:00:00.000Z",
+      "inverter_serial": "1420b03153ec",
+      "port_number": 2,
+      "dc_power_w": 120,
+      "dc_voltage_v": 42.8,
+      "energy_daily_wh": 1366
+    },
+    {
+      "timestamp": "2026-09-05T21:00:00.000Z",
+      "inverter_serial": "1420b03153ec",
+      "port_number": 3,
+      "dc_power_w": 121,
+      "dc_voltage_v": 43,
+      "energy_daily_wh": 1366
+    },
+    {
+      "timestamp": "2026-09-05T21:00:00.000Z",
+      "inverter_serial": "1420b03153ec",
+      "port_number": 4,
+      "dc_power_w": 122,
+      "dc_voltage_v": 43,
+      "energy_daily_wh": 1367
+    }
+  ],
+  "latest": [
+    {
+      "timestamp": "2026-09-05T21:30:00Z",
+      "inverter_serial": "1420b03145c2",
+      "port_number": 1,
+      "dc_power_w": 234,
+      "dc_voltage_v": 43.4,
+      "energy_daily_wh": 1455
+    },
+    {
+      "timestamp": "2026-09-05T21:30:00Z",
+      "inverter_serial": "1420b03145c2",
+      "port_number": 3,
+      "dc_power_w": 235,
+      "dc_voltage_v": 43.4,
+      "energy_daily_wh": 1408
+    },
+    {
+      "timestamp": "2026-09-05T21:30:00Z",
+      "inverter_serial": "1420b03145c2",
+      "port_number": 4,
+      "dc_power_w": 235,
+      "dc_voltage_v": 43.3,
+      "energy_daily_wh": 1284
+    },
+    {
+      "timestamp": "2026-09-05T21:30:00Z",
+      "inverter_serial": "1420b0314618",
+      "port_number": 1,
+      "dc_power_w": 128,
+      "dc_voltage_v": 42.8,
+      "energy_daily_wh": 1384
+    },
+    {
+      "timestamp": "2026-09-05T21:30:00Z",
+      "inverter_serial": "1420b0314618",
+      "port_number": 2,
+      "dc_power_w": 125,
+      "dc_voltage_v": 42.7,
+      "energy_daily_wh": 1355
+    },
+    {
+      "timestamp": "2026-09-05T21:30:00Z",
+      "inverter_serial": "1420b0314618",
+      "port_number": 3,
+      "dc_power_w": 125,
+      "dc_voltage_v": 43.2,
+      "energy_daily_wh": 1397
+    },
+    {
+      "timestamp": "2026-09-05T21:30:00Z",
+      "inverter_serial": "1420b0314618",
+      "port_number": 4,
+      "dc_power_w": 124,
+      "dc_voltage_v": 42.9,
+      "energy_daily_wh": 1403
+    },
+    {
+      "timestamp": "2026-09-05T21:30:00Z",
+      "inverter_serial": "1420b03146bb",
+      "port_number": 1,
+      "dc_power_w": 223,
+      "dc_voltage_v": 42.9,
+      "energy_daily_wh": 1609
+    },
+    {
+      "timestamp": "2026-09-05T21:30:00Z",
+      "inverter_serial": "1420b03146bb",
+      "port_number": 2,
+      "dc_power_w": 226,
+      "dc_voltage_v": 43,
+      "energy_daily_wh": 1416
+    },
+    {
+      "timestamp": "2026-09-05T21:30:00Z",
+      "inverter_serial": "1420b03146bb",
+      "port_number": 3,
+      "dc_power_w": 0,
+      "dc_voltage_v": 5.3,
+      "energy_daily_wh": 0
+    },
+    {
+      "timestamp": "2026-09-05T21:30:00Z",
+      "inverter_serial": "1420b03146bb",
+      "port_number": 4,
+      "dc_power_w": 228,
+      "dc_voltage_v": 43.2,
+      "energy_daily_wh": 1603
+    },
+    {
+      "timestamp": "2026-09-05T21:30:00Z",
+      "inverter_serial": "1420b03146fc",
+      "port_number": 1,
+      "dc_power_w": 60,
+      "dc_voltage_v": 42,
+      "energy_daily_wh": 1441
+    },
+    {
+      "timestamp": "2026-09-05T21:30:00Z",
+      "inverter_serial": "1420b03146fc",
+      "port_number": 2,
+      "dc_power_w": 58,
+      "dc_voltage_v": 41.9,
+      "energy_daily_wh": 1392
+    },
+    {
+      "timestamp": "2026-09-05T21:30:00Z",
+      "inverter_serial": "1420b03146fc",
+      "port_number": 3,
+      "dc_power_w": 60,
+      "dc_voltage_v": 41.8,
+      "energy_daily_wh": 1147
+    },
+    {
+      "timestamp": "2026-09-05T21:30:00Z",
+      "inverter_serial": "1420b03146fc",
+      "port_number": 4,
+      "dc_power_w": 61,
+      "dc_voltage_v": 42.4,
+      "energy_daily_wh": 1121
+    },
+    {
+      "timestamp": "2026-09-05T21:30:00Z",
+      "inverter_serial": "1420b0314cf5",
+      "port_number": 1,
+      "dc_power_w": 57,
+      "dc_voltage_v": 42.8,
+      "energy_daily_wh": 1546
+    },
+    {
+      "timestamp": "2026-09-05T21:30:00Z",
+      "inverter_serial": "1420b0314cf5",
+      "port_number": 2,
+      "dc_power_w": 55,
+      "dc_voltage_v": 42.5,
+      "energy_daily_wh": 1545
+    },
+    {
+      "timestamp": "2026-09-05T21:30:00Z",
+      "inverter_serial": "1420b0314cf5",
+      "port_number": 3,
+      "dc_power_w": 57,
+      "dc_voltage_v": 42.5,
+      "energy_daily_wh": 1559
+    },
+    {
+      "timestamp": "2026-09-05T21:30:00Z",
+      "inverter_serial": "1420b0314cf5",
+      "port_number": 4,
+      "dc_power_w": 55,
+      "dc_voltage_v": 42.3,
+      "energy_daily_wh": 1548
+    },
+    {
+      "timestamp": "2026-09-05T21:30:00Z",
+      "inverter_serial": "1420b0314d19",
+      "port_number": 1,
+      "dc_power_w": 218,
+      "dc_voltage_v": 42.8,
+      "energy_daily_wh": 1628
+    },
+    {
+      "timestamp": "2026-09-05T21:30:00Z",
+      "inverter_serial": "1420b0314d19",
+      "port_number": 2,
+      "dc_power_w": 220,
+      "dc_voltage_v": 43.1,
+      "energy_daily_wh": 1551
+    },
+    {
+      "timestamp": "2026-09-05T21:30:00Z",
+      "inverter_serial": "1420b0314d19",
+      "port_number": 3,
+      "dc_power_w": 0,
+      "dc_voltage_v": 4,
+      "energy_daily_wh": 0
+    },
+    {
+      "timestamp": "2026-09-05T21:30:00Z",
+      "inverter_serial": "1420b0314d19",
+      "port_number": 4,
+      "dc_power_w": 0,
+      "dc_voltage_v": 4.2,
+      "energy_daily_wh": 0
+    },
+    {
+      "timestamp": "2026-09-05T21:30:00Z",
+      "inverter_serial": "1420b0314d25",
+      "port_number": 1,
+      "dc_power_w": 61,
+      "dc_voltage_v": 42.9,
+      "energy_daily_wh": 1532
+    },
+    {
+      "timestamp": "2026-09-05T21:30:00Z",
+      "inverter_serial": "1420b0314d25",
+      "port_number": 2,
+      "dc_power_w": 55,
+      "dc_voltage_v": 41.6,
+      "energy_daily_wh": 1511
+    },
+    {
+      "timestamp": "2026-09-05T21:30:00Z",
+      "inverter_serial": "1420b0314d25",
+      "port_number": 3,
+      "dc_power_w": 62,
+      "dc_voltage_v": 44.2,
+      "energy_daily_wh": 1544
+    },
+    {
+      "timestamp": "2026-09-05T21:30:00Z",
+      "inverter_serial": "1420b0314d25",
+      "port_number": 4,
+      "dc_power_w": 55,
+      "dc_voltage_v": 41.7,
+      "energy_daily_wh": 1542
+    },
+    {
+      "timestamp": "2026-09-05T21:30:00Z",
+      "inverter_serial": "1420b0314df9",
+      "port_number": 1,
+      "dc_power_w": 230,
+      "dc_voltage_v": 43.4,
+      "energy_daily_wh": 1577
+    },
+    {
+      "timestamp": "2026-09-05T21:30:00Z",
+      "inverter_serial": "1420b0314df9",
+      "port_number": 2,
+      "dc_power_w": 228,
+      "dc_voltage_v": 43.1,
+      "energy_daily_wh": 1370
+    },
+    {
+      "timestamp": "2026-09-05T21:30:00Z",
+      "inverter_serial": "1420b0314df9",
+      "port_number": 3,
+      "dc_power_w": 228,
+      "dc_voltage_v": 43.4,
+      "energy_daily_wh": 1522
+    },
+    {
+      "timestamp": "2026-09-05T21:30:00Z",
+      "inverter_serial": "1420b0314df9",
+      "port_number": 4,
+      "dc_power_w": 228,
+      "dc_voltage_v": 43.5,
+      "energy_daily_wh": 1488
+    },
+    {
+      "timestamp": "2026-09-05T21:30:00Z",
+      "inverter_serial": "1420b0314f85",
+      "port_number": 1,
+      "dc_power_w": 101,
+      "dc_voltage_v": 43,
+      "energy_daily_wh": 1262
+    },
+    {
+      "timestamp": "2026-09-05T21:30:00Z",
+      "inverter_serial": "1420b0314f85",
+      "port_number": 2,
+      "dc_power_w": 104,
+      "dc_voltage_v": 42.8,
+      "energy_daily_wh": 1250
+    },
+    {
+      "timestamp": "2026-09-05T21:30:00Z",
+      "inverter_serial": "1420b0314f85",
+      "port_number": 3,
+      "dc_power_w": 100,
+      "dc_voltage_v": 42.7,
+      "energy_daily_wh": 1272
+    },
+    {
+      "timestamp": "2026-09-05T21:30:00Z",
+      "inverter_serial": "1420b0314f85",
+      "port_number": 4,
+      "dc_power_w": 101,
+      "dc_voltage_v": 42.9,
+      "energy_daily_wh": 1273
+    },
+    {
+      "timestamp": "2026-09-05T21:30:00Z",
+      "inverter_serial": "1420b03150a1",
+      "port_number": 1,
+      "dc_power_w": 12,
+      "dc_voltage_v": 15.9,
+      "energy_daily_wh": 561
+    },
+    {
+      "timestamp": "2026-09-05T21:30:00Z",
+      "inverter_serial": "1420b03150a1",
+      "port_number": 2,
+      "dc_power_w": 110,
+      "dc_voltage_v": 48.5,
+      "energy_daily_wh": 404
+    },
+    {
+      "timestamp": "2026-09-05T21:30:00Z",
+      "inverter_serial": "1420b03150a1",
+      "port_number": 3,
+      "dc_power_w": 120,
+      "dc_voltage_v": 43.2,
+      "energy_daily_wh": 1386
+    },
+    {
+      "timestamp": "2026-09-05T21:30:00Z",
+      "inverter_serial": "1420b03150a1",
+      "port_number": 4,
+      "dc_power_w": 99,
+      "dc_voltage_v": 45,
+      "energy_daily_wh": 1401
+    },
+    {
+      "timestamp": "2026-09-05T21:30:00Z",
+      "inverter_serial": "1420b0315189",
+      "port_number": 1,
+      "dc_power_w": 126,
+      "dc_voltage_v": 42.8,
+      "energy_daily_wh": 1373
+    },
+    {
+      "timestamp": "2026-09-05T21:30:00Z",
+      "inverter_serial": "1420b0315189",
+      "port_number": 2,
+      "dc_power_w": 125,
+      "dc_voltage_v": 42.8,
+      "energy_daily_wh": 1359
+    },
+    {
+      "timestamp": "2026-09-05T21:30:00Z",
+      "inverter_serial": "1420b0315189",
+      "port_number": 3,
+      "dc_power_w": 122,
+      "dc_voltage_v": 42.8,
+      "energy_daily_wh": 1385
+    },
+    {
+      "timestamp": "2026-09-05T21:30:00Z",
+      "inverter_serial": "1420b0315189",
+      "port_number": 4,
+      "dc_power_w": 120,
+      "dc_voltage_v": 43,
+      "energy_daily_wh": 1411
+    },
+    {
+      "timestamp": "2026-09-05T21:30:00Z",
+      "inverter_serial": "1420b03153ec",
+      "port_number": 1,
+      "dc_power_w": 69,
+      "dc_voltage_v": 46.5,
+      "energy_daily_wh": 1329
+    },
+    {
+      "timestamp": "2026-09-05T21:30:00Z",
+      "inverter_serial": "1420b03153ec",
+      "port_number": 2,
+      "dc_power_w": 120,
+      "dc_voltage_v": 42.8,
+      "energy_daily_wh": 1366
+    },
+    {
+      "timestamp": "2026-09-05T21:30:00Z",
+      "inverter_serial": "1420b03153ec",
+      "port_number": 3,
+      "dc_power_w": 121,
+      "dc_voltage_v": 43,
+      "energy_daily_wh": 1366
+    },
+    {
+      "timestamp": "2026-09-05T21:30:00Z",
+      "inverter_serial": "1420b03153ec",
+      "port_number": 4,
+      "dc_power_w": 122,
+      "dc_voltage_v": 43,
+      "energy_daily_wh": 1367
+    }
+  ],
+  "summary": {
+    "active_port_count": 44,
+    "tracked_port_count": 47,
+    "total_dc_power_w": 5603,
+    "peak_port_power_w": 235,
+    "total_daily_energy_wh": 60643
+  }
+}

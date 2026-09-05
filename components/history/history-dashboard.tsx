@@ -137,10 +137,8 @@ export function HistoryDashboard() {
     <div className="space-y-4">
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
-          <p className="text-[11px] uppercase tracking-[0.26em] text-slate-400">History</p>
-          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-slate-50">
-            Log-backed grid history
-          </h1>
+          <p className="text-[11px] uppercase tracking-[0.26em] text-slate-400">CSV archive</p>
+          <h2 className="mt-1 text-xl font-semibold tracking-tight text-slate-50">Meter and grid history</h2>
           <p className="mt-1 text-sm text-slate-400">
             This view reads live CSV logs on localhost and the deployed CSV snapshot on Vercel.
           </p>
