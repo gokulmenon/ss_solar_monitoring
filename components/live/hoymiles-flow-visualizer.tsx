@@ -322,7 +322,7 @@ const INFO_BOX_LABELS: Record<InfoBoxId, string> = {
 const INFO_BOX_DEFAULTS: Record<InfoBoxId, InfoBox> = {
   title: { x: 2, y: 3, scale: 100 },
   status: { x: 2, y: 3, scale: 100 },
-  hero: { x: 42, y: 10, scale: 73 },
+  hero: { x: 42, y: 7, scale: 73 },
   grid: { x: 15, y: 88, scale: 80 },
   loads: { x: 51, y: 63, scale: 80 },
 };
@@ -949,8 +949,8 @@ export function HoymilesFlowVisualizer({
           <span className="font-semibold text-white">{temperatureLabel}</span>
         </div>
 
-        <div style={infoStyle("hero")} className="absolute -translate-x-1/2 rounded-2xl border border-white/10 bg-slate-950/82 px-4 py-2 text-center shadow-xl backdrop-blur-md">
-          <p data-testid="hero-solar-power" className="whitespace-nowrap text-2xl font-bold tracking-tight text-white sm:text-3xl">{formatPowerKw(trueSolarW)}</p>
+        <div style={infoStyle("hero")} className="absolute -translate-x-1/2 -mt-3 rounded-2xl border border-white/10 bg-slate-950/82 px-3 py-1.5 text-center shadow-xl backdrop-blur-md sm:mt-0 sm:px-4 sm:py-2">
+          <p data-testid="hero-solar-power" className="whitespace-nowrap text-xl font-bold tracking-tight text-white sm:text-3xl">{formatPowerKw(trueSolarW)}</p>
           <p className="mt-0.5 whitespace-nowrap text-[10px] font-medium text-slate-300">Power Ratio {Math.max(0, powerRatio).toFixed(1)}%</p>
         </div>
 
