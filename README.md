@@ -135,6 +135,8 @@ If you update the committed logs, push the change and redeploy Vercel to refresh
 
 ## Run the Next.js app
 
+Local ports, setup, and run reference: [docs/local-server-setup.md](docs/local-server-setup.md).
+
 ### Mock-only development
 
 This is enough to run the dashboard immediately, even with no hardware attached.
