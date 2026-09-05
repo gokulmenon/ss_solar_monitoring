@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "plot": {
+    "area_sqft": 10000,
+    "shape": "rectangle",
+    "dimensions_ft": null,
+    "street_side": null
+  },
+  "photos": [],
+  "derived": []
+}

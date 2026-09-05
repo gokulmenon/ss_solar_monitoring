@@ -1,10 +1,14 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useMemo, useState } from "react";
-import { CalendarDays, CloudSun, History, SlidersHorizontal, Wifi, type LucideIcon } from "lucide-react";
+import dynamic from "next/dynamic";
+import { Component, useEffect, useMemo, useState, type ReactNode } from "react";
+import { Box, CalendarDays, CloudSun, History, SlidersHorizontal, Wifi, type LucideIcon } from "lucide-react";
 
+import manifestJson from "@/assets/site-photos/manifest.json";
 import type { EnergyTotals } from "@/lib/daily-energy";
+import { getFlowTelemetry } from "@/lib/flow-telemetry";
+import { photosForSection, type SitePhotoManifest } from "@/lib/site-photos";
 import {
   OVERLAY_EDITOR_CHANGED_EVENT,
   readOverlayEditorEnabled,
@@ -15,12 +19,41 @@ import {
   groupInvertersBySection,
   type SectionInverter,
 } from "@/lib/roof-layout";
-import {
-  formatPowerKw,
-  getFlowDuration,
-  getGridFlowState,
-  getSelfConsumptionPercent,
-} from "@/lib/power-flow";
+import { formatPowerKw } from "@/lib/power-flow";
+
+const PowerFlow3DCanvas = dynamic(
+  () => import("./hoymiles-flow-3d-canvas").then((mod) => mod.PowerFlow3DCanvas),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="absolute inset-0 flex items-center justify-center bg-slate-950 text-xs text-slate-400">
+        Loading 3D…
+      </div>
+    ),
+  },
+);
+
+const SITE_PHOTO_MANIFEST = manifestJson as SitePhotoManifest;
+
+/**
+ * WebGL-failure fallback: if the 3D canvas throws (no WebGL, driver block),
+ * drop back to the 2D view instead of blanking the card.
+ */
+class ThreeErrorBoundary extends Component<{ onFail: () => void; children: ReactNode }> {
+  state = { failed: false };
+
+  static getDerivedStateFromError(): { failed: boolean } {
+    return { failed: true };
+  }
+
+  componentDidCatch(): void {
+    this.props.onFail();
+  }
+
+  override render(): ReactNode {
+    return this.state.failed ? null : this.props.children;
+  }
+}
 
 type WeatherResponse = {
   latest: {
@@ -58,6 +91,25 @@ const QUAD_OVERLAYS: { id: QuadId; label: string; points: QuadPoint[] }[] = [
 ];
 
 const QUAD_TUNER_STORAGE_KEY = "hoymiles-quad-overlays";
+
+// 2D/3D view-mode toggle. A dedicated key (never a reused tuner key) so
+// returning browsers pick up the mode without disturbing tuned geometry.
+const VIEW_MODE_STORAGE_KEY = "power-flow-3d-mode";
+
+/**
+ * Synchronous WebGL probe. Error boundaries cannot catch renderer-creation
+ * failures that surface outside the render phase, so the toggle is gated on
+ * this probe instead of relying on the boundary alone.
+ */
+function isWebGLAvailable(): boolean {
+  try {
+    if (typeof document === "undefined") return false;
+    const canvas = document.createElement("canvas");
+    return !!canvas.getContext("webgl2") || !!canvas.getContext("webgl");
+  } catch {
+    return false;
+  }
+}
 
 function defaultQuadPoints(): Record<QuadId, QuadPoint[]> {
   return Object.fromEntries(
@@ -553,6 +605,31 @@ export function HoymilesFlowVisualizer({
     };
   }, []);
 
+  const [is3DMode, setIs3DMode] = useState(false);
+
+  const [webglBlocked, setWebglBlocked] = useState(false);
+
+  useEffect(() => {
+    try {
+      if (window.localStorage.getItem(VIEW_MODE_STORAGE_KEY) !== "1") return;
+      if (!isWebGLAvailable()) {
+        setWebglBlocked(true);
+        return;
+      }
+      setIs3DMode(true);
+    } catch {
+      // Storage unavailable — default to the 2D view.
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(VIEW_MODE_STORAGE_KEY, is3DMode ? "1" : "0");
+    } catch {
+      // Storage unavailable — the toggle still works for the session.
+    }
+  }, [is3DMode]);
+
   const [tunerOpen, setTunerOpen] = useState(false);
   const [quadPoints, setQuadPoints] = useState<Record<QuadId, QuadPoint[]>>(defaultQuadPoints);
   const [copiedQuad, setCopiedQuad] = useState<string | null>(null);
@@ -718,17 +795,25 @@ export function HoymilesFlowVisualizer({
     }
   }
 
-  const trueSolarW = Math.max(0, solarProductionW);
-  const trueHomeW = Math.abs(homeConsumptionW);
-  const trueGridW = trueHomeW - trueSolarW;
-  const gridState = getGridFlowState(trueGridW);
-  const solarActive = trueSolarW >= 20;
-  const loadsActive = trueHomeW > 0;
-  const solarDuration = getFlowDuration(trueSolarW);
-  const gridDuration = getFlowDuration(trueGridW);
-  const loadDuration = getFlowDuration(trueHomeW);
-  const selfConsumption = getSelfConsumptionPercent(trueSolarW, trueHomeW);
-  const powerRatio = capacityKw > 0 ? (trueSolarW / (capacityKw * 1000)) * 100 : 0;
+  // Sync adaptation: grid is derived (home − solar), capacityKw → 20.02.
+  const flow = getFlowTelemetry({
+    solarW: solarProductionW,
+    homeW: homeConsumptionW,
+    capacityKw,
+  });
+  const {
+    trueSolarW,
+    trueHomeW,
+    trueGridW,
+    gridState,
+    solarActive,
+    loadsActive,
+    solarDuration,
+    gridDuration,
+    loadDuration,
+    selfConsumption,
+    powerRatio,
+  } = flow;
   const gridTone = gridState === "exporting" ? "text-emerald-300" : gridState === "importing" ? "text-amber-300" : "text-slate-300";
   const gridDotTone = gridState === "exporting" ? "bg-emerald-400" : gridState === "importing" ? "bg-amber-400" : "bg-slate-400";
   const gridLabel = gridState === "exporting" ? "Exporting" : gridState === "importing" ? "Importing" : "Balanced";
@@ -798,6 +883,21 @@ export function HoymilesFlowVisualizer({
     <section aria-label="Live home energy flow" className="space-y-3">
       <div className={showEditorTools ? "grid gap-3 lg:grid-cols-[minmax(0,34rem)_minmax(20rem,1fr)] lg:items-start" : ""}>
       <div className={showEditorTools ? "relative mx-auto w-full max-w-xl overflow-hidden rounded-[1.75rem] border border-white/10 bg-slate-950 shadow-[0_28px_80px_rgba(2,6,23,0.6)] aspect-[4/3] lg:mx-0" : "relative mx-auto w-full max-w-xl overflow-hidden rounded-[1.75rem] border border-white/10 bg-slate-950 shadow-[0_28px_80px_rgba(2,6,23,0.6)] aspect-[4/3]"}>
+        {is3DMode ? (
+          <ThreeErrorBoundary
+            onFail={() => {
+              setWebglBlocked(true);
+              setIs3DMode(false);
+            }}
+          >
+            <PowerFlow3DCanvas
+              telemetry={flow}
+              sectionPowerW={sectionPowerW}
+              sectionRatios={sectionRatios}
+            />
+          </ThreeErrorBoundary>
+        ) : (
+          <>
         <Image
           alt="Isometric view of the home energy system"
           className="object-cover"
@@ -879,6 +979,45 @@ export function HoymilesFlowVisualizer({
             );
           })}
 
+          {/* Photo-calibration chips (admin overlay-editor only): pin each
+              quad to the site photos covering it, from the committed manifest.
+              Centroids derive from live tuner points so tuner moves carry them. */}
+          {showEditorTools
+            ? QUAD_OVERLAYS.map((quad) => {
+                const corners = quadPoints[quad.id];
+                const midX = corners.reduce((sum, [x]) => sum + x, 0) / corners.length;
+                const midY = corners.reduce((sum, [, y]) => sum + y, 0) / corners.length;
+                const covering = photosForSection(SITE_PHOTO_MANIFEST, quad.id).map(
+                  (photo) => photo.id,
+                );
+                const chip = `${quad.id} · ${covering.length > 0 ? covering.join(" ") : "no photo"}`;
+                return (
+                  <g key={`photo-${quad.id}`} opacity="0.92">
+                    <rect
+                      x={midX - 62}
+                      y={midY - 13}
+                      width={124}
+                      height={24}
+                      rx={7}
+                      fill="rgba(2, 6, 23, 0.82)"
+                      stroke="rgba(125, 211, 252, 0.55)"
+                      strokeWidth="1.5"
+                    />
+                    <text
+                      x={midX}
+                      y={midY + 4.5}
+                      textAnchor="middle"
+                      fill="#e0f2fe"
+                      fontSize="13"
+                      fontWeight="600"
+                    >
+                      {chip}
+                    </text>
+                  </g>
+                );
+              })
+            : null}
+
           {/* ISOMETRIC CONDUIT PATHS: one source run per quad (S1/P1 -> upper
               node, S2/P2 -> lower node), shared trunk to the junction dot,
               then into the accumulator (lightning combiner). Geometry comes
@@ -934,6 +1073,8 @@ export function HoymilesFlowVisualizer({
             <text x="80" y="591" textAnchor="middle" className="fill-sky-100 text-[10px] font-semibold">EXCHANGE</text>
           </g>
         </svg>
+          </>
+        )}
 
         <div style={infoStyle("title")} className="absolute max-w-[43%] rounded-xl border border-white/10 bg-slate-950/80 px-2.5 py-1.5 shadow-lg backdrop-blur-md">
           <p className="truncate text-xs font-semibold text-white">{plantName}</p>
@@ -947,6 +1088,33 @@ export function HoymilesFlowVisualizer({
           <span className="h-3.5 w-px bg-white/10" />
           <CloudSun className="h-3.5 w-3.5 text-sky-200" aria-hidden="true" />
           <span className="font-semibold text-white">{temperatureLabel}</span>
+          <span className="h-3.5 w-px bg-white/10" />
+          {webglBlocked && !is3DMode ? (
+            <span
+              className="flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5 font-semibold text-slate-500"
+              title="3D view unavailable: WebGL is not supported on this device"
+            >
+              <Box className="h-3.5 w-3.5" aria-hidden="true" />
+              3D N/A
+            </span>
+          ) : (
+            <button
+              type="button"
+              onClick={() => {
+                if (!is3DMode && !isWebGLAvailable()) {
+                  setWebglBlocked(true);
+                  return;
+                }
+                setIs3DMode((mode) => !mode);
+              }}
+              className="flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5 font-semibold text-slate-200"
+              aria-label={is3DMode ? "Switch to 2D view" : "Switch to 3D view"}
+              aria-pressed={is3DMode}
+            >
+              <Box className="h-3.5 w-3.5 text-emerald-300" aria-hidden="true" />
+              {is3DMode ? "3D" : "2D"}
+            </button>
+          )}
         </div>
 
         <div style={infoStyle("hero")} className="absolute -translate-x-1/2 -mt-3 rounded-2xl border border-white/10 bg-slate-950/82 px-3 py-1.5 text-center shadow-xl backdrop-blur-md sm:mt-0 sm:px-4 sm:py-2">
@@ -954,6 +1122,9 @@ export function HoymilesFlowVisualizer({
           <p className="mt-0.5 whitespace-nowrap text-[10px] font-medium text-slate-300">Power Ratio {Math.max(0, powerRatio).toFixed(1)}%</p>
         </div>
 
+        {/* In 3D mode the badges live inside the render as ground-fixed
+            signs; the HTML overlays stay 2D-only. */}
+        {!is3DMode ? (
         <div data-testid="grid-flow-badge" style={infoStyle("grid")} className="absolute w-28 -translate-x-1/2 rounded-xl border border-white/10 bg-slate-950/80 p-1.5 shadow-lg backdrop-blur-md">
           <p className="text-[8px] font-medium uppercase tracking-[0.12em] text-slate-400">Grid</p>
           <p className="mt-0.5 text-[13px] font-bold leading-tight text-white">{formatPowerKw(Math.abs(trueGridW))}</p>
@@ -962,12 +1133,15 @@ export function HoymilesFlowVisualizer({
             {gridLabel}
           </p>
         </div>
+        ) : null}
 
+        {!is3DMode ? (
         <div data-testid="loads-flow-badge" style={infoStyle("loads")} className="absolute w-28 rounded-xl border border-white/10 bg-slate-950/80 p-2 shadow-lg backdrop-blur-md">
           <p className="text-[9px] font-medium uppercase tracking-[0.14em] text-slate-400">Loads</p>
           <p className="mt-0.5 text-sm font-bold text-white">{formatPowerKw(trueHomeW)}</p>
           <p className="mt-1 text-[9px] font-semibold text-emerald-300">Home demand</p>
         </div>
+        ) : null}
       </div>
 
       {showEditorTools ? (
