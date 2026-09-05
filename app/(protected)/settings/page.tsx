@@ -5,7 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { InviteCodeManager } from "@/components/admin/invite-code-manager";
 import { OverlayEditorToggle } from "@/components/admin/overlay-editor-toggle";
+import { SitePlotEditor } from "@/components/admin/site-plot-editor";
 import { WeatherStatusCard } from "@/components/weather/weather-status-card";
+import { readSitePlot } from "@/lib/site-plot";
 import { createClient } from "@/lib/supabase/server";
 
 export default async function SettingsPage() {
@@ -25,6 +27,11 @@ export default async function SettingsPage() {
     .maybeSingle<{ is_admin: boolean }>();
 
   const isAdmin = profile?.is_admin ?? false;
+
+  // TEMPORARY (M1): the plot editor renders for every signed-in user so the
+  // estimated dimensions can be corrected in parallel with milestone work.
+  // Re-gate behind isAdmin together with lib/site-plot.ts.
+  const initialPlot = await readSitePlot().catch(() => null);
 
   return (
     <div className="space-y-4">
@@ -80,6 +87,8 @@ export default async function SettingsPage() {
       {isAdmin ? <OverlayEditorToggle /> : null}
 
       {isAdmin ? <InviteCodeManager /> : null}
+
+      <SitePlotEditor initialPlot={initialPlot} />
 
       <WeatherStatusCard />
     </div>
