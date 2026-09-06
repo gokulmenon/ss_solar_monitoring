@@ -387,6 +387,11 @@ const TREE_SPOTS: { position: [number, number, number]; scale?: number }[] = [
   ...[-8, -4, 0, 4, 8].map((z) => ({ position: [-12.5, 0, z] as [number, number, number] })),
   { position: [-13, 0, 12], scale: 1.2 },
   { position: [13, 0, 12], scale: 1.2 },
+  // Satellite audit: one dominant street tree over the front-west yard
+  // (shades the driveway in frame 01) plus the mature east grove.
+  { position: [-11.5, 0, 13.0], scale: 2.3 },
+  { position: [10.8, 0, -3.5], scale: 1.5 },
+  { position: [11.8, 0, 1.5], scale: 1.7 },
 ];
 
 /**
@@ -546,6 +551,33 @@ export function PowerFlow3DCanvas({ telemetry, sectionPowerW, sectionRatios }: P
           <meshStandardMaterial color="#9ca3af" roughness={0.5} metalness={0.5} />
         </mesh>
 
+        {/* Condensers on the ground beside the gear (frame 06 landmarks):
+            AC unit south of the mast, mini-split north. Kept clear of the
+            drops (x <= 7.62) and the loads run (z >= 1.5 at y ~1). */}
+        <mesh position={[7.45, 0.45, 1.1]}>
+          <boxGeometry args={[0.7, 0.9, 0.9]} />
+          <meshStandardMaterial color="#cbd5e1" roughness={0.7} />
+        </mesh>
+        <mesh position={[7.45, 0.6, -2.9]}>
+          <boxGeometry args={[0.5, 1.2, 0.8]} />
+          <meshStandardMaterial color="#e8e6e0" roughness={0.7} />
+        </mesh>
+
+        {/* Basketball hoop at the street end of the driveway (frame 01
+            landmark). West of the driveway center, clear of the loads run. */}
+        <mesh position={[-8.5, 1.9, 12.5]}>
+          <cylinderGeometry args={[0.09, 0.09, 3.8, 8]} />
+          <meshStandardMaterial color="#4b5563" roughness={0.6} metalness={0.4} />
+        </mesh>
+        <mesh position={[-8.5, 3.7, 12.15]}>
+          <boxGeometry args={[1.2, 0.8, 0.08]} />
+          <meshStandardMaterial color="#f1f5f9" roughness={0.6} />
+        </mesh>
+        <mesh position={[-8.5, 3.35, 11.85]}>
+          <cylinderGeometry args={[0.32, 0.32, 0.06, 12]} />
+          <meshStandardMaterial color="#ea580c" roughness={0.6} />
+        </mesh>
+
         {/* T-junction fittings: upper pair at the ridge, lower pair on the
             garage ridge between the S2/P2 panels. */}
         <mesh position={[4.6, 8.18, 0.85]}>
@@ -657,12 +689,17 @@ export function PowerFlow3DCanvas({ telemetry, sectionPowerW, sectionRatios }: P
           </mesh>
         ))}
 
-        {/* East vinyl boundary fence with posts. */}
-        <mesh position={[13, 0.6, 0]}>
-          <boxGeometry args={[0.15, 1.2, 24]} />
+        {/* East vinyl boundary fence with posts + a gate gap (z -3..-0.5)
+            by the gear (frame 04 gate-fence landmark). */}
+        <mesh position={[13, 0.6, -7.5]}>
+          <boxGeometry args={[0.15, 1.2, 9]} />
           <meshStandardMaterial color="#e8e6e0" roughness={0.8} />
         </mesh>
-        {[-11, -5.5, 0, 5.5, 11].map((z) => (
+        <mesh position={[13, 0.6, 5.75]}>
+          <boxGeometry args={[0.15, 1.2, 12.5]} />
+          <meshStandardMaterial color="#e8e6e0" roughness={0.8} />
+        </mesh>
+        {[-11, -7.5, -4, -3, -0.5, 3, 6.5, 10].map((z) => (
           <mesh key={`vinyl-post-${z}`} position={[13, 0.65, z]}>
             <boxGeometry args={[0.3, 1.3, 0.3]} />
             <meshStandardMaterial color="#dedbd4" roughness={0.8} />
@@ -692,6 +729,34 @@ export function PowerFlow3DCanvas({ telemetry, sectionPowerW, sectionRatios }: P
             <meshStandardMaterial color="#4e3421" roughness={0.9} />
           </mesh>
         ))}
+
+        {/* Neighbor masses for context (generic, unlabeled): west house
+            across the driveway side, east house beyond the vinyl fence.
+            Kept outside the lot lines and clear of the flow runs. */}
+        <mesh position={[-23, 2.0, -1]}>
+          <boxGeometry args={[9, 4, 11]} />
+          <meshStandardMaterial color="#7a756c" roughness={0.9} />
+        </mesh>
+        <GableRoof
+          width={9}
+          depth={11}
+          ridgeOffset={0}
+          height={2.2}
+          color="#34383f"
+          position={[-23, 4.0, -1]}
+        />
+        <mesh position={[23, 2.0, 1]}>
+          <boxGeometry args={[9, 4, 11]} />
+          <meshStandardMaterial color="#6e6a63" roughness={0.9} />
+        </mesh>
+        <GableRoof
+          width={9}
+          depth={11}
+          ridgeOffset={0}
+          height={2.2}
+          color="#3a2f28"
+          position={[23, 4.0, 1]}
+        />
 
         {/* Property-line trees. */}
         {TREE_SPOTS.map((spot, index) => (
