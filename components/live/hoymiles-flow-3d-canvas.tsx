@@ -14,30 +14,31 @@ export type PowerFlow3DProps = {
   sectionRatios: Record<SectionId, number>;
 };
 
-// GLB model flag (mirrors home_monitoring): `?model=1` turns the imported
-// v25 house on for the session, persisted via a dedicated localStorage key.
-// Procedural scene stays the default; no UI chrome yet.
+// GLB model flag (mirrors home_monitoring): the imported v25 house is the
+// default 3D scene (owner verdict: model beats the schematic); `?model=0`
+// falls back to the procedural scene for the session, persisted via a
+// dedicated localStorage key. No UI chrome yet.
 const MODEL_STORAGE_KEY = "power-flow-3d-model";
 const MODEL_URL = "/models/house-v25.glb";
 
 function useModelFlag(): boolean {
-  const [modelOn, setModelOn] = useState(false);
+  const [modelOn, setModelOn] = useState(true);
   useEffect(() => {
     try {
       const params = new URLSearchParams(window.location.search);
-      if (params.get("model") === "1") {
-        window.localStorage.setItem(MODEL_STORAGE_KEY, "1");
-        setModelOn(true);
-        return;
-      }
       if (params.get("model") === "0") {
         window.localStorage.setItem(MODEL_STORAGE_KEY, "0");
         setModelOn(false);
         return;
       }
-      setModelOn(window.localStorage.getItem(MODEL_STORAGE_KEY) === "1");
+      if (params.get("model") === "1") {
+        window.localStorage.setItem(MODEL_STORAGE_KEY, "1");
+        setModelOn(true);
+        return;
+      }
+      setModelOn(window.localStorage.getItem(MODEL_STORAGE_KEY) !== "0");
     } catch {
-      // Storage unavailable — stay procedural.
+      // Storage unavailable — stay on the model default.
     }
   }, []);
   return modelOn;
