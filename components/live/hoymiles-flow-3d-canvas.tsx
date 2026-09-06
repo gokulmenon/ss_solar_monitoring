@@ -1,8 +1,8 @@
 "use client";
 
-import { Edges, OrbitControls } from "@react-three/drei";
+import { Edges, OrbitControls, useGLTF } from "@react-three/drei";
 import { Canvas, useFrame } from "@react-three/fiber";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 
 import type { FlowTelemetry } from "@/lib/flow-telemetry";
@@ -13,6 +13,49 @@ export type PowerFlow3DProps = {
   sectionPowerW: Record<SectionId, number>;
   sectionRatios: Record<SectionId, number>;
 };
+
+// GLB model flag (mirrors home_monitoring): `?model=1` turns the imported
+// v25 house on for the session, persisted via a dedicated localStorage key.
+// Procedural scene stays the default; no UI chrome yet.
+const MODEL_STORAGE_KEY = "power-flow-3d-model";
+const MODEL_URL = "/models/house-v25.glb";
+
+function useModelFlag(): boolean {
+  const [modelOn, setModelOn] = useState(false);
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("model") === "1") {
+        window.localStorage.setItem(MODEL_STORAGE_KEY, "1");
+        setModelOn(true);
+        return;
+      }
+      if (params.get("model") === "0") {
+        window.localStorage.setItem(MODEL_STORAGE_KEY, "0");
+        setModelOn(false);
+        return;
+      }
+      setModelOn(window.localStorage.getItem(MODEL_STORAGE_KEY) === "1");
+    } catch {
+      // Storage unavailable — stay procedural.
+    }
+  }, []);
+  return modelOn;
+}
+
+/**
+ * Imported v25 house. Blender's glTF exporter already converts Z-up to the
+ * Y-up glTF convention, i.e. blend (x,y,z) arrives as canvas (x,z,−y) at 1:1
+ * meters — no rotation. See home_monitoring/blender-starter/
+ * overlay-waypoints.json. Architecture only — pipes/orbs/signs stay
+ * procedural.
+ */
+function ModelHouse() {
+  const gltf = useGLTF(MODEL_URL);
+  return <primitive object={gltf.scene} />;
+}
+
+useGLTF.preload(MODEL_URL);
 
 const PANEL_COLOR = "#0a2540";
 const PANEL_EDGE = "#6ee7b7";
@@ -131,13 +174,17 @@ const RUN_JUMPER_POINTS: [number, number, number][] = [
   [7.21, 1.23, -0.31],
 ];
 
-// The 2-way net meter is the ONLY 3-way point (grid import/export, house
-// loads, solar via combiner + shutoff). Grid runs meter-top → up the wall →
-// roof dead-end; import flows roof-end DOWN into the meter, export reverses.
+// v24 pole topology: the 2-way net meter is the ONLY 3-way point (grid
+// import/export, house loads, solar via combiner + shutoff). Grid runs
+// meter-top → riser → service-drop wire → street pole; import flows pole
+// DOWN into the meter, export reverses. Termini verified against
+// home_monitoring/blender-starter/overlay-waypoints.json (v24 contract).
 const RUN_GRID_POINTS: [number, number, number][] = [
   [7.15, 2.55, -0.25],
   [7.17, 5.22, 0.0],
-  [7.3, 5.8, 0.9],
+  [7.32, 5.83, 0.88],
+  [9.45, 7.07, 9.45],
+  [12.5, 8.52, 16.51],
 ];
 
 // Loads: meter box → east into the wall (ends inside, x<7.0). One direction,
@@ -186,7 +233,7 @@ function FlowParticles({ points, period, count, color, reverse }: FlowRoute) {
     <group ref={group}>
       {Array.from({ length: count }).map((_, index) => (
         <mesh key={index} position={curve.getPoint((index + 1) / (count + 1))}>
-          <sphereGeometry args={[0.22, 12, 12]} />
+          <sphereGeometry args={[0.14, 12, 12]} />
           <meshBasicMaterial color={color} toneMapped={false} />
         </mesh>
       ))}
@@ -240,6 +287,7 @@ function GableRoof({
 function GroundSign({
   position,
   rotationY = 0,
+  tilt = 0.45,
   title,
   value,
   status,
@@ -247,6 +295,7 @@ function GroundSign({
 }: {
   position: [number, number, number];
   rotationY?: number;
+  tilt?: number;
   title: string;
   value: string;
   status: string;
@@ -293,15 +342,18 @@ function GroundSign({
         <boxGeometry args={[0.12, 0.6, 0.12]} />
         <meshStandardMaterial color="#64748b" roughness={0.6} metalness={0.4} />
       </mesh>
-      {/* Back-to-back faces so the text reads correctly from both sides. */}
-      <mesh position={[0, 1.35, 0.012]}>
-        <planeGeometry args={[2.6, 1.52]} />
-        <meshBasicMaterial map={texture} toneMapped={false} />
-      </mesh>
-      <mesh position={[0, 1.35, -0.012]} rotation={[0, Math.PI, 0]}>
-        <planeGeometry args={[2.6, 1.52]} />
-        <meshBasicMaterial map={texture} toneMapped={false} />
-      </mesh>
+      {/* Back-to-back faces so the text reads correctly from both sides,
+          tilted up toward the high default POV (posts stay vertical). */}
+      <group position={[0, 1.35, 0]} rotation={[-tilt, 0, 0]}>
+        <mesh position={[0, 0, 0.012]}>
+          <planeGeometry args={[2.6, 1.52]} />
+          <meshBasicMaterial map={texture} toneMapped={false} />
+        </mesh>
+        <mesh position={[0, 0, -0.012]} rotation={[0, Math.PI, 0]}>
+          <planeGeometry args={[2.6, 1.52]} />
+          <meshBasicMaterial map={texture} toneMapped={false} />
+        </mesh>
+      </group>
     </group>
   );
 }
@@ -430,15 +482,26 @@ export function PowerFlow3DCanvas({ telemetry, sectionPowerW, sectionRatios }: P
       : telemetry.gridState === "importing"
         ? "#fbbf24"
         : "#94a3b8";
+  const modelOn = useModelFlag();
 
   return (
     <div className="absolute inset-0">
-      <Canvas dpr={[1, 1.75]} frameloop="always" camera={{ position: [-13, 9, 15], fov: 38 }}>
+      {/* Default POV ported from the blend's main camera (ProofCam, v24
+          verified): east-above view onto the gear/pipes face. */}
+      <Canvas dpr={[1, 1.75]} frameloop="always" camera={{ position: [15, 22, 10], fov: 38 }}>
         <color attach="background" args={["#020617"]} />
         <ambientLight intensity={0.55} />
         <hemisphereLight args={["#93c5fd", "#1c1917", 0.35]} />
         <directionalLight position={[8, 12, 6]} intensity={1.2} />
 
+        {modelOn && (
+          <Suspense fallback={null}>
+            <ModelHouse />
+          </Suspense>
+        )}
+
+        {/* Procedural statics (hidden when the GLB model is on). */}
+        <group visible={!modelOn}>
         {/* Ground, driveway, pool + patio */}
         <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]}>
           <planeGeometry args={[70, 70]} />
@@ -584,25 +647,17 @@ export function PowerFlow3DCanvas({ telemetry, sectionPowerW, sectionRatios }: P
           <boxGeometry args={[0.24, 0.24, 0.24]} />
           <meshStandardMaterial color="#6b7280" roughness={0.5} metalness={0.5} />
         </mesh>
-        <mesh position={[-5.0, 4.9, 0.35]}>
+        <mesh position={[-5.0, 4.9, 0.57]}>
           <boxGeometry args={[0.24, 0.24, 0.24]} />
           <meshStandardMaterial color="#6b7280" roughness={0.5} metalness={0.5} />
         </mesh>
+        </group>
 
-        {/* Grid tie-in marker at the street + home loads marker */}
-        <mesh position={[6.0, 0.4, 17.2]}>
+        {/* Grid tie-in marker at the pole base (loads terminate at the meter run) */}
+        <mesh position={[12.5, 0.4, 16.4]}>
           <sphereGeometry args={[0.35, 20, 20]} />
           <meshStandardMaterial color={gridMarker} emissive={gridMarker} emissiveIntensity={0.7} />
         </mesh>
-        <mesh position={[0.5, 0.35, 4.6]}>
-          <sphereGeometry args={[0.3, 20, 20]} />
-          <meshStandardMaterial
-            color="#fbbf24"
-            emissive="#fbbf24"
-            emissiveIntensity={telemetry.loadsActive ? 0.9 : 0.15}
-          />
-        </mesh>
-
         {/* Grey conduit pipes: array pairs meet at T-junctions, combined runs
             drop parallel into the combiner; combiner → meter jumper;
             grid tie-in → mast; combiner → loads. */}
@@ -677,6 +732,7 @@ export function PowerFlow3DCanvas({ telemetry, sectionPowerW, sectionRatios }: P
           reverse={false}
         />
 
+        <group visible={!modelOn}>
         {/* Street along the front; the driveway ties into it. */}
         <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.015, 18]}>
           <planeGeometry args={[70, 7]} />
@@ -762,19 +818,21 @@ export function PowerFlow3DCanvas({ telemetry, sectionPowerW, sectionRatios }: P
         {TREE_SPOTS.map((spot, index) => (
           <Tree key={`tree-${index}`} position={spot.position} scale={spot.scale} />
         ))}
+        </group>
 
         {/* Ground-fixed info signs (the HTML badges hide in 3D mode). */}
         <GroundSign
           position={[0.5, 0, 6.8]}
-          rotationY={-0.3}
+          rotationY={1.35}
           title="LOADS"
           value={`${(telemetry.trueHomeW / 1000).toFixed(2)} kW`}
           status="Home demand"
           statusColor="#6ee7b7"
         />
         <GroundSign
-          position={[10.5, 0, 5.0]}
-          rotationY={-0.5}
+          position={[8.3, 0, 4.2]}
+          rotationY={0.86}
+          tilt={0.7}
           title="GRID"
           value={`${(Math.abs(telemetry.trueGridW) / 1000).toFixed(2)} kW`}
           status={gridSignLabel}
@@ -783,7 +841,7 @@ export function PowerFlow3DCanvas({ telemetry, sectionPowerW, sectionRatios }: P
 
         <OrbitControls
           makeDefault
-          target={[0, 2.5, 0]}
+          target={[2.4, 1.6, -0.1]}
           minDistance={6}
           maxDistance={32}
           maxPolarAngle={Math.PI / 2}
