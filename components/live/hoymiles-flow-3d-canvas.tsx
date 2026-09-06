@@ -61,40 +61,44 @@ type FlowRoute = {
 // combiner/grid placement differs (true east-face position, not the
 // front-view schematic). Each run renders as a grey pipe with animated
 // spheres flowing along it.
+// v22 photo-fit refresh (see home_monitoring blender-starter/WIRING_LAYOUT.md):
+// waypoints snapped to the 161-haase-v22.blend pipe meshes. Canvas frame =
+// Blender (x, z, -y). JUMPER/GRID/LOADS move to the v18 meter-top topology
+// (the street tie-in run is gone — grid is meter-top → roof dead-end).
 // P1: panel top edge → stub up to the nearby ridge T-junction.
 const RUN_P1_POINTS: [number, number, number][] = [
-  [4.6, 7.95, 1.05],
-  [4.6, 8.18, 0.85],
+  [4.56, 7.98, 1.08],
+  [4.56, 8.21, 0.88],
 ];
 
 // S1: panel top edge → stub up to the nearby ridge T-junction.
 const RUN_S1_POINTS: [number, number, number][] = [
-  [4.6, 7.95, 0.28],
-  [4.6, 8.18, 0.85],
+  [4.31, 7.7, 0.11],
+  [4.55, 8.18, 0.85],
 ];
 
 // Upper-combined: T_UP on the ridge straight east, then down the east face
 // into the combiner top — parallel to the lower-combined drop.
 const RUN_UPPER_POINTS: [number, number, number][] = [
-  [4.6, 8.18, 0.85],
-  [6.2, 8.2, 0.8],
-  [7.45, 7.85, 0.35],
-  [7.5, 5.2, -0.2],
-  [7.48, 3.4, -0.7],
-  [7.25, 2.66, -1.25],
+  [4.6, 8.12, 0.85],
+  [6.14, 7.94, 0.8],
+  [7.4, 7.7, 0.69],
+  [7.3, 5.43, -0.92],
+  [7.27, 2.71, -0.93],
+  [7.24, 2.66, -1.02],
 ];
 
 // P2: panel top edge → stub to the T-junction between the panels.
 const RUN_P2_POINTS: [number, number, number][] = [
-  [-5.0, 4.78, 1.0],
-  [-5.0, 4.97, 0.68],
-  [-5.0, 4.9, 0.35],
+  [-5.04, 4.81, 1.02],
+  [-5.0, 4.95, 0.66],
+  [-5.0, 4.9, 0.56],
 ];
 
 // S2: panel top edge → stub to the T-junction between the panels.
 const RUN_S2_POINTS: [number, number, number][] = [
-  [-5.0, 4.63, 0.1],
-  [-5.0, 4.9, 0.35],
+  [-5.04, 4.6, 0.13],
+  [-5.0, 4.9, 0.44],
 ];
 
 // Lower-combined: T_LOW east along the garage ridge, riser past the west
@@ -102,50 +106,46 @@ const RUN_S2_POINTS: [number, number, number][] = [
 // arrays (never over the panels), parallel to the upper-combined run, down
 // the east face into the combiner — 2 parallel drops into the box.
 const RUN_LOWER_POINTS: [number, number, number][] = [
-  [-5.0, 4.9, 0.35],
-  [-3.5, 5.05, 0.55],
-  [-2.0, 5.15, 0.7],
-  [-0.5, 5.25, 0.7],
-  [-0.35, 6.4, 0.4],
-  [-0.35, 7.7, 0.1],
-  [1.0, 7.95, 0.35],
-  [3.0, 8.02, 0.5],
-  [5.0, 8.05, 0.5],
-  [6.6, 8.0, 0.45],
-  [7.45, 7.7, 0.1],
-  [7.62, 5.4, -0.7],
-  [7.62, 3.4, -1.2],
-  [7.25, 2.42, -1.55],
+  [-4.96, 4.91, 0.49],
+  [-3.4, 4.86, 0.55],
+  [-1.93, 4.89, 0.56],
+  [-0.33, 4.92, 0.56],
+  [-0.3, 6.41, 0.5],
+  [-0.3, 7.9, 0.55],
+  [1.0, 7.97, 0.61],
+  [2.94, 8.03, 0.6],
+  [4.92, 8.06, 0.62],
+  [6.47, 8.01, 0.57],
+  [7.21, 7.97, 0.38],
+  [7.32, 5.66, -1.17],
+  [7.33, 2.75, -1.18],
+  [7.33, 2.64, -1.23],
 ];
 
 // Combiner → meter jumper (single combined pipe to the net-meter box).
+// Solar into meter: combiner → (overlap, no pipe) → shutoff valve →
+// meter bottom box. One direction, panels → meter, always.
 const RUN_JUMPER_POINTS: [number, number, number][] = [
-  [7.25, 1.95, -1.1],
-  [7.25, 1.86, -0.4],
-  [7.2, 1.86, -0.2],
+  [7.25, 1.41, -1.33],
+  [7.3, 1.21, -0.58],
+  [7.21, 1.23, -0.31],
 ];
 
-// Grid: street tie-in → front yard → up the east-face riser into the mast
-// conduit (parallel to the solar drops). Import flows street → mast; export
-// reverses. Orbs terminate at the mast junction and feed up it.
+// The 2-way net meter is the ONLY 3-way point (grid import/export, house
+// loads, solar via combiner + shutoff). Grid runs meter-top → up the wall →
+// roof dead-end; import flows roof-end DOWN into the meter, export reverses.
 const RUN_GRID_POINTS: [number, number, number][] = [
-  [6.0, 0.3, 17.5],
-  [6.8, 0.3, 10.0],
-  [7.3, 0.5, 4.0],
-  [7.5, 1.0, 1.5],
-  [7.4, 1.8, 0.4],
-  [7.3, 2.5, -0.15],
+  [7.15, 2.55, -0.25],
+  [7.17, 5.22, 0.0],
+  [7.3, 5.8, 0.9],
 ];
 
-// Loads: combiner → around the southeast corner → across the front yard → home
-// marker. The corner waypoint keeps the curve off the house mass.
+// Loads: meter box → east into the wall (ends inside, x<7.0). One direction,
+// meter → house, always.
 const RUN_LOADS_POINTS: [number, number, number][] = [
-  [7.25, 2.0, -1.0],
-  [7.5, 1.3, 1.5],
-  [7.85, 1.0, 3.2],
-  [7.0, 0.85, 4.3],
-  [4.0, 0.8, 4.2],
-  [0.5, 0.4, 4.6],
+  [7.2, 2.6, -0.2],
+  [7.28, 2.6, 1.39],
+  [7.04, 2.6, 1.45],
 ];
 
 function particleCount(watts: number): number {
@@ -666,8 +666,8 @@ export function PowerFlow3DCanvas({ telemetry, sectionPowerW, sectionRatios }: P
           points={RUN_GRID_POINTS}
           period={gridPeriod}
           count={exporting || importing ? particleCount(telemetry.trueGridW) : 0}
-          color="#fbbf24"
-          reverse={exporting}
+          color={exporting ? "#34d399" : "#fbbf24"}
+          reverse={importing}
         />
         <FlowParticles
           points={RUN_LOADS_POINTS}
