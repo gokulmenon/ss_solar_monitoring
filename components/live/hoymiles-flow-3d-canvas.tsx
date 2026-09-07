@@ -19,7 +19,7 @@ export type PowerFlow3DProps = {
 // falls back to the procedural scene for the session, persisted via a
 // dedicated localStorage key. No UI chrome yet.
 const MODEL_STORAGE_KEY = "power-flow-3d-model";
-const MODEL_URL = "/models/house-v30.glb";
+const MODEL_URL = "/models/house-v40.glb";
 
 function useModelFlag(): boolean {
   const [modelOn, setModelOn] = useState(true);
@@ -164,24 +164,92 @@ const PANEL_COLOR = "#0a2540";
 const PANEL_EDGE = "#6ee7b7";
 
 /**
- * Panel array with battery-style production fill, borrowing the 2D cartoon
- * logic: `ratio` (0..1 of section capacity) drives a centered green fill
- * quad over the dark base + the green outline. Fill sits 12 mm proud to
- * avoid z-fighting. In model mode the same component is fed runtime frames
- * derived from the GLB Panel_* nodes (see ModelHouse).
+ * Panel array with battery-level production overlay, ported from the 2D
+ * cartoon: a transparent green level strip rises edge-anchored from one
+ * long edge (bottom by default, top for S1/S2 like the 2D fills) with
+ * height = `ratio` of section capacity, inside a green border — the base
+ * stays black and shows through the unfilled area. Border + fill render
+ * ONLY while powered (`active`, i.e. the 2D `solarActive` gate); at night
+ * the array is a plain black panel. Fill sits 12 mm proud to avoid
+ * z-fighting. In model mode the same component is fed runtime frames from
+ * the GLB Panel_* nodes (see ModelHouse).
  */
+const PANEL_FILL = "#34d399";
+// 0.35 matches the 2D cartoon over a bright photo; the 3D base is near-black
+// so the level needs more punch to read at a glance.
+const PANEL_FILL_OPACITY = 0.55;
+
+// Per-section panel separation grids (cols x rows). APPROXIMATION from panel
+// counts until the 45-panel cardboard-geometry checkpoint lands exact cells:
+// S1 4 (strip), P1 ~13, P2 12, S2 16.
+const PANEL_GRID: Record<SectionId, [number, number]> = {
+  S1: [4, 1],
+  P1: [7, 2],
+  P2: [6, 2],
+  S2: [8, 2],
+};
+const PANEL_SEAM = "#6b7280";
+
+/**
+ * kW + % text riding just off the fill's leading edge (2D: label above the
+ * fill line), drawn on the panel surface above the fill plane so it stays
+ * visible. Canvas texture like GroundSign — no font downloads.
+ */
+function PanelLabel({ text, y }: { text: string; y: number }) {
+  const texture = useMemo(() => {
+    const tex = new THREE.CanvasTexture(document.createElement("canvas"));
+    tex.image.width = 640;
+    tex.image.height = 160;
+    tex.colorSpace = THREE.SRGBColorSpace;
+    return tex;
+  }, []);
+  useEffect(() => {
+    const canvas = texture.image as HTMLCanvasElement;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    ctx.clearRect(0, 0, 640, 160);
+    ctx.textAlign = "center";
+    ctx.font = "700 76px system-ui, sans-serif";
+    ctx.lineWidth = 10;
+    ctx.strokeStyle = "rgba(5,46,34,0.65)";
+    ctx.strokeText(text, 320, 108);
+    ctx.fillStyle = "rgba(255,255,255,0.92)";
+    ctx.fillText(text, 320, 108);
+    texture.needsUpdate = true;
+  }, [texture, text]);
+  useEffect(() => () => {
+    texture.dispose();
+  }, [texture]);
+  return (
+    <mesh position={[0, y, 0.018]} rotation={[0, 0, Math.PI]}>
+      <planeGeometry args={[2.3, 0.575]} />
+      <meshBasicMaterial map={texture} transparent toneMapped={false} side={THREE.DoubleSide} />
+    </mesh>
+  );
+}
+
 function PanelGroup({
   position,
   rotation,
   quaternion,
   size,
   ratio,
+  active,
+  fromTop = false,
+  gridCols = 1,
+  gridRows = 1,
+  label = "",
 }: {
   position: [number, number, number];
   rotation?: [number, number, number];
   quaternion?: [number, number, number, number];
   size: [number, number];
   ratio: number;
+  active: boolean;
+  fromTop?: boolean;
+  gridCols?: number;
+  gridRows?: number;
+  label?: string;
 }) {
   const r = Math.max(0, Math.min(1, ratio || 0));
   const quat = useMemo(
@@ -193,6 +261,14 @@ function PanelGroup({
           ),
     [quaternion, rotation],
   );
+  const innerW = size[0] * 0.92;
+  const innerH = size[1] * 0.92;
+  const barH = innerH * r;
+  const barY = fromTop ? innerH / 2 - barH / 2 : -innerH / 2 + barH / 2;
+  // Label rides just off the fill's leading edge, clamped inside the array.
+  const labelY = fromTop
+    ? Math.max(-innerH / 2 + 0.2, innerH / 2 - barH - 0.24)
+    : Math.min(innerH / 2 - 0.2, -innerH / 2 + barH + 0.24);
   return (
     <group position={position} quaternion={quat}>
       <mesh>
@@ -201,24 +277,47 @@ function PanelGroup({
           color={PANEL_COLOR}
           metalness={0.55}
           roughness={0.35}
-          emissive="#10b981"
-          emissiveIntensity={0.12 + 0.5 * r}
+          emissive="#000000"
+          emissiveIntensity={0}
           side={THREE.DoubleSide}
         />
-        <Edges linewidth={1} scale={1} threshold={15} color={PANEL_EDGE} />
+        {active && <Edges linewidth={1} scale={1} threshold={15} color={PANEL_EDGE} />}
       </mesh>
-      {r > 0.02 && (
-        <mesh position={[0, 0, 0.012]}>
-          <planeGeometry args={[size[0] * 0.94, size[1] * 0.94 * r]} />
+      {active && r > 0.02 && (
+        <mesh position={[0, barY, 0.012]}>
+          <planeGeometry args={[innerW, barH]} />
           <meshBasicMaterial
-            color="#34d399"
+            color={PANEL_FILL}
             transparent
-            opacity={0.25 + 0.55 * r}
+            opacity={PANEL_FILL_OPACITY}
             toneMapped={false}
             side={THREE.DoubleSide}
           />
         </mesh>
       )}
+      {active && r > 0.02 && label !== "" && (
+        <PanelLabel text={label} y={labelY} />
+      )}
+      {/* Panel separation seams: thin aluminum strips on the base, UNDER the
+          level fill (z 0.006 < 0.012). Physical detail, so always rendered. */}
+      {Array.from({ length: Math.max(0, gridCols - 1) }).map((_, i) => (
+        <mesh
+          key={`seam-v-${i}`}
+          position={[-size[0] / 2 + ((i + 1) * size[0]) / gridCols, 0, 0.006]}
+        >
+          <planeGeometry args={[0.025, size[1] * 0.98]} />
+          <meshBasicMaterial color={PANEL_SEAM} toneMapped={false} side={THREE.DoubleSide} />
+        </mesh>
+      ))}
+      {Array.from({ length: Math.max(0, gridRows - 1) }).map((_, j) => (
+        <mesh
+          key={`seam-h-${j}`}
+          position={[0, -size[1] / 2 + ((j + 1) * size[1]) / gridRows, 0.006]}
+        >
+          <planeGeometry args={[size[0] * 0.98, 0.025]} />
+          <meshBasicMaterial color={PANEL_SEAM} toneMapped={false} side={THREE.DoubleSide} />
+        </mesh>
+      ))}
     </group>
   );
 }
@@ -263,14 +362,16 @@ const RUN_S1_POINTS: [number, number, number][] = [
 ];
 
 // Upper-combined: T_UP on the ridge straight east, then down the east face
-// into the combiner top — parallel to the lower-combined drop.
+// into the combiner top — parallel to the lower-combined drop. Drops ride
+// 7 cm proud of the combiner east face (x 7.42 vs face 7.35) and turn INTO
+// the top; the old line ran inside the box x-range and read as piercing it.
 const RUN_UPPER_POINTS: [number, number, number][] = [
   [4.6, 8.12, 0.85],
   [6.14, 7.94, 0.8],
   [7.4, 7.7, 0.69],
-  [7.3, 5.43, -0.92],
-  [7.27, 2.71, -0.93],
-  [7.24, 2.66, -1.02],
+  [7.42, 5.66, -1.08],
+  [7.42, 2.78, -1.08],
+  [7.3, 2.72, -1.08],
 ];
 
 // P2: panel top edge → stub to the T-junction between the panels.
@@ -302,9 +403,9 @@ const RUN_LOWER_POINTS: [number, number, number][] = [
   [4.92, 8.06, 0.62],
   [6.47, 8.01, 0.57],
   [7.21, 7.97, 0.38],
-  [7.32, 5.66, -1.17],
-  [7.33, 2.75, -1.18],
-  [7.33, 2.64, -1.23],
+  [7.42, 5.66, -1.18],
+  [7.42, 2.78, -1.18],
+  [7.3, 2.72, -1.18],
 ];
 
 // Combiner → meter jumper (single combined pipe to the net-meter box).
@@ -316,29 +417,44 @@ const RUN_JUMPER_POINTS: [number, number, number][] = [
   [7.21, 1.23, -0.31],
 ];
 
+// Meter link: bottom-box top → meter-box bottom (the nipple between the two
+// boxes in the site photo). Completes combiner → shutoff → bottom → meter.
+// Green orbs ride bottom → meter while powered. x 7.12 keeps the 0.14 orbs
+// clear of the meter card plane (7.283).
+const RUN_METER_LINK_POINTS: [number, number, number][] = [
+  [7.12, 1.69, -0.2],
+  [7.12, 2.18, -0.2],
+];
+
 // v24 pole topology: the 2-way net meter is the ONLY 3-way point (grid
 // import/export, house loads, solar via combiner + shutoff). Grid runs
 // meter-top → riser → service-drop wire → street pole; import flows pole
 // DOWN into the meter, export reverses. Termini verified against
 // home_monitoring/blender-starter/overlay-waypoints.json (v24 contract).
 const RUN_GRID_POINTS: [number, number, number][] = [
-  [7.15, 2.55, -0.25],
+  [7.15, 2.55, -0.2],
+  [7.15, 3.2, -0.2],
   [7.17, 5.22, 0.0],
   [7.32, 5.83, 0.88],
   [9.45, 7.07, 9.45],
   [12.5, 8.52, 16.51],
 ];
 
-// Loads: meter box → east into the wall (ends inside, x<7.0). One direction,
-// meter → house, always.
+// Loads: home loads tap at the METER (the net meter is the only 3-way
+// point: grid import/export, house loads, solar via combiner + shutoff).
+// Out the meter south-bottom edge, dip BELOW dial/card height, run south
+// along the wall, then east into the wall toward the house interior. One
+// direction, meter → house, always.
 const RUN_LOADS_POINTS: [number, number, number][] = [
-  [7.2, 2.6, -0.2],
-  [7.28, 2.6, 1.39],
-  [7.04, 2.6, 1.45],
+  [7.15, 2.25, -0.1],
+  [7.22, 2.02, 0.08],
+  [7.3, 1.9, 0.35],
+  [7.3, 1.9, 1.2],
+  [6.95, 1.9, 1.2],
 ];
 
-function particleCount(watts: number): number {
-  return Math.max(1, Math.min(6, Math.round(Math.abs(watts) / 600)));
+function particleCount(watts: number, cap = 6): number {
+  return Math.max(1, Math.min(cap, Math.round(Math.abs(watts) / 600)));
 }
 
 /** prefers-reduced-motion → parked particles (no useFrame advance). */
@@ -501,8 +617,10 @@ function GroundSign({
 }
 
 /**
- * Front-face window: white frame + dark glass + muntin cross, seated proud
- * of the wall face like the 2D photo's punched openings.
+ * Front-face window: white frame + lit pale-yellow panes + slim muntins +
+ * sill ledge, seated proud of the wall face like the 2D photo's punched
+ * openings. Muntins sit flush with the glass face (not proud boxes) so they
+ * read as pane dividers, not a grid mesh. Wide units get 3 columns.
  */
 function Window({
   position,
@@ -512,6 +630,11 @@ function Window({
   size?: [number, number];
 }) {
   const [w, h] = size;
+  const cols = w > 1.8 ? 3 : 2;
+  const verticals = Array.from(
+    { length: cols - 1 },
+    (_, i) => -w / 2 + ((i + 1) * w) / cols,
+  );
   return (
     <group position={position}>
       <mesh>
@@ -520,14 +643,26 @@ function Window({
       </mesh>
       <mesh position={[0, 0, 0.03]}>
         <boxGeometry args={[w, h, 0.06]} />
-        <meshStandardMaterial color="#16202e" roughness={0.2} metalness={0.6} />
+        <meshStandardMaterial
+          color="#ffedb5"
+          emissive="#ffd97a"
+          emissiveIntensity={0.55}
+          roughness={0.4}
+          metalness={0}
+        />
       </mesh>
-      <mesh position={[0, 0, 0.07]}>
-        <boxGeometry args={[0.05, h, 0.02]} />
-        <meshStandardMaterial color="#e8e6e0" roughness={0.8} />
+      {verticals.map((x) => (
+        <mesh key={`mullion-${x.toFixed(2)}`} position={[x, 0, 0.05]}>
+          <boxGeometry args={[0.035, h, 0.02]} />
+          <meshStandardMaterial color="#f4f2ec" roughness={0.8} />
+        </mesh>
+      ))}
+      <mesh position={[0, 0, 0.05]}>
+        <boxGeometry args={[w, 0.035, 0.02]} />
+        <meshStandardMaterial color="#f4f2ec" roughness={0.8} />
       </mesh>
-      <mesh position={[0, 0, 0.07]}>
-        <boxGeometry args={[w, 0.05, 0.02]} />
+      <mesh position={[0, -(h / 2 + 0.12), 0.02]}>
+        <boxGeometry args={[w + 0.3, 0.08, 0.18]} />
         <meshStandardMaterial color="#e8e6e0" roughness={0.8} />
       </mesh>
     </group>
@@ -660,6 +795,10 @@ export function PowerFlow3DCanvas({ telemetry, sectionPowerW, sectionRatios }: P
         : "#94a3b8";
   const modelOn = useModelFlag();
   const [panelFrames, setPanelFrames] = useState<Record<string, PanelFrame> | null>(null);
+  // Day/powered gate for panels + solar orbs (mirrors the 2D solarActive).
+  const panelsPowered = telemetry.solarActive === true;
+  const totalSolarW =
+    sectionPowerW.S1 + sectionPowerW.P1 + sectionPowerW.S2 + sectionPowerW.P2;
 
   return (
     <div className="absolute inset-0">
@@ -688,6 +827,14 @@ export function PowerFlow3DCanvas({ telemetry, sectionPowerW, sectionRatios }: P
                 quaternion={frame.quaternion}
                 size={frame.size}
                 ratio={sectionRatios[section as SectionId]}
+                active={panelsPowered}
+                // GLB runtime frames orient local +Y eave-ward, so every
+                // section fills from the top edge; the procedural fallback
+                // below uses hand-set eulers with the opposite convention.
+                fromTop
+                gridCols={PANEL_GRID[section as SectionId][0]}
+                gridRows={PANEL_GRID[section as SectionId][1]}
+                label={`${((sectionPowerW[section as SectionId] ?? 0) / 1000).toFixed(2)} kW ${Math.round((sectionRatios[section as SectionId] ?? 0) * 100)}%`}
               />
             );
           })}
@@ -780,10 +927,10 @@ export function PowerFlow3DCanvas({ telemetry, sectionPowerW, sectionRatios }: P
 
         {/* Panel groups seated on the slopes (south steep, north shallow):
             P1/P2 front slopes, S1/S2 rear slopes. */}
-        <PanelGroup position={[-5, 3.95, 2.02]} rotation={[-0.937, 0, 0]} size={[4.6, 2.4]} ratio={sectionRatios.P2} />
-        <PanelGroup position={[3.5, 7.05, 2.09]} rotation={[-0.896, 0, 0]} size={[5, 2.6]} ratio={sectionRatios.P1} />
-        <PanelGroup position={[-5, 3.95, -1.29]} rotation={[-1.999, 0, 0]} size={[4.6, 3.2]} ratio={sectionRatios.S2} />
-        <PanelGroup position={[3.5, 7.03, -1.31]} rotation={[-2.025, 0, 0]} size={[5, 3.6]} ratio={sectionRatios.S1} />
+        <PanelGroup position={[-5, 3.95, 2.02]} rotation={[-0.937, 0, 0]} size={[4.6, 2.4]} ratio={sectionRatios.P2} active={panelsPowered} gridCols={PANEL_GRID.P2[0]} gridRows={PANEL_GRID.P2[1]} label={`${(sectionPowerW.P2 / 1000).toFixed(2)} kW ${Math.round(sectionRatios.P2 * 100)}%`} />
+        <PanelGroup position={[3.5, 7.05, 2.09]} rotation={[-0.896, 0, 0]} size={[5, 2.6]} ratio={sectionRatios.P1} active={panelsPowered} gridCols={PANEL_GRID.P1[0]} gridRows={PANEL_GRID.P1[1]} label={`${(sectionPowerW.P1 / 1000).toFixed(2)} kW ${Math.round(sectionRatios.P1 * 100)}%`} />
+        <PanelGroup position={[-5, 3.95, -1.29]} rotation={[-1.999, 0, 0]} size={[4.6, 3.2]} ratio={sectionRatios.S2} active={panelsPowered} fromTop gridCols={PANEL_GRID.S2[0]} gridRows={PANEL_GRID.S2[1]} label={`${(sectionPowerW.S2 / 1000).toFixed(2)} kW ${Math.round(sectionRatios.S2 * 100)}%`} />
+        <PanelGroup position={[3.5, 7.03, -1.31]} rotation={[-2.025, 0, 0]} size={[5, 3.6]} ratio={sectionRatios.S1} active={panelsPowered} fromTop gridCols={PANEL_GRID.S1[0]} gridRows={PANEL_GRID.S1[1]} label={`${(sectionPowerW.S1 / 1000).toFixed(2)} kW ${Math.round(sectionRatios.S1 * 100)}%`} />
 
         {/* Electrical gear on the east outer face of the two-story (x = 7
             plane, opposite end from the garage). Occluded from the initial
@@ -860,6 +1007,7 @@ export function PowerFlow3DCanvas({ telemetry, sectionPowerW, sectionRatios }: P
         <PipeRun points={RUN_S2_POINTS} {...solarGlow} />
         <PipeRun points={RUN_LOWER_POINTS} {...solarGlow} />
         <PipeRun points={RUN_JUMPER_POINTS} {...solarGlow} />
+        <PipeRun points={RUN_METER_LINK_POINTS} {...solarGlow} />
         <PipeRun points={RUN_GRID_POINTS} {...gridGlow} />
         <PipeRun points={RUN_LOADS_POINTS} {...loadsGlow} />
 
@@ -919,8 +1067,27 @@ export function PowerFlow3DCanvas({ telemetry, sectionPowerW, sectionRatios }: P
         <FlowParticles
           points={RUN_LOADS_POINTS}
           period={loadPeriod}
-          count={telemetry.loadsActive ? particleCount(telemetry.trueHomeW) : 0}
+          count={telemetry.loadsActive ? particleCount(telemetry.trueHomeW, 2) : 0}
           color="#6ee7b7"
+          reverse={false}
+        />
+        {/* Combiner → shutoff → net-meter-bottom jumper: the tube rendered
+            but orbs were never attached, so no green dots rode it. Green
+            while powered, panels → meter, always. */}
+        <FlowParticles
+          points={RUN_JUMPER_POINTS}
+          period={solarPeriod}
+          count={telemetry.solarActive ? particleCount(totalSolarW, 3) : 0}
+          color="#34d399"
+          reverse={false}
+        />
+        {/* Bottom-box → meter nipple link: completes the chain into the
+            meter. Green bottom → meter while powered. */}
+        <FlowParticles
+          points={RUN_METER_LINK_POINTS}
+          period={solarPeriod}
+          count={telemetry.solarActive ? particleCount(totalSolarW, 2) : 0}
+          color="#34d399"
           reverse={false}
         />
 
@@ -1014,7 +1181,7 @@ export function PowerFlow3DCanvas({ telemetry, sectionPowerW, sectionRatios }: P
 
         {/* Ground-fixed info signs (the HTML badges hide in 3D mode). */}
         <GroundSign
-          position={[0.5, 0, 6.8]}
+          position={[4.2, 0, 7.2]}
           rotationY={1.35}
           title="LOADS"
           value={`${(telemetry.trueHomeW / 1000).toFixed(2)} kW`}
@@ -1022,8 +1189,8 @@ export function PowerFlow3DCanvas({ telemetry, sectionPowerW, sectionRatios }: P
           statusColor="#6ee7b7"
         />
         <GroundSign
-          position={[8.3, 0, 4.2]}
-          rotationY={0.86}
+          position={[7.0, 0, 5.5]}
+          rotationY={1.35}
           tilt={0.7}
           title="GRID"
           value={`${(Math.abs(telemetry.trueGridW) / 1000).toFixed(2)} kW`}
