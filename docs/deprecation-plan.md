@@ -75,7 +75,7 @@ flow, Supabase helpers. Still reusable on request:
 
 - [x] Maintenance-only declared; backport procedure written.
 - [x] First on-demand backport completed using §Sync (v40, 2026-09-06).
-- [ ] Theme/ray + front-window pane correction backport completed using §Sync
-  (solar verification in progress for the 2026-09-07 change set).
+- [x] Theme/ray + front-window pane correction backport completed using §Sync
+  (solar `9faae94` → home `0d51f54`, 2026-09-07).
 - [ ] D4 freeze declared after their M4 release.
 - [ ] D5 shutdown executed and repo archived.

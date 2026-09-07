@@ -52,8 +52,8 @@ memory (`coordination.md`); repo milestones in `docs/deprecation-plan.md`.
   2026-09-06 eve (solar `9181eb5` → home `b267ce8` via `diff -u` +
   `patch -p1`; canvas + house-v40.glb + waypoints only).
 - [ ] D4 freeze + D5 shutdown per the deprecation burndown.
-- [x] Day/night graphics + sun-ray overlay animation (solar-first pass
-  completed 2026-09-07; backport to home follows verification). Shared
+- [x] Day/night graphics + sun-ray overlay animation (solar-first pass and
+  home backport completed 2026-09-07; solar `9faae94`, home `0d51f54`). Shared
   selector is `telemetry.solarActive`; rays use `lib/solar-rays.ts` in both
   2D and 3D. Keep the static 3D panel outline/grid visible even when the
   solar-active fill is gated off.
@@ -83,7 +83,7 @@ memory (`coordination.md`); repo milestones in `docs/deprecation-plan.md`.
   backports without a risky binary export. A v41 Blender headless attempt
   exited before producing output; do not replace v40 until a sequential
   factory-startup pass exports and screenshot-verifies successfully.
-- Validation must cover `tsc --noEmit`, touched-file ESLint, desktop/mobile
+- Validation covered `tsc --noEmit`, touched-file ESLint, desktop/mobile
   screenshots, and the home backport. Keep docs and source changes scoped;
   do not stage the local meter CSV, intermediate GLBs, build info, or existing
   unrelated worktree edits.
