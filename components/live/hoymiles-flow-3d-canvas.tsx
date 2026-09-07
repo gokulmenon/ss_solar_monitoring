@@ -107,6 +107,37 @@ function repairFrontWindowPanes(scene: THREE.Object3D) {
   }
 }
 
+function repairGroundSurfaces(scene: THREE.Object3D) {
+  scene.updateMatrixWorld(true);
+  const street = scene.getObjectByName("Street");
+  if (street && street.userData.hoymilesStreetLifted !== true) {
+    // The exported road is coplanar with the large GLB Ground mesh and is
+    // swallowed by depth testing. Replace it with the shared raised slab
+    // rendered below so both the imported and procedural scenes match.
+    street.visible = false;
+    street.userData.hoymilesStreetLifted = true;
+  }
+
+  scene.traverse((object) => {
+    if (!(object instanceof THREE.Mesh)) return;
+    const name = object.name.toLowerCase();
+    if (name !== "street" && !name.startsWith("driveway")) return;
+    const sourceMaterials = Array.isArray(object.material) ? object.material : [object.material];
+    const surfaceMaterials = sourceMaterials.map((material) => {
+      if (!(material instanceof THREE.MeshStandardMaterial) && !(material instanceof THREE.MeshPhysicalMaterial)) return material;
+      const adjusted = material.userData.hoymilesGroundSurface === true ? material : material.clone();
+      adjusted.userData.hoymilesGroundSurface = true;
+      adjusted.color.set("#23262b");
+      adjusted.roughness = 1;
+      adjusted.metalness = 0;
+      adjusted.emissive.set("#000000");
+      adjusted.emissiveIntensity = 0;
+      return adjusted;
+    });
+    object.material = Array.isArray(object.material) ? surfaceMaterials : surfaceMaterials[0];
+  });
+}
+
 /**
  * Derive overlay frames from the GLB Panel_* meshes: world center lifted
  * just off the surface along the face normal, orientation from the mesh
@@ -128,6 +159,7 @@ function ModelHouse({
     done.current = true;
     const frames: Record<string, PanelFrame> = {};
     gltf.scene.updateMatrixWorld(true);
+    repairGroundSurfaces(gltf.scene);
     repairFrontWindowPanes(gltf.scene);
     gltf.scene.updateMatrixWorld(true);
     for (const section of PANEL_SECTIONS) {
@@ -784,6 +816,9 @@ function GroundSign({
   status: string;
   statusColor: string;
 }) {
+  const panelY = 1.35;
+  const panelHeight = 1.52;
+  const postHeight = Math.max(0.6, panelY - Math.cos(tilt) * (panelHeight / 2));
   const texture = useMemo(() => {
     const tex = new THREE.CanvasTexture(document.createElement("canvas"));
     tex.image.width = 512;
@@ -817,17 +852,17 @@ function GroundSign({
   }, [texture]);
   return (
     <group position={position} rotation={[0, rotationY, 0]}>
-      <mesh position={[-0.9, 0.3, 0]}>
-        <boxGeometry args={[0.12, 0.6, 0.12]} />
+      <mesh position={[-0.9, postHeight / 2, 0]}>
+        <boxGeometry args={[0.12, postHeight, 0.12]} />
         <meshStandardMaterial color="#64748b" roughness={0.6} metalness={0.4} />
       </mesh>
-      <mesh position={[0.9, 0.3, 0]}>
-        <boxGeometry args={[0.12, 0.6, 0.12]} />
+      <mesh position={[0.9, postHeight / 2, 0]}>
+        <boxGeometry args={[0.12, postHeight, 0.12]} />
         <meshStandardMaterial color="#64748b" roughness={0.6} metalness={0.4} />
       </mesh>
       {/* Back-to-back faces so the text reads correctly from both sides,
           tilted up toward the high default POV (posts stay vertical). */}
-      <group position={[0, 1.35, 0]} rotation={[-tilt, 0, 0]}>
+      <group position={[0, panelY, 0]} rotation={[-tilt, 0, 0]}>
         <mesh position={[0, 0, 0.012]}>
           <planeGeometry args={[2.6, 1.52]} />
           <meshBasicMaterial map={texture} toneMapped={false} />
@@ -1079,9 +1114,9 @@ export function PowerFlow3DCanvas({ telemetry, sectionPowerW, sectionRatios, nig
           <planeGeometry args={[70, 70]} />
           <meshStandardMaterial color="#2f5d33" roughness={1} />
         </mesh>
-        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[-7, 0.02, 8]}>
+        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[-7, 0.035, 8]}>
           <planeGeometry args={[6, 14]} />
-          <meshStandardMaterial color="#1f2937" roughness={1} />
+          <meshStandardMaterial color="#23262b" roughness={1} />
         </mesh>
         <mesh position={[-6, 0.15, -7]}>
           <boxGeometry args={[10, 0.3, 7]} />
@@ -1326,17 +1361,6 @@ export function PowerFlow3DCanvas({ telemetry, sectionPowerW, sectionRatios, nig
         />
 
         <group visible={!modelOn}>
-        {/* Street along the front; the driveway ties into it. */}
-        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.015, 18]}>
-          <planeGeometry args={[70, 7]} />
-          <meshStandardMaterial color="#23262b" roughness={1} />
-        </mesh>
-        {Array.from({ length: 9 }).map((_, index) => (
-          <mesh key={`dash-${index}`} position={[-16 + index * 4, 0.03, 18]}>
-            <boxGeometry args={[1.6, 0.02, 0.18]} />
-            <meshStandardMaterial color="#d7dae0" roughness={0.9} />
-          </mesh>
-        ))}
 
         {/* East vinyl boundary fence with posts + a gate gap (z -3..-0.5)
             by the gear (frame 04 gate-fence landmark). */}
@@ -1412,6 +1436,19 @@ export function PowerFlow3DCanvas({ telemetry, sectionPowerW, sectionRatios, nig
           <Tree key={`tree-${index}`} position={spot.position} scale={spot.scale} />
         ))}
         </group>
+
+        {/* Shared street slab: the imported road was coplanar with Ground,
+            so keep one shallow, always-visible surface for both renderers. */}
+        <mesh position={[0, 0.06, 18]}>
+          <boxGeometry args={[70, 0.12, 7]} />
+          <meshStandardMaterial color="#23262b" roughness={1} />
+        </mesh>
+        {Array.from({ length: 9 }).map((_, index) => (
+          <mesh key={`shared-dash-${index}`} position={[-16 + index * 4, 0.13, 18]}>
+            <boxGeometry args={[1.6, 0.02, 0.18]} />
+            <meshStandardMaterial color="#d7dae0" roughness={0.9} />
+          </mesh>
+        ))}
 
         {/* Ground-fixed info signs (the HTML badges hide in 3D mode). */}
         <GroundSign

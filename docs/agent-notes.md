@@ -87,3 +87,6 @@ memory (`coordination.md`); repo milestones in `docs/deprecation-plan.md`.
   screenshots, and the home backport. Keep docs and source changes scoped;
   do not stage the local meter CSV, intermediate GLBs, build info, or existing
   unrelated worktree edits.
+- Final 3D polish keeps the LOADS/GRID board posts connected to the tilted
+  panels and replaces the coplanar GLB road with a shared raised dark slab;
+  driveway and street now match visually in both model and procedural modes.
