@@ -90,3 +90,27 @@ memory (`coordination.md`); repo milestones in `docs/deprecation-plan.md`.
 - Final 3D polish keeps the LOADS/GRID board posts connected to the tilted
   panels and replaces the coplanar GLB road with a shared raised dark slab;
   driveway and street now match visually in both model and procedural modes.
+
+## Session 2026-09-07 — roof finish, unburied drop, night-dim edges
+
+- Solar `da40e38`, backported to home `d104eb8` (canvas byte-identical
+  again). All three main-house GLB slabs (`Roof_Garage[.001]`, `Roof_Main`)
+  retinted `#3f454e` with a runtime running-bond tile texture; procedural
+  `GableRoof` shares the canvas. GLB roofs ship POSITION+NORMAL only (no
+  UVs), so `repairRoofSurfaces` generates dominant-plane planar UVs at load.
+- Upper combiner drop rerouted after a `three.js`-exact clearance probe
+  (`/tmp/roof-clearance.mjs`, kept outside the repo): ridge run lay
+  half-sunk (0.000) and the corner grazed the eave (0.003). New routing
+  rides ~0.2 proud of the crest and rounds the ridge-end (>=0.2 vs roof,
+  panels, walls, vent). Lower twin untouched (>=0.17; orb bottoms may graze
+  the garage ridge — follow-up if noticed).
+- Panel `Edges`/seams were unlit full-bright at night: green highlight is
+  now gated on `solarActive` (dim slate idle-day, near-dark night).
+- Verification without Playwright browsers: headless system Chrome renders
+  WebGL with `--enable-unsafe-swiftshader --use-angle=swiftshader` +
+  `--virtual-time-budget=30000`; temp `app/preview-roof/` route (plain
+  segment, `?theme=`/`?model=` params), deleted after. Deleting a route
+  needs `rm -rf .next` before `tsc` (stale `.next/types`).
+- Next up (owner-directed): widen the viewport card on desktop so it takes
+  more width and pushes below-fold content down; mobile stays max-width
+  (no change expected there).

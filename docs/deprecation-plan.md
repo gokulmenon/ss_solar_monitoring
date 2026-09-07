@@ -77,5 +77,8 @@ flow, Supabase helpers. Still reusable on request:
 - [x] First on-demand backport completed using §Sync (v40, 2026-09-06).
 - [x] Theme/ray + front-window pane correction backport completed using §Sync
   (solar `9faae94` → home `0d51f54`, 2026-09-07).
+- [x] Roof/pipe/edge polish backport completed using §Sync (solar `da40e38`
+  → home `d104eb8`, 2026-09-07): tiled `#3f454e` roofs, unburied upper drop,
+  night-dim panel edges. Canvas byte-identical post-backport.
 - [ ] D4 freeze declared after their M4 release.
 - [ ] D5 shutdown executed and repo archived.
