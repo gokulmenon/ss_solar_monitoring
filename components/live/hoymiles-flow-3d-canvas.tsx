@@ -19,7 +19,7 @@ export type PowerFlow3DProps = {
 // falls back to the procedural scene for the session, persisted via a
 // dedicated localStorage key. No UI chrome yet.
 const MODEL_STORAGE_KEY = "power-flow-3d-model";
-const MODEL_URL = "/models/house-v25.glb";
+const MODEL_URL = "/models/house-v30.glb";
 
 function useModelFlag(): boolean {
   const [modelOn, setModelOn] = useState(true);
@@ -51,8 +51,110 @@ function useModelFlag(): boolean {
  * overlay-waypoints.json. Architecture only — pipes/orbs/signs stay
  * procedural.
  */
-function ModelHouse() {
+const PANEL_SECTIONS = ["P1", "S1", "P2", "S2"] as const;
+
+/**
+ * Derive overlay frames from the GLB Panel_* meshes: world center lifted
+ * just off the surface along the face normal, orientation from the mesh
+ * quaternion composed with a plane→fat-axes alignment, size from the local
+ * bounds. Runs once per load; downward normals are flipped so the lift
+ * side faces away from the roof.
+ */
+function ModelHouse({
+  onFrames,
+}: {
+  onFrames: (frames: Record<string, PanelFrame>) => void;
+}) {
   const gltf = useGLTF(MODEL_URL);
+  const done = useRef(false);
+  useEffect(() => {
+    if (done.current) return;
+    done.current = true;
+    const frames: Record<string, PanelFrame> = {};
+    gltf.scene.updateMatrixWorld(true);
+    for (const section of PANEL_SECTIONS) {
+      const node = gltf.scene.getObjectByName(`Panel_${section}`);
+      if (!node || !(node instanceof THREE.Mesh)) continue;
+      const geo = node.geometry as THREE.BufferGeometry;
+      // Face normal = largest-triangle normal (box slabs cancel in a
+      // Newell sum), flipped skyward; long axis via 2D PCA on the face
+      // plane so triangulation diagonals can't skew it.
+      const posAttr = geo.attributes.position as THREE.BufferAttribute;
+      const idx = geo.index;
+      const triCount = idx ? idx.count / 3 : posAttr.count / 3;
+      const at = (i: number) =>
+        new THREE.Vector3().fromBufferAttribute(posAttr, idx ? idx.getX(i) : i);
+      const wv = (v: THREE.Vector3) => v.applyMatrix4(node.matrixWorld);
+      let bestArea = -1;
+      const n = new THREE.Vector3(0, 1, 0);
+      for (let t = 0; t < triCount; t++) {
+        const p0 = wv(at(t * 3));
+        const p1 = wv(at(t * 3 + 1));
+        const p2 = wv(at(t * 3 + 2));
+        const e1 = p1.clone().sub(p0);
+        const e2 = p2.clone().sub(p0);
+        const fn = e1.clone().cross(e2);
+        const area = fn.length() / 2;
+        if (area > bestArea) {
+          bestArea = area;
+          n.copy(fn.normalize());
+        }
+      }
+      if (n.y < 0) n.negate();
+      const t0 = Math.abs(n.y) > 0.99
+        ? new THREE.Vector3(1, 0, 0)
+        : new THREE.Vector3().crossVectors(n, new THREE.Vector3(0, 1, 0)).normalize();
+      const b0 = new THREE.Vector3().crossVectors(n, t0).normalize();
+      const pts: THREE.Vector3[] = [];
+      for (let i = 0; i < posAttr.count; i++) pts.push(wv(at(i)));
+      const mean = pts.reduce((acc, p) => acc.add(p), new THREE.Vector3()).multiplyScalar(1 / pts.length);
+      let cxx = 0;
+      let cxy = 0;
+      let cyy = 0;
+      let nMin = Infinity;
+      let nMax = -Infinity;
+      for (const p of pts) {
+        const d = p.clone().sub(mean);
+        const x = d.dot(t0);
+        const y = d.dot(b0);
+        const z = d.dot(n);
+        cxx += x * x;
+        cxy += x * y;
+        cyy += y * y;
+        nMin = Math.min(nMin, z);
+        nMax = Math.max(nMax, z);
+      }
+      const ang = 0.5 * Math.atan2(2 * cxy, cxx - cyy);
+      const u = t0.clone().multiplyScalar(Math.cos(ang)).addScaledVector(b0, Math.sin(ang));
+      const v = t0.clone().multiplyScalar(-Math.sin(ang)).addScaledVector(b0, Math.cos(ang));
+      let uMin = Infinity;
+      let uMax = -Infinity;
+      let vMin = Infinity;
+      let vMax = -Infinity;
+      for (const p of pts) {
+        const d = p.clone().sub(mean);
+        uMin = Math.min(uMin, d.dot(u));
+        uMax = Math.max(uMax, d.dot(u));
+        vMin = Math.min(vMin, d.dot(v));
+        vMax = Math.max(vMax, d.dot(v));
+      }
+      const q = new THREE.Quaternion().setFromRotationMatrix(
+        new THREE.Matrix4().makeBasis(u, v, n),
+      );
+      const su = uMax - uMin;
+      const sv = vMax - vMin;
+      const center2D = mean
+        .addScaledVector(u, (uMin + uMax) / 2)
+        .addScaledVector(v, (vMin + vMax) / 2)
+        .addScaledVector(n, (nMin + nMax) / 2 + (nMax - nMin) / 2 + 0.03);
+      frames[section] = {
+        position: [center2D.x, center2D.y, center2D.z],
+        quaternion: [q.x, q.y, q.z, q.w],
+        size: [su * 0.96, sv * 0.96],
+      };
+    }
+    onFrames(frames);
+  }, [gltf, onFrames]);
   return <primitive object={gltf.scene} />;
 }
 
@@ -61,32 +163,71 @@ useGLTF.preload(MODEL_URL);
 const PANEL_COLOR = "#0a2540";
 const PANEL_EDGE = "#6ee7b7";
 
+/**
+ * Panel array with battery-style production fill, borrowing the 2D cartoon
+ * logic: `ratio` (0..1 of section capacity) drives a centered green fill
+ * quad over the dark base + the green outline. Fill sits 12 mm proud to
+ * avoid z-fighting. In model mode the same component is fed runtime frames
+ * derived from the GLB Panel_* nodes (see ModelHouse).
+ */
 function PanelGroup({
   position,
   rotation,
+  quaternion,
   size,
   ratio,
 }: {
   position: [number, number, number];
-  rotation: [number, number, number];
+  rotation?: [number, number, number];
+  quaternion?: [number, number, number, number];
   size: [number, number];
   ratio: number;
 }) {
+  const r = Math.max(0, Math.min(1, ratio || 0));
+  const quat = useMemo(
+    () =>
+      quaternion
+        ? new THREE.Quaternion(...quaternion)
+        : new THREE.Quaternion().setFromEuler(
+            new THREE.Euler(...(rotation ?? [0, 0, 0])),
+          ),
+    [quaternion, rotation],
+  );
   return (
-    <mesh position={position} rotation={rotation}>
-      <planeGeometry args={size} />
-      <meshStandardMaterial
-        color={PANEL_COLOR}
-        metalness={0.55}
-        roughness={0.35}
-        emissive="#10b981"
-        emissiveIntensity={0.12 + 0.5 * ratio}
-        side={THREE.DoubleSide}
-      />
-      <Edges linewidth={1} scale={1} threshold={15} color={PANEL_EDGE} />
-    </mesh>
+    <group position={position} quaternion={quat}>
+      <mesh>
+        <planeGeometry args={size} />
+        <meshStandardMaterial
+          color={PANEL_COLOR}
+          metalness={0.55}
+          roughness={0.35}
+          emissive="#10b981"
+          emissiveIntensity={0.12 + 0.5 * r}
+          side={THREE.DoubleSide}
+        />
+        <Edges linewidth={1} scale={1} threshold={15} color={PANEL_EDGE} />
+      </mesh>
+      {r > 0.02 && (
+        <mesh position={[0, 0, 0.012]}>
+          <planeGeometry args={[size[0] * 0.94, size[1] * 0.94 * r]} />
+          <meshBasicMaterial
+            color="#34d399"
+            transparent
+            opacity={0.25 + 0.55 * r}
+            toneMapped={false}
+            side={THREE.DoubleSide}
+          />
+        </mesh>
+      )}
+    </group>
   );
 }
+
+export type PanelFrame = {
+  position: [number, number, number];
+  quaternion: [number, number, number, number];
+  size: [number, number];
+};
 
 type FlowRoute = {
   points: [number, number, number][];
@@ -394,13 +535,27 @@ function Window({
 }
 
 /** Visible grey conduit pipe along a run. Spheres flow on top of it. */
-function PipeRun({ points }: { points: [number, number, number][] }) {
+/**
+ * Conduit pipe with state glow: the tube echoes the orb color — green while
+ * its run carries power, amber for grid import, near-dark at idle — so the
+ * line itself reads live even between passing spheres. Thinner (0.045) than
+ * the original schematic tube so the glow reads as a wire, not a pipe.
+ */
+function PipeRun({
+  points,
+  glow = "#000000",
+  glowIntensity = 0,
+}: {
+  points: [number, number, number][];
+  glow?: string;
+  glowIntensity?: number;
+}) {
   const geometry = useMemo(
     () =>
       new THREE.TubeGeometry(
         new THREE.CatmullRomCurve3(points.map((point) => new THREE.Vector3(...point))),
         64,
-        0.06,
+        0.045,
         8,
         false,
       ),
@@ -408,9 +563,22 @@ function PipeRun({ points }: { points: [number, number, number][] }) {
   );
   return (
     <mesh geometry={geometry}>
-      <meshStandardMaterial color="#9ca3af" roughness={0.45} metalness={0.55} />
+      <meshStandardMaterial
+        color="#9ca3af"
+        roughness={0.45}
+        metalness={0.55}
+        emissive={glow}
+        emissiveIntensity={glowIntensity}
+      />
     </mesh>
   );
+}
+
+/** Orb-glow pair: bright state color while flowing, near-dark at idle. */
+function flowGlow(active: boolean, color: string): { glow: string; glowIntensity: number } {
+  return active
+    ? { glow: color, glowIntensity: 0.85 }
+    : { glow: "#000000", glowIntensity: 0 };
 }
 
 function Tree({ position, scale = 1 }: { position: [number, number, number]; scale?: number }) {
@@ -465,6 +633,13 @@ export function PowerFlow3DCanvas({ telemetry, sectionPowerW, sectionRatios }: P
   const gridPeriod = Math.max(0.4, Number.parseFloat(telemetry.gridDuration) || 2);
   const exporting = telemetry.gridState === "exporting";
   const importing = telemetry.gridState === "importing";
+  const solarGlow = flowGlow(telemetry.solarActive, "#34d399");
+  const gridGlow = exporting
+    ? { glow: "#34d399", glowIntensity: 0.85 }
+    : importing
+      ? { glow: "#fbbf24", glowIntensity: 0.85 }
+      : { glow: "#000000", glowIntensity: 0 };
+  const loadsGlow = flowGlow(telemetry.loadsActive, "#6ee7b7");
   const gridMarker =
     telemetry.gridState === "exporting"
       ? "#34d399"
@@ -484,6 +659,7 @@ export function PowerFlow3DCanvas({ telemetry, sectionPowerW, sectionRatios }: P
         ? "#fbbf24"
         : "#94a3b8";
   const modelOn = useModelFlag();
+  const [panelFrames, setPanelFrames] = useState<Record<string, PanelFrame> | null>(null);
 
   return (
     <div className="absolute inset-0">
@@ -497,9 +673,24 @@ export function PowerFlow3DCanvas({ telemetry, sectionPowerW, sectionRatios }: P
 
         {modelOn && (
           <Suspense fallback={null}>
-            <ModelHouse />
+            <ModelHouse onFrames={setPanelFrames} />
           </Suspense>
         )}
+        {modelOn &&
+          panelFrames &&
+          PANEL_SECTIONS.map((section) => {
+            const frame = panelFrames[section];
+            if (!frame) return null;
+            return (
+              <PanelGroup
+                key={`modelfill-${section}`}
+                position={frame.position}
+                quaternion={frame.quaternion}
+                size={frame.size}
+                ratio={sectionRatios[section as SectionId]}
+              />
+            );
+          })}
 
         {/* Procedural statics (hidden when the GLB model is on). */}
         <group visible={!modelOn}>
@@ -662,15 +853,15 @@ export function PowerFlow3DCanvas({ telemetry, sectionPowerW, sectionRatios }: P
         {/* Grey conduit pipes: array pairs meet at T-junctions, combined runs
             drop parallel into the combiner; combiner → meter jumper;
             grid tie-in → mast; combiner → loads. */}
-        <PipeRun points={RUN_P1_POINTS} />
-        <PipeRun points={RUN_S1_POINTS} />
-        <PipeRun points={RUN_UPPER_POINTS} />
-        <PipeRun points={RUN_P2_POINTS} />
-        <PipeRun points={RUN_S2_POINTS} />
-        <PipeRun points={RUN_LOWER_POINTS} />
-        <PipeRun points={RUN_JUMPER_POINTS} />
-        <PipeRun points={RUN_GRID_POINTS} />
-        <PipeRun points={RUN_LOADS_POINTS} />
+        <PipeRun points={RUN_P1_POINTS} {...solarGlow} />
+        <PipeRun points={RUN_S1_POINTS} {...solarGlow} />
+        <PipeRun points={RUN_UPPER_POINTS} {...solarGlow} />
+        <PipeRun points={RUN_P2_POINTS} {...solarGlow} />
+        <PipeRun points={RUN_S2_POINTS} {...solarGlow} />
+        <PipeRun points={RUN_LOWER_POINTS} {...solarGlow} />
+        <PipeRun points={RUN_JUMPER_POINTS} {...solarGlow} />
+        <PipeRun points={RUN_GRID_POINTS} {...gridGlow} />
+        <PipeRun points={RUN_LOADS_POINTS} {...loadsGlow} />
 
         {/* Power-flow particles: green spheres ride the array runs + combined
             drops + loads pipe while active; yellow grid spheres run street →
