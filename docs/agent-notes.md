@@ -112,8 +112,15 @@ memory (`coordination.md`); repo milestones in `docs/deprecation-plan.md`.
   segment, `?theme=`/`?model=` params), deleted after. Deleting a route
   needs `rm -rf .next` before `tsc` (stale `.next/types`).
 - U9 viewport widening landed (solar `85aee82`, home `a54f25b`): card
-  `max-w-xl` → `lg:max-w-4xl`, verified 1440px wide + 390px unchanged via
-  screenshots. Below-fold stats block intentionally stays `max-w-xl`.
+  `max-w-xl` → `lg:max-w-4xl`, verified 1440px wide + true-390 unchanged.
+  Below-fold stats block intentionally stays `max-w-xl`.
+- Mobile "clipping" follow-up found NO bug: old-headless `--screenshot`
+  enforces a 500px minimum layout width then CROPS to the requested size,
+  so 390px shots showed cut-off cards that never existed. True-390 proof
+  via CDP (`Emulation.setDeviceMetricsOverride 390x844 mobile:true` +
+  `Page.captureScreenshot`, `/tmp/cdp-shot.mjs` pattern): `innerW=390`,
+  `docScrollW=390`, zero overflowing elements, screenshot confirms gauges
+  and month/lifetime cards fully visible. No code change; no commit.
 - Ops lesson: `rm -rf .next` under a running dev server wedges it (ENOENT
   manifests, all routes 500, never self-heals) — restart the server instead.
   After deleting a route, `rm -rf .next/types/app/<route>` alone is enough
