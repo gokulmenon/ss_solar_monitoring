@@ -3,12 +3,13 @@
 import Image from "next/image";
 import dynamic from "next/dynamic";
 import { Component, useEffect, useMemo, useState, type ReactNode } from "react";
-import { Box, CalendarDays, CloudSun, History, SlidersHorizontal, Wifi, type LucideIcon } from "lucide-react";
+import { Box, CalendarDays, CloudSun, History, Moon, SlidersHorizontal, Sun, Wifi, type LucideIcon } from "lucide-react";
 
 import manifestJson from "@/assets/site-photos/manifest.json";
 import type { EnergyTotals } from "@/lib/daily-energy";
 import { getFlowTelemetry } from "@/lib/flow-telemetry";
 import { photosForSection, type SitePhotoManifest } from "@/lib/site-photos";
+import { getSolarRayCount, getSolarRayPeriod, SOLAR_RAY_COLOR } from "@/lib/solar-rays";
 import {
   OVERLAY_EDITOR_CHANGED_EVENT,
   readOverlayEditorEnabled,
@@ -95,6 +96,18 @@ const QUAD_TUNER_STORAGE_KEY = "hoymiles-quad-overlays";
 // 2D/3D view-mode toggle. A dedicated key (never a reused tuner key) so
 // returning browsers pick up the mode without disturbing tuned geometry.
 const VIEW_MODE_STORAGE_KEY = "power-flow-3d-mode";
+const THEME_STORAGE_KEY = "power-flow-theme-mode";
+
+type FlowTheme = "day" | "night";
+
+function readThemeOverride(): FlowTheme | null {
+  try {
+    const value = window.localStorage.getItem(THEME_STORAGE_KEY);
+    return value === "day" || value === "night" ? value : null;
+  } catch {
+    return null;
+  }
+}
 
 /**
  * Synchronous WebGL probe. Error boundaries cannot catch renderer-creation
@@ -462,6 +475,131 @@ function FlowParticles({
   );
 }
 
+const SOLAR_RAY_LANES = [
+  { fromX: 185, fromY: 34, toX: 250, toY: 404 },
+  { fromX: 270, fromY: 26, toX: 330, toY: 368 },
+  { fromX: 365, fromY: 38, toX: 430, toY: 333 },
+  { fromX: 468, fromY: 22, toX: 535, toY: 292 },
+  { fromX: 565, fromY: 28, toX: 612, toY: 234 },
+  { fromX: 654, fromY: 20, toX: 704, toY: 218 },
+  { fromX: 752, fromY: 34, toX: 790, toY: 183 },
+  { fromX: 842, fromY: 24, toX: 852, toY: 161 },
+  { fromX: 160, fromY: 104, toX: 205, toY: 480 },
+  { fromX: 355, fromY: 95, toX: 385, toY: 522 },
+  { fromX: 548, fromY: 92, toX: 575, toY: 578 },
+  { fromX: 744, fromY: 105, toX: 700, toY: 614 },
+  { fromX: 910, fromY: 90, toX: 820, toY: 552 },
+  { fromX: 965, fromY: 148, toX: 890, toY: 620 },
+] as const;
+
+function usePrefersReducedMotion() {
+  const [reduced, setReduced] = useState(false);
+
+  useEffect(() => {
+    const query = window.matchMedia("(prefers-reduced-motion: reduce)");
+    setReduced(query.matches);
+    const onChange = (event: MediaQueryListEvent) => setReduced(event.matches);
+    query.addEventListener("change", onChange);
+    return () => query.removeEventListener("change", onChange);
+  }, []);
+
+  return reduced;
+}
+
+function SolarRayOverlay({ solarW, active }: { solarW: number; active: boolean }) {
+  const reducedMotion = usePrefersReducedMotion();
+  const count = getSolarRayCount(active ? solarW : 0);
+  const period = getSolarRayPeriod(solarW);
+
+  if (count === 0) return null;
+
+  return (
+    <g aria-hidden="true" filter="url(#hoymiles-flow-glow)">
+      {SOLAR_RAY_LANES.slice(0, count).map((ray, index) => (
+        <circle
+          key={`${ray.fromX}-${ray.toX}`}
+          cx={ray.fromX}
+          cy={reducedMotion ? ray.toY : ray.fromY}
+          r="5.5"
+          fill={SOLAR_RAY_COLOR}
+          fillOpacity="0.68"
+        >
+          {!reducedMotion ? (
+            <>
+              <animate
+                attributeName="cy"
+                values={`${ray.fromY};${ray.toY};${ray.fromY}`}
+                dur={`${period}s`}
+                begin={`-${((index * period) / count).toFixed(2)}s`}
+                repeatCount="indefinite"
+                calcMode="ease-in-out"
+              />
+              <animate
+                attributeName="opacity"
+                values="0.25;0.9;0.25"
+                dur={`${period}s`}
+                begin={`-${((index * period) / count).toFixed(2)}s`}
+                repeatCount="indefinite"
+              />
+            </>
+          ) : null}
+        </circle>
+      ))}
+    </g>
+  );
+}
+
+const NIGHT_WINDOW_GLOWS = [
+  { x: 117, y: 529, width: 32, height: 51 },
+  { x: 452, y: 247, width: 22, height: 40 },
+  { x: 592, y: 321, width: 25, height: 44 },
+  { x: 711, y: 281, width: 57, height: 59 },
+  { x: 862, y: 226, width: 58, height: 69 },
+  { x: 470, y: 451, width: 89, height: 78 },
+  { x: 671, y: 389, width: 145, height: 51 },
+] as const;
+
+function NightWindowOverlay({ active }: { active: boolean }) {
+  return (
+    <g
+      aria-hidden="true"
+      opacity={active ? 1 : 0}
+      style={{ transition: "opacity 700ms ease" }}
+    >
+      {NIGHT_WINDOW_GLOWS.map((window) => (
+        <rect
+          key={`${window.x}-${window.y}`}
+          x={window.x}
+          y={window.y}
+          width={window.width}
+          height={window.height}
+          rx="3"
+          fill="#ffd97a"
+          fillOpacity="0.34"
+        />
+      ))}
+    </g>
+  );
+}
+
+function DayWindowToneOverlay({ active }: { active: boolean }) {
+  return (
+    <g aria-hidden="true" opacity={active ? 0.16 : 0} style={{ transition: "opacity 700ms ease" }}>
+      {NIGHT_WINDOW_GLOWS.map((window) => (
+        <rect
+          key={`${window.x}-${window.y}`}
+          x={window.x}
+          y={window.y}
+          width={window.width}
+          height={window.height}
+          rx="3"
+          fill="#0f172a"
+        />
+      ))}
+    </g>
+  );
+}
+
 function SemiGauge({ value, label }: { value: number; label: string }) {
   const radius = 39;
   const circumference = Math.PI * radius;
@@ -814,6 +952,26 @@ export function HoymilesFlowVisualizer({
     selfConsumption,
     powerRatio,
   } = flow;
+  // Solar telemetry is the automatic theme source: any meaningful panel
+  // output is daytime, and zero output is nighttime. A user toggle persists
+  // an explicit override until they choose the other theme.
+  const [themeOverride, setThemeOverride] = useState<FlowTheme | null>(null);
+  const activeTheme = themeOverride ?? (solarActive ? "day" : "night");
+  const nightMode = activeTheme === "night";
+
+  useEffect(() => {
+    setThemeOverride(readThemeOverride());
+  }, []);
+
+  function toggleTheme() {
+    const nextTheme: FlowTheme = nightMode ? "day" : "night";
+    setThemeOverride(nextTheme);
+    try {
+      window.localStorage.setItem(THEME_STORAGE_KEY, nextTheme);
+    } catch {
+      // Storage unavailable — the toggle still works for the session.
+    }
+  }
   const gridTone = gridState === "exporting" ? "text-emerald-300" : gridState === "importing" ? "text-amber-300" : "text-slate-300";
   const gridDotTone = gridState === "exporting" ? "bg-emerald-400" : gridState === "importing" ? "bg-amber-400" : "bg-slate-400";
   const gridLabel = gridState === "exporting" ? "Exporting" : gridState === "importing" ? "Importing" : "Balanced";
@@ -900,11 +1058,25 @@ export function HoymilesFlowVisualizer({
           <>
         <Image
           alt="Isometric view of the home energy system"
-          className="object-cover"
+          className="object-cover transition-[filter] duration-700"
           fill
           priority
           sizes="(max-width: 640px) 100vw, 576px"
           src="/images/house-base.webp"
+          style={{
+            filter: nightMode
+              ? "brightness(0.48) saturate(0.72) hue-rotate(8deg)"
+              : "brightness(1.08) saturate(0.96)",
+          }}
+        />
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 transition-opacity duration-700"
+          style={{
+            background: "linear-gradient(180deg, rgba(7, 21, 43, 0.64), rgba(2, 6, 23, 0.28) 48%, rgba(3, 7, 18, 0.72))",
+            mixBlendMode: "multiply",
+            opacity: nightMode ? 1 : 0,
+          }}
         />
         <div className="absolute inset-0 bg-gradient-to-b from-slate-950/38 via-transparent to-slate-950/20" />
 
@@ -923,6 +1095,10 @@ export function HoymilesFlowVisualizer({
               </feMerge>
             </filter>
           </defs>
+
+          <DayWindowToneOverlay active={!nightMode} />
+          <NightWindowOverlay active={nightMode} />
+          <SolarRayOverlay solarW={trueSolarW} active={solarActive} />
 
           {/* PANEL STRING OVERLAYS spanning the full roof faces, hip corner
               to eave corner (img px * 0.9766 = viewBox). P1 covers the
@@ -1089,6 +1265,16 @@ export function HoymilesFlowVisualizer({
           <CloudSun className="h-3.5 w-3.5 text-sky-200" aria-hidden="true" />
           <span className="font-semibold text-white">{temperatureLabel}</span>
           <span className="h-3.5 w-px bg-white/10" />
+          <button
+            type="button"
+            onClick={toggleTheme}
+            className="rounded-full border border-white/10 bg-white/[0.04] p-1 text-slate-200"
+            aria-label={`Switch to ${nightMode ? "day" : "night"} theme`}
+            aria-pressed={nightMode}
+            title={nightMode ? "Switch to daytime theme" : "Switch to nighttime theme"}
+          >
+            {nightMode ? <Sun className="h-3.5 w-3.5 text-amber-300" aria-hidden="true" /> : <Moon className="h-3.5 w-3.5 text-indigo-200" aria-hidden="true" />}
+          </button>
           {webglBlocked && !is3DMode ? (
             <span
               className="flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5 font-semibold text-slate-500"
@@ -1473,5 +1659,3 @@ function EnergySummaryCard({
     </div>
   );
 }
-
-
