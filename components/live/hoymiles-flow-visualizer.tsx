@@ -989,7 +989,7 @@ export function HoymilesFlowVisualizer({
   return (
     <section aria-label="Live home energy flow" className="space-y-3">
       <div className={showEditorTools ? "grid gap-3 lg:grid-cols-[minmax(0,34rem)_minmax(20rem,1fr)] lg:items-start" : ""}>
-      <div className={showEditorTools ? "relative mx-auto w-full max-w-xl overflow-hidden rounded-[1.75rem] border border-white/10 bg-slate-950 shadow-[0_28px_80px_rgba(2,6,23,0.6)] aspect-[4/3] lg:mx-0" : "relative mx-auto w-full max-w-xl overflow-hidden rounded-[1.75rem] border border-white/10 bg-slate-950 shadow-[0_28px_80px_rgba(2,6,23,0.6)] aspect-[4/3]"}>
+      <div className={showEditorTools ? "relative mx-auto w-full max-w-xl overflow-hidden rounded-[1.75rem] border border-white/10 bg-slate-950 shadow-[0_28px_80px_rgba(2,6,23,0.6)] aspect-[4/3] lg:mx-0 lg:max-w-4xl" : "relative mx-auto w-full max-w-xl overflow-hidden rounded-[1.75rem] border border-white/10 bg-slate-950 shadow-[0_28px_80px_rgba(2,6,23,0.6)] aspect-[4/3] lg:max-w-4xl"}>
         {is3DMode ? (
           <ThreeErrorBoundary
             onFail={() => {
