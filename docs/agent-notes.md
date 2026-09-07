@@ -111,6 +111,10 @@ memory (`coordination.md`); repo milestones in `docs/deprecation-plan.md`.
   `--virtual-time-budget=30000`; temp `app/preview-roof/` route (plain
   segment, `?theme=`/`?model=` params), deleted after. Deleting a route
   needs `rm -rf .next` before `tsc` (stale `.next/types`).
-- Next up (owner-directed): widen the viewport card on desktop so it takes
-  more width and pushes below-fold content down; mobile stays max-width
-  (no change expected there).
+- U9 viewport widening landed (solar `85aee82`, home `a54f25b`): card
+  `max-w-xl` → `lg:max-w-4xl`, verified 1440px wide + 390px unchanged via
+  screenshots. Below-fold stats block intentionally stays `max-w-xl`.
+- Ops lesson: `rm -rf .next` under a running dev server wedges it (ENOENT
+  manifests, all routes 500, never self-heals) — restart the server instead.
+  After deleting a route, `rm -rf .next/types/app/<route>` alone is enough
+  for `tsc` and leaves the server healthy.
