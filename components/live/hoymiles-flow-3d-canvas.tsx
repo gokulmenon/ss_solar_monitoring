@@ -55,6 +55,58 @@ function useModelFlag(): boolean {
  */
 const PANEL_SECTIONS = ["P1", "S1", "P2", "S2"] as const;
 
+const FRONT_WINDOW_PANE_LAYOUTS = [
+  "V5_WinFront_0_Glass",
+  "V5_WinFront_3_Glass",
+] as const;
+
+/**
+ * The v40 GLB has one horizontal mullion on these two large front windows,
+ * and the right window has only three vertical lites. Keep the source GLB
+ * frozen and correct this small presentation detail at load time: both
+ * windows get four evenly-spaced vertical panes and no horizontal divider.
+ */
+function repairFrontWindowPanes(scene: THREE.Object3D) {
+  for (const glassName of FRONT_WINDOW_PANE_LAYOUTS) {
+    const glass = scene.getObjectByName(glassName);
+    if (!(glass instanceof THREE.Mesh)) continue;
+
+    scene.traverse((object) => {
+      if (!(object instanceof THREE.Mesh)) return;
+      const name = object.name.toLowerCase();
+      const prefix = `pane_${glassName.toLowerCase()}_`;
+      if (name.startsWith(prefix)) object.visible = false;
+    });
+
+    const bounds = new THREE.Box3().setFromObject(glass);
+    const size = bounds.getSize(new THREE.Vector3());
+    const center = bounds.getCenter(new THREE.Vector3());
+    const barDepth = Math.max(0.01, Math.min(size.z + 0.01, 0.04));
+    const barMaterial = new THREE.MeshStandardMaterial({
+      color: "#1f2937",
+      roughness: 0.8,
+      metalness: 0.05,
+    });
+    barMaterial.depthWrite = false;
+    barMaterial.polygonOffset = true;
+    barMaterial.polygonOffsetFactor = -1;
+    barMaterial.polygonOffsetUnits = -1;
+
+    for (let index = 1; index <= 3; index += 1) {
+      const x = bounds.min.x + (size.x * index) / 4;
+      const localPosition = scene.worldToLocal(new THREE.Vector3(x, center.y, center.z));
+      const bar = new THREE.Mesh(
+        new THREE.BoxGeometry(0.025, size.y + 0.015, barDepth),
+        barMaterial.clone(),
+      );
+      bar.name = `Pane_Runtime_${glassName}_V${index}`;
+      bar.position.copy(localPosition);
+      bar.renderOrder = 3;
+      scene.add(bar);
+    }
+  }
+}
+
 /**
  * Derive overlay frames from the GLB Panel_* meshes: world center lifted
  * just off the surface along the face normal, orientation from the mesh
@@ -75,6 +127,8 @@ function ModelHouse({
     if (done.current) return;
     done.current = true;
     const frames: Record<string, PanelFrame> = {};
+    gltf.scene.updateMatrixWorld(true);
+    repairFrontWindowPanes(gltf.scene);
     gltf.scene.updateMatrixWorld(true);
     for (const section of PANEL_SECTIONS) {
       const node = gltf.scene.getObjectByName(`Panel_${section}`);
@@ -162,9 +216,101 @@ function ModelHouse({
 
   useEffect(() => {
     gltf.scene.traverse((object) => {
-      if (!(object instanceof THREE.Mesh) || object.name.toLowerCase().includes("door")) return;
+      if (!(object instanceof THREE.Mesh)) return;
       const name = object.name.toLowerCase();
-      if (!name.includes("win") && !name.includes("window") && !name.includes("pane") && !name.includes("glass")) return;
+      const isModelPanel = name.startsWith("panel_");
+      const isRearGarageDoor = name === "rear_garage_door";
+
+      if (isRearGarageDoor) {
+        // This is an opaque door, not a light pane. Keep it black in both
+        // themes so the nighttime lights cannot wash it into a window-like
+        // surface.
+        const sourceMaterials = Array.isArray(object.material) ? object.material : [object.material];
+        const doorMaterials = sourceMaterials.map((material) => {
+          if (!(material instanceof THREE.MeshStandardMaterial) && !(material instanceof THREE.MeshPhysicalMaterial)) return material;
+          const adjusted = new THREE.MeshBasicMaterial({
+            color: "#05070b",
+            side: material.side,
+            transparent: material.transparent,
+            opacity: material.opacity,
+            depthWrite: material.depthWrite,
+          });
+          adjusted.toneMapped = false;
+          return adjusted;
+        });
+        object.material = Array.isArray(object.material) ? doorMaterials : doorMaterials[0];
+        return;
+      }
+
+      if (isModelPanel) {
+        // The GLB photovoltaic material is intentionally very glossy for
+        // daylight, which turns its bevels into bright outlines under the
+        // cool nighttime key light. Use the source color with an unlit
+        // material so day/night changes do not light the panel edges.
+        const sourceMaterials = Array.isArray(object.material) ? object.material : [object.material];
+        const panelMaterials = sourceMaterials.map((material) => {
+          if (!(material instanceof THREE.MeshStandardMaterial) && !(material instanceof THREE.MeshPhysicalMaterial)) return material;
+          const adjusted = new THREE.MeshBasicMaterial({
+            color: material.color,
+            side: material.side,
+            transparent: material.transparent,
+            opacity: material.opacity,
+            depthWrite: material.depthWrite,
+          });
+          adjusted.userData.hoymilesPanelMaterial = true;
+          adjusted.toneMapped = false;
+          return adjusted;
+        });
+        object.material = Array.isArray(object.material) ? panelMaterials : panelMaterials[0];
+      }
+
+      const isPaneDivider = name.startsWith("pane_");
+      if (isPaneDivider) {
+        // Pane_* objects are the slim muntins added by the Blender pass. They
+        // must stay dark/light dividers, never inherit the amber glass glow.
+        const sourceMaterials = Array.isArray(object.material) ? object.material : [object.material];
+        const dividerMaterials = sourceMaterials.map((material) => {
+          if (!(material instanceof THREE.MeshStandardMaterial) && !(material instanceof THREE.MeshPhysicalMaterial)) return material;
+          const adjusted = material.userData.hoymilesPaneDivider === true ? material : material.clone();
+          adjusted.userData.hoymilesPaneDivider = true;
+          adjusted.emissive.set("#000000");
+          adjusted.emissiveIntensity = 0;
+          adjusted.depthWrite = false;
+          adjusted.polygonOffset = true;
+          adjusted.polygonOffsetFactor = -1;
+          adjusted.polygonOffsetUnits = -1;
+          return adjusted;
+        });
+        object.renderOrder = 3;
+        object.material = Array.isArray(object.material) ? dividerMaterials : dividerMaterials[0];
+        return;
+      }
+
+      const isFrontDoorFrame = ["door_front", "door_sidelight_l", "door_sidelight_r"].includes(name);
+
+      if (isFrontDoorFrame) {
+        // Keep the opaque door pieces visible as muted gray-brown surfaces at
+        // night. Clone before changing color because the source dark-trim
+        // material is shared by other house meshes.
+        const sourceMaterials = Array.isArray(object.material) ? object.material : [object.material];
+        const doorMaterials = sourceMaterials.map((material) => {
+          if (!(material instanceof THREE.MeshStandardMaterial) && !(material instanceof THREE.MeshPhysicalMaterial)) return material;
+          const adjusted = material.userData.hoymilesDoorMaterialOwner === name ? material : material.clone();
+          adjusted.userData.hoymilesDoorMaterialOwner = name;
+          adjusted.color.set(nightMode ? "#4b5563" : "#68727d");
+          adjusted.emissive.set("#000000");
+          adjusted.emissiveIntensity = 0;
+          return adjusted;
+        });
+        object.material = Array.isArray(object.material) ? doorMaterials : doorMaterials[0];
+      }
+
+      // The front door's center pane is the one door surface that should
+      // participate in the window-light treatment; the opaque pieces above
+      // stay separate so the pane still reads as transparent glass.
+      const isFrontDoorGlass = name.includes("door_front_glass");
+      const isWindowLike = name.includes("win") || name.includes("window") || name.includes("pane") || name.includes("glass");
+      if (!isFrontDoorGlass && !isWindowLike) return;
       const materials = Array.isArray(object.material) ? object.material : [object.material];
       materials.forEach((material) => {
         if (!(material instanceof THREE.MeshStandardMaterial) && !(material instanceof THREE.MeshPhysicalMaterial)) return;
@@ -175,8 +321,8 @@ function ModelHouse({
         material.userData.hoymilesDayEmissiveIntensity = baseIntensity;
         material.emissive.set(nightMode ? "#ffd97a" : "#9fb4c7");
         material.emissiveIntensity = nightMode
-          ? Math.max(baseIntensity * 2.4, 0.95)
-          : Math.min(baseIntensity * 0.35, 0.16);
+          ? Math.max(baseIntensity * 2.4, isFrontDoorGlass ? 0.85 : 0.95)
+          : Math.min(baseIntensity * 0.35, isFrontDoorGlass ? 0.08 : 0.16);
       });
     });
   }, [gltf.scene, nightMode]);
@@ -193,11 +339,11 @@ const PANEL_EDGE = "#6ee7b7";
  * cartoon: a transparent green level strip rises edge-anchored from one
  * long edge (bottom by default, top for S1/S2 like the 2D fills) with
  * height = `ratio` of section capacity, inside a green border — the base
- * stays black and shows through the unfilled area. Border + fill render
- * ONLY while powered (`active`, i.e. the 2D `solarActive` gate); at night
- * the array is a plain black panel. Fill sits 12 mm proud to avoid
- * z-fighting. In model mode the same component is fed runtime frames from
- * the GLB Panel_* nodes (see ModelHouse).
+ * stays black and shows through the unfilled area. The static outline and
+ * panel grid remain visible in both themes; the translucent production fill
+ * is gated by `active` (the 2D `solarActive` signal). Fill sits 12 mm proud
+ * to avoid z-fighting. In model mode the same component is fed runtime
+ * frames from the GLB Panel_* nodes (see ModelHouse).
  */
 const PANEL_FILL = "#34d399";
 // 0.35 matches the 2D cartoon over a bright photo; the 3D base is near-black
@@ -306,7 +452,7 @@ function PanelGroup({
           emissiveIntensity={0}
           side={THREE.DoubleSide}
         />
-        {active && <Edges linewidth={1} scale={1} threshold={15} color={PANEL_EDGE} />}
+        <Edges linewidth={1} scale={1} threshold={15} color={PANEL_EDGE} />
       </mesh>
       {active && r > 0.02 && (
         <mesh position={[0, barY, 0.012]}>
@@ -324,7 +470,8 @@ function PanelGroup({
         <PanelLabel text={label} y={labelY} />
       )}
       {/* Panel separation seams: thin aluminum strips on the base, UNDER the
-          level fill (z 0.006 < 0.012). Physical detail, so always rendered. */}
+          level fill (z 0.006 < 0.012). Keep the static grid visible in
+          both themes; only the level fill is telemetry-gated. */}
       {Array.from({ length: Math.max(0, gridCols - 1) }).map((_, i) => (
         <mesh
           key={`seam-v-${i}`}

@@ -10,9 +10,11 @@ release = their M4 production-deploy smoke test.
 
 - [x] D0 visualizer parity backported to home_monitoring (`fbfda67`: serial
   sections, fills, editor flag). Reverse pointer: `docs/visualizer-handoff.md`.
-- [ ] D1 maintenance window open: solar upgrades land in home_monitoring
+- [x] D1 maintenance window open: solar upgrades land in home_monitoring
   `/home`, `/energy/live`, `/energy/history`, `/energy/settings` and are
-  backported here on demand (procedure below). No new features originate here.
+  backported here on demand (procedure below). This 2026-09-07 theme/ray
+  polish is the final solar-first pass before its home backport; no new
+  features originate here after the sync.
 - [ ] D2 M1 gate + M2 backend land over there → no action here (confirm this
   site still builds green).
 - [ ] D3 M3 auth/invites verified over there → no action here.
@@ -72,6 +74,8 @@ flow, Supabase helpers. Still reusable on request:
 ## Progress tracker
 
 - [x] Maintenance-only declared; backport procedure written.
-- [ ] First on-demand backport completed using §Sync.
+- [x] First on-demand backport completed using §Sync (v40, 2026-09-06).
+- [ ] Theme/ray + front-window pane correction backport completed using §Sync
+  (solar verification in progress for the 2026-09-07 change set).
 - [ ] D4 freeze declared after their M4 release.
 - [ ] D5 shutdown executed and repo archived.

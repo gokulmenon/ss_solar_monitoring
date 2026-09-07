@@ -48,5 +48,42 @@ memory (`coordination.md`); repo milestones in `docs/deprecation-plan.md`.
 - [ ] Decide the shared mock-WS port split with the home_monitoring agent
   (`:8787` collides when both stacks run).
 - [ ] Mirror the port-convention note in the home_monitoring repo.
-- [ ] First on-demand backport per `docs/deprecation-plan.md` §Sync.
+- [x] First on-demand backport per `docs/deprecation-plan.md` §Sync — done
+  2026-09-06 eve (solar `9181eb5` → home `b267ce8` via `diff -u` +
+  `patch -p1`; canvas + house-v40.glb + waypoints only).
 - [ ] D4 freeze + D5 shutdown per the deprecation burndown.
+- [x] Day/night graphics + sun-ray overlay animation (solar-first pass
+  completed 2026-09-07; backport to home follows verification). Shared
+  selector is `telemetry.solarActive`; rays use `lib/solar-rays.ts` in both
+  2D and 3D. Keep the static 3D panel outline/grid visible even when the
+  solar-active fill is gated off.
+
+## Session 2026-09-06 eve — v40, wiring, backport (committed + pushed)
+
+- `house-v40.glb` (911,940 bytes): lit pale panes + slim flush dividers,
+  transparent rear slider, opaque garage door. kW/% labels flipped
+  in-plane (`rotation.z = PI`, NOT a Y-flip). Harness
+  (`app/preview-3d/`) deleted, `view` prop stripped; `/live` 2D/3D
+  toggle is the only wiring (2D default untouched).
+- New gotchas: procedural statics hide behind `visible={!modelOn}` —
+  diagnose the render layer before editing; Blender binary is
+  `/Applications/Blender.app/Contents/MacOS/Blender` (no PATH entry);
+  route deletion leaves stale `.next/types` (rm + re-run tsc).
+
+## Session 2026-09-07 — theme/ray polish and front panes
+
+- Solar commits `45d467d` (2D theme/rays) and `096f0c8` (3D theme/rays) are
+  the feature base. Follow-up fixes keep 2D window overlays from duplicating
+  the source art, use the current-theme sun/moon icon, repair opaque doors and
+  model panel materials, and preserve the 3D static panel grid in day and
+  night. Production fills remain gated by `solarActive`.
+- The v40 GLB remains the source of truth. `ModelHouse` hides the horizontal
+  muntin and reconstructs three equally-spaced vertical dividers for the two
+  large front windows (four pane columns each) at runtime, so the correction
+  backports without a risky binary export. A v41 Blender headless attempt
+  exited before producing output; do not replace v40 until a sequential
+  factory-startup pass exports and screenshot-verifies successfully.
+- Validation must cover `tsc --noEmit`, touched-file ESLint, desktop/mobile
+  screenshots, and the home backport. Keep docs and source changes scoped;
+  do not stage the local meter CSV, intermediate GLBs, build info, or existing
+  unrelated worktree edits.

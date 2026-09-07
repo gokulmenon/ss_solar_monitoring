@@ -549,57 +549,6 @@ function SolarRayOverlay({ solarW, active }: { solarW: number; active: boolean }
   );
 }
 
-const NIGHT_WINDOW_GLOWS = [
-  { x: 117, y: 529, width: 32, height: 51 },
-  { x: 452, y: 247, width: 22, height: 40 },
-  { x: 592, y: 321, width: 25, height: 44 },
-  { x: 711, y: 281, width: 57, height: 59 },
-  { x: 862, y: 226, width: 58, height: 69 },
-  { x: 470, y: 451, width: 89, height: 78 },
-  { x: 671, y: 389, width: 145, height: 51 },
-] as const;
-
-function NightWindowOverlay({ active }: { active: boolean }) {
-  return (
-    <g
-      aria-hidden="true"
-      opacity={active ? 1 : 0}
-      style={{ transition: "opacity 700ms ease" }}
-    >
-      {NIGHT_WINDOW_GLOWS.map((window) => (
-        <rect
-          key={`${window.x}-${window.y}`}
-          x={window.x}
-          y={window.y}
-          width={window.width}
-          height={window.height}
-          rx="3"
-          fill="#ffd97a"
-          fillOpacity="0.34"
-        />
-      ))}
-    </g>
-  );
-}
-
-function DayWindowToneOverlay({ active }: { active: boolean }) {
-  return (
-    <g aria-hidden="true" opacity={active ? 0.16 : 0} style={{ transition: "opacity 700ms ease" }}>
-      {NIGHT_WINDOW_GLOWS.map((window) => (
-        <rect
-          key={`${window.x}-${window.y}`}
-          x={window.x}
-          y={window.y}
-          width={window.width}
-          height={window.height}
-          rx="3"
-          fill="#0f172a"
-        />
-      ))}
-    </g>
-  );
-}
-
 function SemiGauge({ value, label }: { value: number; label: string }) {
   const radius = 39;
   const circumference = Math.PI * radius;
@@ -1097,8 +1046,6 @@ export function HoymilesFlowVisualizer({
             </filter>
           </defs>
 
-          <DayWindowToneOverlay active={!nightMode} />
-          <NightWindowOverlay active={nightMode} />
           <SolarRayOverlay solarW={trueSolarW} active={solarActive} />
 
           {/* PANEL STRING OVERLAYS spanning the full roof faces, hip corner
@@ -1274,7 +1221,7 @@ export function HoymilesFlowVisualizer({
             aria-pressed={nightMode}
             title={nightMode ? "Switch to daytime theme" : "Switch to nighttime theme"}
           >
-            {nightMode ? <Sun className="h-3.5 w-3.5 text-amber-300" aria-hidden="true" /> : <Moon className="h-3.5 w-3.5 text-indigo-200" aria-hidden="true" />}
+            {nightMode ? <Moon className="h-3.5 w-3.5 text-indigo-200" aria-hidden="true" /> : <Sun className="h-3.5 w-3.5 text-amber-300" aria-hidden="true" />}
           </button>
           {webglBlocked && !is3DMode ? (
             <span
