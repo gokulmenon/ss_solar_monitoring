@@ -1052,6 +1052,7 @@ export function HoymilesFlowVisualizer({
               telemetry={flow}
               sectionPowerW={sectionPowerW}
               sectionRatios={sectionRatios}
+              nightMode={nightMode}
             />
           </ThreeErrorBoundary>
         ) : (

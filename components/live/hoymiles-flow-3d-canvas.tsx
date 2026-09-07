@@ -7,11 +7,13 @@ import * as THREE from "three";
 
 import type { FlowTelemetry } from "@/lib/flow-telemetry";
 import type { SectionId } from "@/lib/roof-layout";
+import { getSolarRayCount, getSolarRayPeriod, SOLAR_RAY_COLOR } from "@/lib/solar-rays";
 
 export type PowerFlow3DProps = {
   telemetry: FlowTelemetry;
   sectionPowerW: Record<SectionId, number>;
   sectionRatios: Record<SectionId, number>;
+  nightMode: boolean;
 };
 
 // GLB model flag (mirrors home_monitoring): the imported v25 house is the
@@ -62,8 +64,10 @@ const PANEL_SECTIONS = ["P1", "S1", "P2", "S2"] as const;
  */
 function ModelHouse({
   onFrames,
+  nightMode,
 }: {
   onFrames: (frames: Record<string, PanelFrame>) => void;
+  nightMode: boolean;
 }) {
   const gltf = useGLTF(MODEL_URL);
   const done = useRef(false);
@@ -155,6 +159,27 @@ function ModelHouse({
     }
     onFrames(frames);
   }, [gltf, onFrames]);
+
+  useEffect(() => {
+    gltf.scene.traverse((object) => {
+      if (!(object instanceof THREE.Mesh) || object.name.toLowerCase().includes("door")) return;
+      const name = object.name.toLowerCase();
+      if (!name.includes("win") && !name.includes("window") && !name.includes("pane") && !name.includes("glass")) return;
+      const materials = Array.isArray(object.material) ? object.material : [object.material];
+      materials.forEach((material) => {
+        if (!(material instanceof THREE.MeshStandardMaterial) && !(material instanceof THREE.MeshPhysicalMaterial)) return;
+        const baseIntensity =
+          typeof material.userData.hoymilesDayEmissiveIntensity === "number"
+            ? material.userData.hoymilesDayEmissiveIntensity
+            : material.emissiveIntensity;
+        material.userData.hoymilesDayEmissiveIntensity = baseIntensity;
+        material.emissive.set(nightMode ? "#ffd97a" : "#9fb4c7");
+        material.emissiveIntensity = nightMode
+          ? Math.max(baseIntensity * 2.4, 0.95)
+          : Math.min(baseIntensity * 0.35, 0.16);
+      });
+    });
+  }, [gltf.scene, nightMode]);
   return <primitive object={gltf.scene} />;
 }
 
@@ -499,6 +524,59 @@ function FlowParticles({ points, period, count, color, reverse }: FlowRoute) {
   );
 }
 
+const SOLAR_RAY_PATHS: { from: [number, number, number]; to: [number, number, number] }[] = [
+  { from: [-8.2, 13, 3.8], to: [-6.8, 4.5, 2.6] },
+  { from: [-5.8, 13.5, 4.8], to: [-4.6, 4.7, 2.4] },
+  { from: [-2.8, 14, 5.4], to: [-2.3, 5.8, 2.8] },
+  { from: [0.3, 14, 4.5], to: [0.6, 7.8, 2.9] },
+  { from: [3.5, 14, 5.2], to: [3.8, 7.8, 2.4] },
+  { from: [6.8, 13.5, 4.2], to: [6.6, 7.5, 2.2] },
+  { from: [-9.8, 11.5, 0.2], to: [-7.2, 4.2, -1.1] },
+  { from: [-6.5, 12.8, -0.8], to: [-5.1, 4.0, -1.5] },
+  { from: [-3.1, 13.4, -1.2], to: [-2.8, 5.2, -1.6] },
+  { from: [0.2, 13.5, -0.3], to: [0.4, 6.8, -1.7] },
+  { from: [3.6, 13.0, -0.8], to: [3.8, 7.4, -1.4] },
+  { from: [7.3, 12.4, -1.5], to: [7.2, 0.08, -3.4] },
+  { from: [-11.0, 10.0, 8.0], to: [-7.5, 0.08, 7.8] },
+  { from: [10.0, 11.0, 7.0], to: [8.5, 0.08, 6.5] },
+];
+
+function SolarRayParticles({ solarW, active }: { solarW: number; active: boolean }) {
+  const count = getSolarRayCount(active ? solarW : 0);
+  const period = getSolarRayPeriod(solarW);
+  const reducedMotion = usePrefersReducedMotion();
+  const rays = useMemo(
+    () => SOLAR_RAY_PATHS.slice(0, count).map((ray) => ({
+      from: new THREE.Vector3(...ray.from),
+      to: new THREE.Vector3(...ray.to),
+    })),
+    [count],
+  );
+  const group = useRef<THREE.Group>(null);
+
+  useFrame(({ clock }) => {
+    const node = group.current;
+    if (!node) return;
+    const elapsed = clock.getElapsedTime();
+    rays.forEach((ray, index) => {
+      const phase = reducedMotion ? 1 : ((elapsed / period + index / Math.max(rays.length, 1)) % 1);
+      node.children[index]?.position.lerpVectors(ray.from, ray.to, phase);
+    });
+  });
+
+  if (count === 0) return null;
+  return (
+    <group ref={group}>
+      {rays.map((ray, index) => (
+        <mesh key={index} position={ray.to}>
+          <sphereGeometry args={[0.09, 8, 8]} />
+          <meshBasicMaterial color={SOLAR_RAY_COLOR} transparent opacity={0.68} toneMapped={false} />
+        </mesh>
+      ))}
+    </group>
+  );
+}
+
 /**
  * Asymmetric gable roof: short steep south slope, long shallow north slope.
  * Profile (eave/ridge/eave in shape-x = world-z) extruded across the width.
@@ -625,9 +703,11 @@ function GroundSign({
 function Window({
   position,
   size = [1.2, 1.4],
+  nightMode,
 }: {
   position: [number, number, number];
   size?: [number, number];
+  nightMode: boolean;
 }) {
   const [w, h] = size;
   const cols = w > 1.8 ? 3 : 2;
@@ -644,9 +724,9 @@ function Window({
       <mesh position={[0, 0, 0.03]}>
         <boxGeometry args={[w, h, 0.06]} />
         <meshStandardMaterial
-          color="#ffedb5"
-          emissive="#ffd97a"
-          emissiveIntensity={0.55}
+          color={nightMode ? "#ffedb5" : "#dbe7ef"}
+          emissive={nightMode ? "#ffd97a" : "#7c8da1"}
+          emissiveIntensity={nightMode ? 1.15 : 0.08}
           roughness={0.4}
           metalness={0}
         />
@@ -762,7 +842,7 @@ const TREE_SPOTS: { position: [number, number, number]; scale?: number }[] = [
  * Trees + fences (white vinyl sides, brown wood rear) mark the property
  * lines; no street-name labels (privacy).
  */
-export function PowerFlow3DCanvas({ telemetry, sectionPowerW, sectionRatios }: PowerFlow3DProps) {
+export function PowerFlow3DCanvas({ telemetry, sectionPowerW, sectionRatios, nightMode }: PowerFlow3DProps) {
   const solarPeriod = Math.max(0.4, Number.parseFloat(telemetry.solarDuration) || 2);
   const loadPeriod = Math.max(0.4, Number.parseFloat(telemetry.loadDuration) || 2);
   const gridPeriod = Math.max(0.4, Number.parseFloat(telemetry.gridDuration) || 2);
@@ -805,14 +885,20 @@ export function PowerFlow3DCanvas({ telemetry, sectionPowerW, sectionRatios }: P
       {/* Default POV ported from the blend's main camera (ProofCam, v24
           verified): east-above view onto the gear/pipes face. */}
       <Canvas dpr={[1, 1.75]} frameloop="always" camera={{ position: [15, 22, 10], fov: 38 }}>
-        <color attach="background" args={["#020617"]} />
-        <ambientLight intensity={0.55} />
-        <hemisphereLight args={["#93c5fd", "#1c1917", 0.35]} />
-        <directionalLight position={[8, 12, 6]} intensity={1.2} />
+        <color attach="background" args={[nightMode ? "#02030a" : "#10263b"]} />
+        <ambientLight intensity={nightMode ? 0.18 : 0.55} />
+        <hemisphereLight
+          args={nightMode ? ["#1d315d", "#0b1020", 0.18] : ["#93c5fd", "#1c1917", 0.35]}
+        />
+        <directionalLight
+          position={[8, 12, 6]}
+          color={nightMode ? "#9ab2df" : "#fff3dd"}
+          intensity={nightMode ? 0.32 : 1.2}
+        />
 
         {modelOn && (
           <Suspense fallback={null}>
-            <ModelHouse onFrames={setPanelFrames} />
+            <ModelHouse onFrames={setPanelFrames} nightMode={nightMode} />
           </Suspense>
         )}
         {modelOn &&
@@ -902,10 +988,10 @@ export function PowerFlow3DCanvas({ telemetry, sectionPowerW, sectionRatios }: P
         </mesh>
 
         {/* Two-story front windows + one between the doors. */}
-        <Window position={[-2.0, 1.9, 3.02]} size={[1.2, 1.1]} />
-        <Window position={[1.8, 4.4, 3.02]} />
-        <Window position={[5.2, 4.4, 3.02]} />
-        <Window position={[4.1, 1.4, 3.02]} size={[2.4, 1.6]} />
+        <Window position={[-2.0, 1.9, 3.02]} size={[1.2, 1.1]} nightMode={nightMode} />
+        <Window position={[1.8, 4.4, 3.02]} nightMode={nightMode} />
+        <Window position={[5.2, 4.4, 3.02]} nightMode={nightMode} />
+        <Window position={[4.1, 1.4, 3.02]} size={[2.4, 1.6]} nightMode={nightMode} />
 
         {/* Two-story block: stone base + charcoal upper + gable roof */}
         <mesh position={[3.5, 1.3, 0]}>
@@ -1010,6 +1096,7 @@ export function PowerFlow3DCanvas({ telemetry, sectionPowerW, sectionRatios }: P
         <PipeRun points={RUN_METER_LINK_POINTS} {...solarGlow} />
         <PipeRun points={RUN_GRID_POINTS} {...gridGlow} />
         <PipeRun points={RUN_LOADS_POINTS} {...loadsGlow} />
+        <SolarRayParticles solarW={telemetry.trueSolarW} active={telemetry.solarActive} />
 
         {/* Power-flow particles: green spheres ride the array runs + combined
             drops + loads pipe while active; yellow grid spheres run street →
