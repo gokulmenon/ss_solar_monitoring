@@ -139,6 +139,123 @@ function repairGroundSurfaces(scene: THREE.Object3D) {
 }
 
 /**
+ * Shared shingle-tile canvas: white base (so it multiplies cleanly with the
+ * roof base color) with thin mid-gray running-bond joints — two courses per
+ * tile, staggered verticals. Deliberately dimmer and finer than the white
+ * panel seams so roof reads as roof, not array.
+ */
+let roofTileCanvas: HTMLCanvasElement | null = null;
+
+function getRoofTileCanvas(): HTMLCanvasElement {
+  if (roofTileCanvas) return roofTileCanvas;
+  const canvas = document.createElement("canvas");
+  canvas.width = 128;
+  canvas.height = 128;
+  const ctx = canvas.getContext("2d");
+  if (ctx) {
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, 128, 128);
+    ctx.fillStyle = "#8b9099";
+    // Horizontal courses (tile = 2 courses; bottom edge wraps to next tile).
+    ctx.fillRect(0, 63, 128, 2);
+    ctx.fillRect(0, 126, 128, 2);
+    // Top-course vertical joints.
+    ctx.fillRect(31, 0, 2, 63);
+    ctx.fillRect(95, 0, 2, 63);
+    // Bottom-course vertical joints, staggered (edge pair wraps seamlessly).
+    ctx.fillRect(0, 65, 1, 61);
+    ctx.fillRect(127, 65, 1, 61);
+    ctx.fillRect(63, 65, 2, 61);
+  }
+  roofTileCanvas = canvas;
+  return canvas;
+}
+
+function makeRoofTileTexture(repeatX: number, repeatY: number): THREE.CanvasTexture {
+  const texture = new THREE.CanvasTexture(getRoofTileCanvas());
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.RepeatWrapping;
+  texture.repeat.set(repeatX, repeatY);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.anisotropy = 4;
+  return texture;
+}
+
+// The GLB roof slabs ship without UVs, so this texture is mapped onto
+// runtime planar UVs (1 tile per ROOF_TILE_METERS); repeat stays (1, 1).
+let glbRoofTileTexture: THREE.CanvasTexture | null = null;
+
+function getGlbRoofTileTexture(): THREE.CanvasTexture {
+  if (!glbRoofTileTexture) glbRoofTileTexture = makeRoofTileTexture(1, 1);
+  return glbRoofTileTexture;
+}
+
+// Main-house roof slabs (exact GLB node names). Neighbors keep their own
+// finishes; Panel_* arrays are handled separately and never match here.
+const ROOF_SURFACE_NAMES = ["Roof_Garage", "Roof_Garage.001", "Roof_Main"] as const;
+const ROOF_SURFACE_COLOR = "#3f454e";
+const ROOF_TILE_METERS = 0.5;
+
+function repairRoofSurfaces(scene: THREE.Object3D) {
+  scene.updateMatrixWorld(true);
+  const tileMap = getGlbRoofTileTexture();
+  for (const roofName of ROOF_SURFACE_NAMES) {
+    const object = scene.getObjectByName(roofName);
+    if (!(object instanceof THREE.Mesh)) continue;
+    const geometry = object.geometry as THREE.BufferGeometry;
+    if (!geometry.attributes.uv) {
+      // No UVs in the export: project each vertex onto its dominant plane
+      // in world space so slopes get plan-view courses and fasciae stay sane.
+      const positions = geometry.attributes.position as THREE.BufferAttribute;
+      const normals = geometry.attributes.normal as THREE.BufferAttribute | undefined;
+      const uvs = new Float32Array(positions.count * 2);
+      const world = new THREE.Vector3();
+      const normal = new THREE.Vector3();
+      const normalMatrix = new THREE.Matrix3().getNormalMatrix(object.matrixWorld);
+      for (let i = 0; i < positions.count; i += 1) {
+        world.fromBufferAttribute(positions, i).applyMatrix4(object.matrixWorld);
+        if (normals) normal.fromBufferAttribute(normals, i).applyMatrix3(normalMatrix).normalize();
+        else normal.set(0, 1, 0);
+        const ax = Math.abs(normal.x);
+        const ay = Math.abs(normal.y);
+        const az = Math.abs(normal.z);
+        let u: number;
+        let v: number;
+        if (ay >= ax && ay >= az) {
+          u = world.x;
+          v = world.z;
+        } else if (ax >= az) {
+          u = world.z;
+          v = world.y;
+        } else {
+          u = world.x;
+          v = world.y;
+        }
+        uvs[i * 2] = u / ROOF_TILE_METERS;
+        uvs[i * 2 + 1] = v / ROOF_TILE_METERS;
+      }
+      geometry.setAttribute("uv", new THREE.BufferAttribute(uvs, 2));
+    }
+    const sourceMaterials = Array.isArray(object.material) ? object.material : [object.material];
+    const surfaceMaterials = sourceMaterials.map((material) => {
+      if (!(material instanceof THREE.MeshStandardMaterial) && !(material instanceof THREE.MeshPhysicalMaterial)) return material;
+      const adjusted = material.userData.hoymilesRoofSurface === true ? material : material.clone();
+      adjusted.userData.hoymilesRoofSurface = true;
+      // Subtle dark gray, distinct from the near-black upper walls
+      // (Photo_Charcoal) — lighting still drives the day/night read.
+      adjusted.color.set(ROOF_SURFACE_COLOR);
+      adjusted.roughness = 0.95;
+      adjusted.metalness = 0;
+      adjusted.emissive.set("#000000");
+      adjusted.emissiveIntensity = 0;
+      adjusted.map = tileMap;
+      return adjusted;
+    });
+    object.material = Array.isArray(object.material) ? surfaceMaterials : surfaceMaterials[0];
+  }
+}
+
+/**
  * Derive overlay frames from the GLB Panel_* meshes: world center lifted
  * just off the surface along the face normal, orientation from the mesh
  * quaternion composed with a plane→fat-axes alignment, size from the local
@@ -160,6 +277,7 @@ function ModelHouse({
     const frames: Record<string, PanelFrame> = {};
     gltf.scene.updateMatrixWorld(true);
     repairGroundSurfaces(gltf.scene);
+    repairRoofSurfaces(gltf.scene);
     repairFrontWindowPanes(gltf.scene);
     gltf.scene.updateMatrixWorld(true);
     for (const section of PANEL_SECTIONS) {
@@ -372,8 +490,9 @@ const PANEL_EDGE = "#6ee7b7";
  * long edge (bottom by default, top for S1/S2 like the 2D fills) with
  * height = `ratio` of section capacity, inside a green border — the base
  * stays black and shows through the unfilled area. The static outline and
- * panel grid remain visible in both themes; the translucent production fill
- * is gated by `active` (the 2D `solarActive` signal). Fill sits 12 mm proud
+ * panel grid stay visible but dim when idle (dimmer still at night); the
+ * green highlight plus the translucent production fill are gated by `active`
+ * (the 2D `solarActive` signal). Fill sits 12 mm proud
  * to avoid z-fighting. In model mode the same component is fed runtime
  * frames from the GLB Panel_* nodes (see ModelHouse).
  */
@@ -438,6 +557,7 @@ function PanelGroup({
   size,
   ratio,
   active,
+  nightMode = false,
   fromTop = false,
   gridCols = 1,
   gridRows = 1,
@@ -449,11 +569,17 @@ function PanelGroup({
   size: [number, number];
   ratio: number;
   active: boolean;
+  nightMode?: boolean;
   fromTop?: boolean;
   gridCols?: number;
   gridRows?: number;
   label?: string;
 }) {
+  // Green highlight only while producing; otherwise a dim static outline
+  // (dimmer still at night) so inactive panels never glow. The base plane
+  // is lit and follows the scene; Edges/seams are unlit and need this gate.
+  const edgeColor = active ? PANEL_EDGE : nightMode ? "#22303f" : "#46586a";
+  const seamColor = active ? PANEL_SEAM : nightMode ? "#232d38" : "#4b5563";
   const r = Math.max(0, Math.min(1, ratio || 0));
   const quat = useMemo(
     () =>
@@ -484,7 +610,7 @@ function PanelGroup({
           emissiveIntensity={0}
           side={THREE.DoubleSide}
         />
-        <Edges linewidth={1} scale={1} threshold={15} color={PANEL_EDGE} />
+        <Edges linewidth={1} scale={1} threshold={15} color={edgeColor} />
       </mesh>
       {active && r > 0.02 && (
         <mesh position={[0, barY, 0.012]}>
@@ -510,7 +636,7 @@ function PanelGroup({
           position={[-size[0] / 2 + ((i + 1) * size[0]) / gridCols, 0, 0.006]}
         >
           <planeGeometry args={[0.025, size[1] * 0.98]} />
-          <meshBasicMaterial color={PANEL_SEAM} toneMapped={false} side={THREE.DoubleSide} />
+          <meshBasicMaterial color={seamColor} toneMapped={false} side={THREE.DoubleSide} />
         </mesh>
       ))}
       {Array.from({ length: Math.max(0, gridRows - 1) }).map((_, j) => (
@@ -519,7 +645,7 @@ function PanelGroup({
           position={[0, -size[1] / 2 + ((j + 1) * size[1]) / gridRows, 0.006]}
         >
           <planeGeometry args={[size[0] * 0.98, 0.025]} />
-          <meshBasicMaterial color={PANEL_SEAM} toneMapped={false} side={THREE.DoubleSide} />
+          <meshBasicMaterial color={seamColor} toneMapped={false} side={THREE.DoubleSide} />
         </mesh>
       ))}
     </group>
@@ -569,10 +695,14 @@ const RUN_S1_POINTS: [number, number, number][] = [
 // into the combiner top — parallel to the lower-combined drop. Drops ride
 // 7 cm proud of the combiner east face (x 7.42 vs face 7.35) and turn INTO
 // the top; the old line ran inside the box x-range and read as piercing it.
+// The ridge run rides ~0.2 proud of the crest on standoffs and the corner
+// rounds the ridge-end/hip standing off east: the previous routing lay the
+// smoothed curve on the slope (clearance 0.000 along x 5.2-7.25, 0.003 at
+// the old corner), burying the tube and flow orbs into the roof.
 const RUN_UPPER_POINTS: [number, number, number][] = [
-  [4.6, 8.12, 0.85],
-  [6.14, 7.94, 0.8],
-  [7.4, 7.7, 0.69],
+  [4.6, 8.2, 0.85],
+  [6.7, 8.28, 0.78],
+  [7.72, 7.98, 0.66],
   [7.42, 5.66, -1.08],
   [7.42, 2.78, -1.08],
   [7.3, 2.72, -1.08],
@@ -788,9 +918,13 @@ function GableRoof({
     return geo;
   }, [width, depth, ridgeOffset, height]);
   useEffect(() => () => geometry.dispose(), [geometry]);
+  // Extrude UVs are meter-scale, so repeat 2 lands the same 0.5 m tile
+  // course as the GLB runtime UVs.
+  const tileMap = useMemo(() => makeRoofTileTexture(2, 2), []);
+  useEffect(() => () => tileMap.dispose(), [tileMap]);
   return (
     <mesh geometry={geometry} rotation={[0, -Math.PI / 2, 0]} position={position}>
-      <meshStandardMaterial color={color} roughness={0.9} />
+      <meshStandardMaterial color={color} roughness={0.95} metalness={0} map={tileMap} />
     </mesh>
   );
 }
@@ -1096,6 +1230,7 @@ export function PowerFlow3DCanvas({ telemetry, sectionPowerW, sectionRatios, nig
                 size={frame.size}
                 ratio={sectionRatios[section as SectionId]}
                 active={panelsPowered}
+                nightMode={nightMode}
                 // GLB runtime frames orient local +Y eave-ward, so every
                 // section fills from the top edge; the procedural fallback
                 // below uses hand-set eulers with the opposite convention.
@@ -1139,7 +1274,7 @@ export function PowerFlow3DCanvas({ telemetry, sectionPowerW, sectionRatios, nig
           depth={6}
           ridgeOffset={0.75}
           height={1.8}
-          color="#2b2f36"
+          color="#3f454e"
           position={[-5, 3.0, 0]}
         />
 
@@ -1162,7 +1297,7 @@ export function PowerFlow3DCanvas({ telemetry, sectionPowerW, sectionRatios, nig
         </mesh>
         <mesh position={[1.1, 2.7, 3.6]}>
           <boxGeometry args={[2.3, 0.18, 1.5]} />
-          <meshStandardMaterial color="#2b2f36" roughness={0.9} />
+          <meshStandardMaterial color="#3f454e" roughness={0.9} />
         </mesh>
         <mesh position={[1.1, 1.05, 4.22]}>
           <boxGeometry args={[1.0, 2.1, 0.08]} />
@@ -1189,16 +1324,16 @@ export function PowerFlow3DCanvas({ telemetry, sectionPowerW, sectionRatios, nig
           depth={6}
           ridgeOffset={0.8}
           height={2.0}
-          color="#2b2f36"
+          color="#3f454e"
           position={[3.5, 6.0, 0]}
         />
 
         {/* Panel groups seated on the slopes (south steep, north shallow):
             P1/P2 front slopes, S1/S2 rear slopes. */}
-        <PanelGroup position={[-5, 3.95, 2.02]} rotation={[-0.937, 0, 0]} size={[4.6, 2.4]} ratio={sectionRatios.P2} active={panelsPowered} gridCols={PANEL_GRID.P2[0]} gridRows={PANEL_GRID.P2[1]} label={`${(sectionPowerW.P2 / 1000).toFixed(2)} kW ${Math.round(sectionRatios.P2 * 100)}%`} />
-        <PanelGroup position={[3.5, 7.05, 2.09]} rotation={[-0.896, 0, 0]} size={[5, 2.6]} ratio={sectionRatios.P1} active={panelsPowered} gridCols={PANEL_GRID.P1[0]} gridRows={PANEL_GRID.P1[1]} label={`${(sectionPowerW.P1 / 1000).toFixed(2)} kW ${Math.round(sectionRatios.P1 * 100)}%`} />
-        <PanelGroup position={[-5, 3.95, -1.29]} rotation={[-1.999, 0, 0]} size={[4.6, 3.2]} ratio={sectionRatios.S2} active={panelsPowered} fromTop gridCols={PANEL_GRID.S2[0]} gridRows={PANEL_GRID.S2[1]} label={`${(sectionPowerW.S2 / 1000).toFixed(2)} kW ${Math.round(sectionRatios.S2 * 100)}%`} />
-        <PanelGroup position={[3.5, 7.03, -1.31]} rotation={[-2.025, 0, 0]} size={[5, 3.6]} ratio={sectionRatios.S1} active={panelsPowered} fromTop gridCols={PANEL_GRID.S1[0]} gridRows={PANEL_GRID.S1[1]} label={`${(sectionPowerW.S1 / 1000).toFixed(2)} kW ${Math.round(sectionRatios.S1 * 100)}%`} />
+        <PanelGroup position={[-5, 3.95, 2.02]} rotation={[-0.937, 0, 0]} size={[4.6, 2.4]} ratio={sectionRatios.P2} active={panelsPowered} nightMode={nightMode} gridCols={PANEL_GRID.P2[0]} gridRows={PANEL_GRID.P2[1]} label={`${(sectionPowerW.P2 / 1000).toFixed(2)} kW ${Math.round(sectionRatios.P2 * 100)}%`} />
+        <PanelGroup position={[3.5, 7.05, 2.09]} rotation={[-0.896, 0, 0]} size={[5, 2.6]} ratio={sectionRatios.P1} active={panelsPowered} nightMode={nightMode} gridCols={PANEL_GRID.P1[0]} gridRows={PANEL_GRID.P1[1]} label={`${(sectionPowerW.P1 / 1000).toFixed(2)} kW ${Math.round(sectionRatios.P1 * 100)}%`} />
+        <PanelGroup position={[-5, 3.95, -1.29]} rotation={[-1.999, 0, 0]} size={[4.6, 3.2]} ratio={sectionRatios.S2} active={panelsPowered} nightMode={nightMode} fromTop gridCols={PANEL_GRID.S2[0]} gridRows={PANEL_GRID.S2[1]} label={`${(sectionPowerW.S2 / 1000).toFixed(2)} kW ${Math.round(sectionRatios.S2 * 100)}%`} />
+        <PanelGroup position={[3.5, 7.03, -1.31]} rotation={[-2.025, 0, 0]} size={[5, 3.6]} ratio={sectionRatios.S1} active={panelsPowered} nightMode={nightMode} fromTop gridCols={PANEL_GRID.S1[0]} gridRows={PANEL_GRID.S1[1]} label={`${(sectionPowerW.S1 / 1000).toFixed(2)} kW ${Math.round(sectionRatios.S1 * 100)}%`} />
 
         {/* Electrical gear on the east outer face of the two-story (x = 7
             plane, opposite end from the garage). Occluded from the initial
