@@ -14,6 +14,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { csvHistoryUrl } from "@/lib/csv-history-client";
 import type { HistoryPoint, HistoryResponse } from "@/lib/history";
 
 type HistoryRange = "6h" | "1d" | "7d" | "30d";
@@ -66,19 +67,16 @@ export function HistoryDashboard() {
 
     async function loadHistory() {
       try {
-        const response = await fetch("/api/history?source=csv", {
-          signal: controller.signal,
-          cache: "no-store",
-        });
+        const response = await fetch(
+          csvHistoryUrl("/api/history?source=csv", "/history-snapshot.json"),
+          { signal: controller.signal },
+        );
 
         if (!response.ok) {
           throw new Error(`History request failed: ${response.status}`);
         }
 
-        const csvSource = response.headers.get("x-history-csv-source");
-        setSourceLabel(
-          csvSource === "deployed-snapshot" ? "Deployed CSV snapshot" : "Local CSV logs",
-        );
+        setSourceLabel(process.env.NODE_ENV === "production" ? "Deployed CSV snapshot" : "Local CSV logs");
 
         const payload = (await response.json()) as HistoryResponse;
         setHistory(payload);

@@ -13,6 +13,7 @@ import {
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { csvHistoryUrl } from "@/lib/csv-history-client";
 import type { PortHistoryPoint, PortHistoryResponse } from "@/lib/port-history";
 
 type HistoryRange = "6h" | "1d" | "7d" | "30d";
@@ -53,9 +54,8 @@ export function CsvPortHistoryDashboard() {
 
     async function loadHistory() {
       try {
-        const response = await fetch("/api/history/ports", {
+        const response = await fetch(csvHistoryUrl("/api/history/ports", "/port-history-snapshot.json"), {
           signal: controller.signal,
-          cache: "no-store",
         });
         if (!response.ok) throw new Error(`Port archive request failed: ${response.status}`);
         setHistory((await response.json()) as PortHistoryResponse);

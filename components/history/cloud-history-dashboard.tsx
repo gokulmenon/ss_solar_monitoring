@@ -79,7 +79,6 @@ export function CloudHistoryDashboard() {
       try {
         const response = await fetch("/api/history?source=supabase", {
           signal: controller.signal,
-          cache: "no-store",
         });
 
         if (!response.ok) {

@@ -33,7 +33,6 @@ export function DailyEnergySummaryTable() {
       try {
         const response = await fetch("/api/daily-energy?days=30", {
           signal: controller.signal,
-          cache: "no-store",
         });
 
         if (!response.ok) {

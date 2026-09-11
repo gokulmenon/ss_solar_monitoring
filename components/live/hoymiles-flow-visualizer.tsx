@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import dynamic from "next/dynamic";
-import { Component, useEffect, useMemo, useState, type ReactNode } from "react";
+import { Component, useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { Box, CalendarDays, CloudSun, History, Moon, SlidersHorizontal, Sun, Wifi, type LucideIcon } from "lucide-react";
 
 import manifestJson from "@/assets/site-photos/manifest.json";
@@ -21,6 +21,7 @@ import {
   type SectionInverter,
 } from "@/lib/roof-layout";
 import { formatPowerKw } from "@/lib/power-flow";
+import { useVisiblePoll } from "@/components/hooks/use-visible-poll";
 
 const PowerFlow3DCanvas = dynamic(
   () => import("./hoymiles-flow-3d-canvas").then((mod) => mod.PowerFlow3DCanvas),
@@ -933,32 +934,19 @@ export function HoymilesFlowVisualizer({
           ? "Net consumption"
           : "Net grid";
 
-  useEffect(() => {
-    const controller = new AbortController();
+  const loadTemperature = useCallback(async (signal: AbortSignal) => {
+    try {
+      const response = await fetch("/api/weather/latest", { signal });
+      if (!response.ok) return;
 
-    async function loadTemperature() {
-      try {
-        const response = await fetch("/api/weather/latest", {
-          cache: "no-store",
-          signal: controller.signal,
-        });
-        if (!response.ok) return;
-
-        const payload = (await response.json()) as WeatherResponse;
-        setTemperatureC(payload.latest?.temperature_2m ?? null);
-      } catch (error) {
-        if ((error as Error).name !== "AbortError") console.error(error);
-      }
+      const payload = (await response.json()) as WeatherResponse;
+      setTemperatureC(payload.latest?.temperature_2m ?? null);
+    } catch (error) {
+      if ((error as Error).name !== "AbortError") console.error(error);
     }
-
-    void loadTemperature();
-    const interval = window.setInterval(loadTemperature, 5 * 60 * 1000);
-
-    return () => {
-      controller.abort();
-      window.clearInterval(interval);
-    };
   }, []);
+
+  useVisiblePoll(loadTemperature, 15 * 60 * 1000);
 
   const temperatureLabel = useMemo(
     () => (typeof temperatureC === "number" ? `${temperatureC.toFixed(0)} °C` : "Weather —"),

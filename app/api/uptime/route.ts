@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 
+import { CACHE_SECONDS, noStoreHeaders, sharedCacheHeaders } from "@/lib/http-cache";
+
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 export const revalidate = 0;
@@ -59,9 +61,7 @@ function jsonError(message: string, status = 500, detail?: unknown) {
     },
     {
       status,
-      headers: {
-        "Cache-Control": "no-store, max-age=0",
-      },
+      headers: noStoreHeaders,
     },
   );
 }
@@ -135,11 +135,7 @@ export async function GET() {
         generated_at: new Date().toISOString(),
         monitors,
       },
-      {
-        headers: {
-          "Cache-Control": "no-store, max-age=0",
-        },
-      },
+      { headers: sharedCacheHeaders(CACHE_SECONDS.uptime) },
     );
   } catch (error) {
     return jsonError("Failed to load UptimeRobot monitor data", 500, {

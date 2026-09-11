@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { loadPortHistory } from "@/lib/port-history";
+import { CACHE_SECONDS, sharedCacheHeaders } from "@/lib/http-cache";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -11,7 +12,7 @@ export async function GET(request: Request) {
 
   return NextResponse.json(payload, {
     headers: {
-      "Cache-Control": "no-store, max-age=0",
+      ...sharedCacheHeaders(CACHE_SECONDS.csvHistory),
       "X-History-Source": "csv",
     },
   });

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { Cloud, CloudRain, Sun, Thermometer, Wind, type LucideIcon } from "lucide-react";
 import {
   CartesianGrid,
@@ -15,6 +15,7 @@ import {
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useVisiblePoll } from "@/components/hooks/use-visible-poll";
 import type { LiveSeriesPoint } from "@/components/telemetry/use-live-telemetry";
 import type { WeatherSnapshot } from "@/lib/weather";
 
@@ -110,40 +111,28 @@ export function LiveWeatherPanel({ series }: { series: LiveSeriesPoint[] }) {
     temperature: true,
   });
 
-  useEffect(() => {
-    const controller = new AbortController();
+  const loadWeather = useCallback(async (signal: AbortSignal) => {
+    try {
+      const [latestResponse, historyResponse] = await Promise.all([
+        fetch("/api/weather/latest", { signal }),
+        fetch("/api/weather/history?hours=24", { signal }),
+      ]);
 
-    async function loadWeather() {
-      try {
-        const [latestResponse, historyResponse] = await Promise.all([
-          fetch("/api/weather/latest", { signal: controller.signal, cache: "no-store" }),
-          fetch("/api/weather/history?hours=24", { signal: controller.signal, cache: "no-store" }),
-        ]);
-
-        if (latestResponse.ok) {
-          const payload = (await latestResponse.json()) as WeatherLatestResponse;
-          setLatest(payload.latest);
-        }
-
-        if (historyResponse.ok) {
-          const payload = (await historyResponse.json()) as WeatherHistoryResponse;
-          setHistory(payload.points);
-        }
-      } catch (error) {
-        if ((error as Error).name !== "AbortError") {
-          console.error(error);
-        }
+      if (latestResponse.ok) {
+        const payload = (await latestResponse.json()) as WeatherLatestResponse;
+        setLatest(payload.latest);
       }
+
+      if (historyResponse.ok) {
+        const payload = (await historyResponse.json()) as WeatherHistoryResponse;
+        setHistory(payload.points);
+      }
+    } catch (error) {
+      if ((error as Error).name !== "AbortError") console.error(error);
     }
-
-    void loadWeather();
-    const interval = window.setInterval(loadWeather, 5 * 60 * 1000);
-
-    return () => {
-      controller.abort();
-      window.clearInterval(interval);
-    };
   }, []);
+
+  useVisiblePoll(loadWeather, 15 * 60 * 1000);
 
   const chartData = useMemo(() => buildChartData(series, history), [history, series]);
   const timeline = history.slice(-6).reverse();

@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { WifiHigh } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useLiveTelemetry } from "@/components/telemetry/use-live-telemetry";
 import { HoymilesFlowVisualizer } from "@/components/live/hoymiles-flow-visualizer";
+import { useVisiblePoll } from "@/components/hooks/use-visible-poll";
 import type { DailyEnergySummaryPoint, EnergyTotals } from "@/lib/daily-energy";
 
 const UPTIME_STATUS_URL = "https://stats.uptimerobot.com/nS4Sm3g9El";
@@ -83,93 +84,49 @@ export function HomeDashboard({ isAdmin = false }: { isAdmin?: boolean }) {
   const [energyTotals, setEnergyTotals] = useState<EnergyTotals>(EMPTY_ENERGY_TOTALS);
   const [uptime, setUptime] = useState<UptimePayload | null>(null);
 
-  useEffect(() => {
-    const controller = new AbortController();
+  const loadDailyEnergy = useCallback(async (signal: AbortSignal) => {
+    try {
+      const response = await fetch("/api/daily-energy?days=7", { signal });
+      if (!response.ok) return;
 
-    async function loadDailyEnergy() {
-      try {
-        const response = await fetch("/api/daily-energy?days=7", {
-          signal: controller.signal,
-          cache: "no-store",
-        });
-        if (!response.ok) return;
-
-        const payload = (await response.json()) as { points: DailyEnergySummaryPoint[] };
-        setDailyEnergy(payload.points);
-      } catch (error) {
-        if ((error as Error).name !== "AbortError") console.error(error);
-      }
+      const payload = (await response.json()) as { points: DailyEnergySummaryPoint[] };
+      setDailyEnergy(payload.points);
+    } catch (error) {
+      if ((error as Error).name !== "AbortError") console.error(error);
     }
-
-    void loadDailyEnergy();
-    const intervalId = window.setInterval(loadDailyEnergy, 5 * 60 * 1000);
-
-    return () => {
-      controller.abort();
-      window.clearInterval(intervalId);
-    };
   }, []);
 
-  useEffect(() => {
-    const controller = new AbortController();
-
-    async function loadEnergyTotals() {
-      try {
-        const response = await fetch("/api/energy-totals", {
-          signal: controller.signal,
-          cache: "no-store",
-        });
-
-        if (!response.ok) return;
-        setEnergyTotals((await response.json()) as EnergyTotals);
-      } catch (error) {
-        if ((error as Error).name !== "AbortError") console.error(error);
-      }
+  const loadEnergyTotals = useCallback(async (signal: AbortSignal) => {
+    try {
+      const response = await fetch("/api/energy-totals", { signal });
+      if (!response.ok) return;
+      setEnergyTotals((await response.json()) as EnergyTotals);
+    } catch (error) {
+      if ((error as Error).name !== "AbortError") console.error(error);
     }
-
-    void loadEnergyTotals();
-    const intervalId = window.setInterval(loadEnergyTotals, 5 * 60 * 1000);
-
-    return () => {
-      controller.abort();
-      window.clearInterval(intervalId);
-    };
   }, []);
 
-  useEffect(() => {
-    const controller = new AbortController();
-
-    async function loadUptime() {
-      try {
-        const response = await fetch("/api/uptime", {
-          signal: controller.signal,
-          cache: "no-store",
+  const loadUptime = useCallback(async (signal: AbortSignal) => {
+    try {
+      const response = await fetch("/api/uptime", { signal });
+      if (!response.ok) return;
+      setUptime((await response.json()) as UptimePayload);
+    } catch (error) {
+      if ((error as Error).name !== "AbortError") {
+        setUptime({
+          status: "error",
+          message: "Unable to load UptimeRobot monitor data.",
+          detail: error instanceof Error ? error.message : "Unknown error",
         });
-
-        const payload = (await response.json()) as UptimePayload;
-        setUptime(payload);
-      } catch (error) {
-        if ((error as Error).name !== "AbortError") {
-          setUptime({
-            status: "error",
-            message: "Unable to load UptimeRobot monitor data.",
-            detail: error instanceof Error ? error.message : "Unknown error",
-          });
-        }
       }
     }
-
-    void loadUptime();
-
-    const intervalId = window.setInterval(() => {
-      void loadUptime();
-    }, 60_000);
-
-    return () => {
-      controller.abort();
-      window.clearInterval(intervalId);
-    };
   }, []);
+
+  // The relay only refreshes these summaries every 15 minutes. Pausing hidden
+  // tabs prevents unattended browsers from consuming function invocations.
+  useVisiblePoll(loadDailyEnergy, 15 * 60 * 1000);
+  useVisiblePoll(loadEnergyTotals, 15 * 60 * 1000);
+  useVisiblePoll(loadUptime, 15 * 60 * 1000);
 
   const todayKey = useMemo(
     () => new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York" }).format(new Date()),

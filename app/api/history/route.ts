@@ -6,6 +6,7 @@ import {
   resolveHistorySource,
   type HistorySource,
 } from "@/lib/history";
+import { CACHE_SECONDS, sharedCacheHeaders } from "@/lib/http-cache";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -23,7 +24,7 @@ export async function GET(request: Request) {
 
   return NextResponse.json(payload, {
     headers: {
-      "Cache-Control": "no-store, max-age=0",
+      ...sharedCacheHeaders(source === "csv" ? CACHE_SECONDS.csvHistory : CACHE_SECONDS.history),
       "X-History-Source": source,
       ...(csvMode
         ? {

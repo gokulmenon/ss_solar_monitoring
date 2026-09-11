@@ -34,7 +34,6 @@ export function WeatherStatusCard() {
       try {
         const response = await fetch("/api/weather/latest", {
           signal: controller.signal,
-          cache: "no-store",
         });
 
         if (!response.ok) return;

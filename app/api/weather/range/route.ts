@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { loadWeatherRange, summarizeWeatherByDay } from "@/lib/weather";
+import { CACHE_SECONDS, sharedCacheHeaders } from "@/lib/http-cache";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -35,9 +36,7 @@ export async function GET(request: Request) {
       dailySummary: summarizeWeatherByDay(points),
     },
     {
-      headers: {
-        "Cache-Control": "no-store, max-age=0",
-      },
+      headers: sharedCacheHeaders(CACHE_SECONDS.history),
     },
   );
 }

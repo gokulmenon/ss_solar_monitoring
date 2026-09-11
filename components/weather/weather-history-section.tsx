@@ -128,11 +128,9 @@ export function WeatherHistorySection() {
         const [weatherResponse, historyResponse] = await Promise.all([
           fetch(`/api/weather/history?hours=${rangeHours}`, {
             signal: controller.signal,
-            cache: "no-store",
           }),
           fetch("/api/history?source=supabase", {
             signal: controller.signal,
-            cache: "no-store",
           }),
         ]);
 

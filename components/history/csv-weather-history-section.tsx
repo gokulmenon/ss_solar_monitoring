@@ -12,6 +12,7 @@ import {
 } from "recharts";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { csvHistoryUrl } from "@/lib/csv-history-client";
 import type { CsvWeatherHistoryResponse } from "@/lib/csv-weather-history";
 import type { HistoryResponse } from "@/lib/history";
 
@@ -50,8 +51,12 @@ export function CsvWeatherHistorySection() {
     async function loadData() {
       try {
         const [weatherResponse, meterResponse] = await Promise.all([
-          fetch("/api/history/weather", { signal: controller.signal, cache: "no-store" }),
-          fetch("/api/history?source=csv", { signal: controller.signal, cache: "no-store" }),
+          fetch(csvHistoryUrl("/api/history/weather", "/weather-history-snapshot.json"), {
+            signal: controller.signal,
+          }),
+          fetch(csvHistoryUrl("/api/history?source=csv", "/history-snapshot.json"), {
+            signal: controller.signal,
+          }),
         ]);
 
         if (weatherResponse.ok) setWeather((await weatherResponse.json()) as CsvWeatherHistoryResponse);
