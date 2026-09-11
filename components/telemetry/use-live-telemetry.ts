@@ -38,7 +38,8 @@ export type LiveBridgeTelemetry = Partial<LiveTelemetry> & {
   hoymiles_daily_yield_wh?: number | null;
   hoymiles_inverter_count?: number;
   hoymiles_port_count?: number;
-  status?: "HARDWARE_OFFLINE";
+  bridge_status?: string;
+  status?: string;
   failures?: number;
   message?: string;
 };
@@ -58,7 +59,7 @@ export type LiveSeriesPoint = LiveTelemetry & {
   hoymiles_daily_yield_wh?: number | null;
 };
 
-export type BridgeState = "mock" | "connected" | "hardware_offline";
+export type BridgeState = "connected" | "degraded" | "hardware_offline" | "socket_offline";
 
 type LiveSeriesBucket = LiveSeriesPoint & {
   sampleCount: number;
@@ -220,7 +221,7 @@ export function useLiveTelemetry() {
     setMockTelemetry(createMockLiveTelemetry());
 
     return () => window.clearInterval(interval);
-  }, []);
+  }, [readyState]);
 
   useEffect(() => {
     if (!lastJsonMessage) return;
@@ -232,12 +233,16 @@ export function useLiveTelemetry() {
 
     const telemetryMessage = lastJsonMessage as LiveBridgeTelemetry;
 
-    if (telemetryMessage.status === "HARDWARE_OFFLINE") {
+    const reportedStatus = String(
+      telemetryMessage.bridge_status ?? telemetryMessage.status ?? "",
+    ).toUpperCase();
+
+    if (reportedStatus === "HARDWARE_OFFLINE") {
       setHardwareOffline(true);
       return;
     }
 
-    if (hasTelemetryFields(telemetryMessage)) {
+    if (hasTelemetryFields(telemetryMessage) || reportedStatus === "OK" || reportedStatus === "DEGRADED") {
       setHardwareOffline(false);
     }
 
@@ -318,14 +323,30 @@ export function useLiveTelemetry() {
 
   const series = useMemo<LiveSeriesPoint[]>(
     () =>
-      seriesBuckets.map(({ sampleCount: _sampleCount, ...point }) => point),
+      seriesBuckets.map(({ sampleCount, ...point }) => {
+        void sampleCount;
+        return point;
+      }),
     [seriesBuckets],
   );
+
+  const isSocketConnected = readyState === ReadyState.OPEN;
+  const reportedBridgeStatus = String(
+    bridgeTelemetry?.bridge_status ?? bridgeTelemetry?.status ?? "",
+  ).toUpperCase();
+  const bridgeState: BridgeState = !isSocketConnected
+    ? "socket_offline"
+    : hardwareOffline || reportedBridgeStatus === "HARDWARE_OFFLINE"
+      ? "hardware_offline"
+      : reportedBridgeStatus === "DEGRADED"
+        ? "degraded"
+        : "connected";
 
   return {
     telemetry,
     series,
-    bridgeState: hardwareOffline ? "hardware_offline" : readyState === ReadyState.OPEN ? "connected" : "mock",
+    bridgeState,
+    isSocketConnected,
     readyState,
     wsUrl,
     serverLogs,

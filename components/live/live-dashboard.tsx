@@ -40,11 +40,13 @@ export function LiveDashboard({ isAdmin = false }: { isAdmin?: boolean }) {
   const voltageV = telemetry.phase_a_voltage_v ?? 245;
   const estimatedCurrentA = telemetry.home_consumption_w / Math.max(voltageV, 1);
   const bridgeLabel =
-    bridgeState === "hardware_offline"
-      ? "Bridge Disconnected"
-      : bridgeState === "connected"
-        ? "System Online"
-        : "Mock Stream";
+    bridgeState === "connected"
+      ? "System Online"
+      : bridgeState === "degraded"
+        ? "System Degraded"
+        : bridgeState === "hardware_offline"
+          ? "Hardware Offline"
+          : "System Offline";
 
   return (
     <div className="space-y-4">
@@ -64,28 +66,29 @@ export function LiveDashboard({ isAdmin = false }: { isAdmin?: boolean }) {
         </div>
         <Badge
           variant={
-            bridgeState === "hardware_offline"
+            bridgeState === "hardware_offline" || bridgeState === "socket_offline"
               ? "danger"
-              : bridgeState === "connected"
-                ? "success"
-                : "warning"
+              : bridgeState === "degraded"
+                ? "warning"
+                : "success"
           }
         >
           {bridgeLabel}
         </Badge>
       </div>
 
-      {bridgeState === "hardware_offline" ? (
+      {bridgeState === "hardware_offline" || bridgeState === "socket_offline" ? (
         <Card className="border-rose-500/30 bg-rose-500/10">
           <CardHeader className="pb-2">
             <CardTitle className="text-[11px] uppercase tracking-[0.24em] text-rose-200">
-              Bridge Offline
+              {bridgeState === "socket_offline" ? "WebSocket Offline" : "Bridge Offline"}
             </CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-sm text-rose-100/90">
-              The relay has reported repeated Modbus failures. Check the USB adapter, serial cable,
-              and meter power.
+              {bridgeState === "socket_offline"
+                ? "The browser is reconnecting to the live relay. Check the relay service or tunnel if it does not recover."
+                : "The relay has reported repeated Modbus failures. Check the USB adapter, serial cable, and meter power."}
             </p>
           </CardContent>
         </Card>

@@ -4,5 +4,10 @@
  * reflect the relay's local archive without a rebuild.
  */
 export function csvHistoryUrl(apiPath: string, snapshotPath: string) {
-  return process.env.NODE_ENV === "production" ? snapshotPath : apiPath;
+  if (process.env.NODE_ENV !== "production") return apiPath;
+
+  // Static assets are immutable per deployment, but mobile Safari can retain a
+  // disk-cached response across deployments. Version each page-load request so
+  // the newest deployed archive snapshot is retrieved.
+  return `${snapshotPath}${snapshotPath.includes("?") ? "&" : "?"}v=${Date.now()}`;
 }
