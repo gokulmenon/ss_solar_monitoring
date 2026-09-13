@@ -48,6 +48,32 @@ memory (`coordination.md`); repo milestones in `docs/deprecation-plan.md`.
 - [ ] Decide the shared mock-WS port split with the home_monitoring agent
   (`:8787` collides when both stacks run).
 - [ ] Mirror the port-convention note in the home_monitoring repo.
+
+## EV charging stats tabs (done 2026-09-13, committed + pushed as `01266df`)
+
+- Wall Connector stats backported from home_monitoring (`edfc5d4`): this
+  bridge never polls the charger — `bridge/ev_mirror.py` mirrors the home
+  relay WS only (zero charger HTTP, regression-tested), upserting on the
+  shared `session_id`. Tables `ev_charging_sessions` (permanent) +
+  `ev_vitals_snapshots` (pg_cron 30 d prune), `get_ev_daily_summary` RPC,
+  `/api/ev/*` routes, top-level `EV` tab (5-col nav) with LED header +
+  Handle/Grid/Amps pills. Mock via `EV_MOCK_DATA=1` + mock-telemetry `ev`
+  block. Tests: `tests/test_ev_mirror.py` (9). Plan + full context in the
+  home repo: `.agents/plans/2026-09-13-ev-charging-stats.md`, `backlog.md`.
+- Deploy reminders: migration applied 2026-09-13; bridge host needs
+  `EV_UPSTREAM_WS_URL` → home relay WS + `ev_mirror.py` + updated
+  `bridge/modbus_ws_relay.py`, then a bridge restart.
+
+## Next: EV charging in the /home 2D/3D visualization (after home builds it)
+
+- [ ] Backport home's EV node/edge into `hoymiles-flow-visualizer.tsx`
+  (2D) and the garage marker into `hoymiles-flow-3d-canvas.tsx` (3D),
+  driven by the already-flowing `telemetry.ev` block. No SoC visuals —
+  the charger exposes state + flow only.
+- [ ] Confirm flow accounting with home (meter CTs vs added load) so both
+  apps split `home_consumption_w` identically.
+- [ ] Extend the EV Playwright spec to assert the /home EV node in mock
+  mode.
 - [x] First on-demand backport per `docs/deprecation-plan.md` §Sync — done
   2026-09-06 eve (solar `9181eb5` → home `b267ce8` via `diff -u` +
   `patch -p1`; canvas + house-v40.glb + waypoints only).
