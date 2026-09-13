@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "next dev --port 4000",
-    "dev:mock": "concurrently -k \"npm:dev\" \"npm:mock:live\"",
+    "dev:mock": "concurrently -k \"EV_MOCK_DATA=1 npm run dev\" \"npm:mock:live\"",
     "mock:live": "tsx scripts/mock-live-ws.ts",
     "relay": ".venv/bin/python bridge/modbus_ws_relay.py",
     "relay:csv": "CSV_LOG_PATH=./logs/meter_data.csv .venv/bin/python bridge/modbus_ws_relay.py",

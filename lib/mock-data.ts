@@ -1,8 +1,11 @@
+import { createMockEVTelemetry, type EVTelemetryBlock } from "@/lib/ev-charging";
+
 export type LiveTelemetry = {
   timestamp: string;
   solar_production_w: number;
   net_grid_w: number;
   home_consumption_w: number;
+  ev?: EVTelemetryBlock;
 };
 
 export type HistoryPoint = {
@@ -53,6 +56,7 @@ export function createMockLiveTelemetry(now = new Date()): LiveTelemetry {
     solar_production_w: solarProductionW,
     net_grid_w: netGridW,
     home_consumption_w: homeConsumptionW,
+    ev: createMockEVTelemetry(now),
   };
 }
 

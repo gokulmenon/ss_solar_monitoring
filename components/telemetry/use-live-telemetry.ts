@@ -5,6 +5,7 @@ import useWebSocket, { ReadyState } from "react-use-websocket";
 
 import { createMockLiveTelemetry, type LiveTelemetry } from "@/lib/mock-data";
 import type { HistoryResponse } from "@/lib/history";
+import type { EVTelemetryBlock } from "@/lib/ev-charging";
 
 export type HoymilesPortReading = {
   serial_number: string;
@@ -32,6 +33,7 @@ export type HoymilesTelemetry = {
 
 export type LiveBridgeTelemetry = Partial<LiveTelemetry> & {
   phase_a_voltage_v?: number;
+  ev?: EVTelemetryBlock;
   hoymiles?: HoymilesTelemetry;
   hoymiles_status?: string;
   hoymiles_total_active_power_w?: number | null;
@@ -55,6 +57,8 @@ type LiveSocketMessage = LiveBridgeTelemetry | ServerLog;
 
 export type LiveSeriesPoint = LiveTelemetry & {
   phase_a_voltage_v?: number;
+  ev?: EVTelemetryBlock;
+  ev_kwh?: number;
   hoymiles?: HoymilesTelemetry;
   hoymiles_daily_yield_wh?: number | null;
 };

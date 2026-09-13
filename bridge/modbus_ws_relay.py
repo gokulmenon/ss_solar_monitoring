@@ -43,6 +43,11 @@ except ImportError:  # pragma: no cover - resolved when bridge deps are installe
     ModbusTcpClient = None
     ReadHoldingRegistersResponse = None
 
+try:
+    import ev_mirror
+except ImportError:  # EV mirror stays disabled when the module is absent
+    ev_mirror = None
+
 
 relay_logger = logging.getLogger("solar_relay")
 
@@ -1723,9 +1728,15 @@ def queue_cloud_batch_flush(
 def build_payload_message(
     meter_snapshot: MeterSnapshot,
     hoymiles_snapshot: HoymilesSnapshot,
+    ev_block: dict[str, Any] | None = None,
 ) -> tuple[UnifiedRelayPayload, str]:
     payload = build_unified_payload(meter_snapshot, hoymiles_snapshot)
-    return payload, payload_to_json(payload)
+    message = payload_to_json(payload)
+    if ev_block is not None:
+        merged = json.loads(message)
+        merged["ev"] = ev_block
+        message = json.dumps(merged)
+    return payload, message
 
 
 async def publish_current_payload(
@@ -1734,12 +1745,13 @@ async def publish_current_payload(
     connected_clients: set[WebSocketServerProtocol],
     meter_snapshot: MeterSnapshot | None,
     hoymiles_snapshot: HoymilesSnapshot | None,
+    ev_block: dict[str, Any] | None = None,
 ) -> UnifiedRelayPayload | None:
     if meter_snapshot is None:
         return None
 
     effective_hoymiles = hoymiles_snapshot or build_offline_hoymiles_snapshot("Hoymiles not polled yet")
-    payload, message = build_payload_message(meter_snapshot, effective_hoymiles)
+    payload, message = build_payload_message(meter_snapshot, effective_hoymiles, ev_block)
     latest_message["value"] = message
     await broadcast(connected_clients, message)
     return payload
@@ -1895,6 +1907,12 @@ async def main() -> None:
     latest_hoymiles_snapshot: dict[str, HoymilesSnapshot] = {
         "value": build_offline_hoymiles_snapshot("Awaiting first Modbus TCP poll")
     }
+    # Latest EV charger block mirrored from the home relay (None = nothing
+    # received yet). Dict-holder pattern matches the other shared snapshots.
+    latest_ev_block: dict[str, dict[str, Any] | None] = {"value": None}
+
+    def _store_ev_block(block: dict[str, Any]) -> None:
+        latest_ev_block["value"] = block
 
     async def handler(websocket: WebSocketServerProtocol) -> None:
         await client_handler(websocket, connected_clients, latest_message)
@@ -1924,6 +1942,10 @@ async def main() -> None:
         relay_logger.info(describe_port_csv_logging())
         relay_logger.info(describe_weather_csv_logging())
         relay_logger.info(describe_weather_sync())
+        if ev_mirror is not None:
+            relay_logger.info(ev_mirror.describe_ev_mirror())
+        else:
+            relay_logger.info("EV mirror disabled (ev_mirror unavailable)")
 
         log_task = asyncio.create_task(broadcast_logs(log_queue, connected_clients))
         meter_sniffer_task = asyncio.create_task(
@@ -1931,6 +1953,11 @@ async def main() -> None:
         )
         hoymiles_task = asyncio.create_task(hoymiles_refresh_loop(latest_hoymiles_snapshot))
         weather_task = asyncio.create_task(weather_poll_loop(http_session))
+        ev_task = (
+            asyncio.create_task(ev_mirror.run_ev_mirror_loop(on_block=_store_ev_block))
+            if ev_mirror is not None
+            else None
+        )
 
         try:
             while True:
@@ -1943,6 +1970,7 @@ async def main() -> None:
                         connected_clients=connected_clients,
                         meter_snapshot=meter_snapshot,
                         hoymiles_snapshot=hoymiles_snapshot,
+                        ev_block=latest_ev_block["value"],
                     )
                     if payload is None:
                         continue
@@ -2006,6 +2034,8 @@ async def main() -> None:
             meter_sniffer_task.cancel()
             hoymiles_task.cancel()
             weather_task.cancel()
+            if ev_task is not None:
+                ev_task.cancel()
             with contextlib.suppress(asyncio.CancelledError):
                 await log_task
             with contextlib.suppress(asyncio.CancelledError):
@@ -2014,6 +2044,9 @@ async def main() -> None:
                 await hoymiles_task
             with contextlib.suppress(asyncio.CancelledError):
                 await weather_task
+            if ev_task is not None:
+                with contextlib.suppress(asyncio.CancelledError):
+                    await ev_task
             if pending_cloud_sync_tasks:
                 await asyncio.gather(*pending_cloud_sync_tasks)
             await flush_cloud_batch(http_session, pending_cloud_batch)

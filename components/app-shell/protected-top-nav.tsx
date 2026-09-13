@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { ChartArea, Home, LogOut, Settings2, Zap } from "lucide-react";
+import { CarFront, ChartArea, Home, LogOut, Settings2, Zap } from "lucide-react";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -25,6 +25,11 @@ const tabs = [
     href: "/history",
     label: "History",
     icon: ChartArea,
+  },
+  {
+    href: "/ev",
+    label: "EV",
+    icon: CarFront,
   },
   {
     href: "/settings",
@@ -91,7 +96,7 @@ export function ProtectedTopNav() {
       </div>
 
       <nav aria-label="Primary" className="mt-4">
-        <div className="grid grid-cols-4 gap-2">
+        <div className="grid grid-cols-5 gap-2">
           {tabs.map((tab) => {
             const active = pathname === tab.href || pathname.startsWith(`${tab.href}/`);
             const Icon = tab.icon;
