@@ -63,7 +63,7 @@ function formatTimestamp(timestamp: string | null | undefined) {
 }
 
 export function EVChargingDashboard() {
-  const { telemetry } = useLiveTelemetry();
+  const { telemetry, bridgeState } = useLiveTelemetry();
   const [live, setLive] = useState<EVLiveState | null>(null);
   const [sessions, setSessions] = useState<EVSession[]>([]);
   const [stats, setStats] = useState<EVStats>(EMPTY_STATS);
@@ -101,8 +101,10 @@ export function EVChargingDashboard() {
   useVisiblePoll(loadLive, 60 * 1000);
   useVisiblePoll(loadHistory, 5 * 60 * 1000);
 
-  // Prefer the real-time WebSocket block; fall back to the API snapshot.
-  const wsBlock = telemetry.ev;
+  // Prefer the real-time WebSocket block, but only while the relay socket is
+  // actually connected. Otherwise telemetry.ev is locally generated mock
+  // (contactor closed) and would override the real API snapshot below.
+  const wsBlock = bridgeState === "connected" ? telemetry.ev : null;
   const wsStatus = wsBlock
     ? deriveEVStatus({
         charger_status: wsBlock.charger_status,
