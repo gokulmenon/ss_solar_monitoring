@@ -71,21 +71,10 @@ EV_SUPABASE_TIMEOUT_S = float(os.getenv("EV_SUPABASE_TIMEOUT_S", "5"))
 
 # Dual-write sinks. Each sink is one Supabase project plus its local CSV
 # archive; the same session row (same session_id) goes to every sink.
-# Legacy single-project vars (EV_SUPABASE_SESSIONS_TABLE and friends) are
-# retired: if neither pair below is configured, persistence is a no-op and
-# the poller still serves the live WS block.
-EV_HOME_SUPABASE_URL = os.getenv("HOME_SUPABASE_URL", "").strip()
-EV_HOME_SUPABASE_KEY = os.getenv("HOME_SUPABASE_SERVICE_KEY", "").strip()
-EV_HOME_SESSIONS_TABLE = os.getenv("EV_HOME_SESSIONS_TABLE", "energy_ev_sessions")
-EV_HOME_SNAPSHOTS_TABLE = os.getenv("EV_HOME_SNAPSHOTS_TABLE", "energy_ev_vitals_snapshots")
-EV_HOME_CSV_BACKUP_DIR = os.getenv("EV_HOME_CSV_BACKUP_DIR", "./logs/home-ev-backups")
-
-EV_SOLAR_SUPABASE_URL = os.getenv("SOLAR_SUPABASE_URL", "").strip()
-EV_SOLAR_SUPABASE_KEY = os.getenv("SOLAR_SUPABASE_SERVICE_KEY", "").strip()
-EV_SOLAR_SESSIONS_TABLE = os.getenv("EV_SOLAR_SESSIONS_TABLE", "ev_charging_sessions")
-EV_SOLAR_SNAPSHOTS_TABLE = os.getenv("EV_SOLAR_SNAPSHOTS_TABLE", "ev_vitals_snapshots")
-EV_SOLAR_CSV_BACKUP_DIR = os.getenv("EV_SOLAR_CSV_BACKUP_DIR", "./logs/ev-backups")
-
+# Sinks are built from os.environ at poller start (see build_ev_sinks), so
+# import order can never freeze stale credentials. If neither pair is
+# configured, persistence is a no-op and the poller still serves the live
+# WS block.
 EV_CSV_SESSIONS_PREFIX = os.getenv("EV_CSV_SESSIONS_PREFIX", "ev_sessions")
 EV_CSV_DISCARDED_PREFIX = os.getenv("EV_CSV_DISCARDED_PREFIX", "ev_discarded")
 EV_STATE_PATH = os.getenv("EV_STATE_PATH", "./logs/ev-poller-state.json")
@@ -108,31 +97,49 @@ class EVSink:
 
 
 def build_ev_sinks() -> List["EVSink"]:
-    """Build the configured dual-write sinks (home + solar, whichever exists)."""
+    """Build the configured dual-write sinks (home + solar, whichever exists).
+
+    Reads os.environ at CALL time, not import time, so this module sees
+    credentials however late the host process makes them available.
+    """
     sinks: List["EVSink"] = []
-    if EV_HOME_SUPABASE_URL or EV_HOME_SUPABASE_KEY:
+    home_url = os.getenv("HOME_SUPABASE_URL", "").strip()
+    home_key = os.getenv("HOME_SUPABASE_SERVICE_KEY", "").strip()
+    if home_url or home_key:
         sinks.append(
             EVSink(
                 label="home",
-                supabase_url=EV_HOME_SUPABASE_URL,
-                supabase_key=EV_HOME_SUPABASE_KEY,
-                sessions_table=EV_HOME_SESSIONS_TABLE,
-                snapshots_table=EV_HOME_SNAPSHOTS_TABLE,
-                csv_backup_dir=EV_HOME_CSV_BACKUP_DIR,
+                supabase_url=home_url,
+                supabase_key=home_key,
+                sessions_table=os.getenv("EV_HOME_SESSIONS_TABLE", "energy_ev_sessions"),
+                snapshots_table=os.getenv("EV_HOME_SNAPSHOTS_TABLE", "energy_ev_vitals_snapshots"),
+                csv_backup_dir=os.getenv("EV_HOME_CSV_BACKUP_DIR", "./logs/home-ev-backups"),
             )
         )
-    if EV_SOLAR_SUPABASE_URL or EV_SOLAR_SUPABASE_KEY:
+    solar_url = os.getenv("SOLAR_SUPABASE_URL", "").strip()
+    solar_key = os.getenv("SOLAR_SUPABASE_SERVICE_KEY", "").strip()
+    if solar_url or solar_key:
         sinks.append(
             EVSink(
                 label="solar",
-                supabase_url=EV_SOLAR_SUPABASE_URL,
-                supabase_key=EV_SOLAR_SUPABASE_KEY,
-                sessions_table=EV_SOLAR_SESSIONS_TABLE,
-                snapshots_table=EV_SOLAR_SNAPSHOTS_TABLE,
-                csv_backup_dir=EV_SOLAR_CSV_BACKUP_DIR,
+                supabase_url=solar_url,
+                supabase_key=solar_key,
+                sessions_table=os.getenv("EV_SOLAR_SESSIONS_TABLE", "ev_charging_sessions"),
+                snapshots_table=os.getenv("EV_SOLAR_SNAPSHOTS_TABLE", "ev_vitals_snapshots"),
+                csv_backup_dir=os.getenv("EV_SOLAR_CSV_BACKUP_DIR", "./logs/ev-backups"),
             )
         )
     return sinks
+
+
+def describe_sink_env_presence() -> str:
+    """Presence-only diagnostic (names, never values) for startup logs."""
+    seen = {
+        name: ("set" if os.getenv(name) else "MISSING")
+        for name in ("HOME_SUPABASE_URL", "HOME_SUPABASE_SERVICE_KEY",
+                     "SOLAR_SUPABASE_URL", "SOLAR_SUPABASE_SERVICE_KEY")
+    }
+    return "sink env at runtime: " + ", ".join(f"{name}={state}" for name, state in seen.items())
 
 CHARGER_ONLINE = "online"
 CHARGER_OFFLINE = "offline"
@@ -670,6 +677,7 @@ class EVWallConnectorPoller:
             EV_POLL_UNPLUGGED_S,
             EV_HTTP_TIMEOUT_SECONDS,
         )
+        poller_logger.info(describe_sink_env_presence())
         cloud_sinks = [sink.label for sink in self.sinks if sink.cloud_enabled]
         if len(cloud_sinks) < 2:
             poller_logger.warning(

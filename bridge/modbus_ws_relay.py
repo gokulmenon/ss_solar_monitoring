@@ -2088,6 +2088,11 @@ async def main() -> None:
             METER_SLAVE_ID,
         )
         relay_logger.info(describe_dual_sync(cloud_targets))
+        relay_logger.info(
+            "Sink env at bridge runtime: HOME_SUPABASE_URL=%s, SOLAR_SUPABASE_URL=%s",
+            "set" if os.getenv("HOME_SUPABASE_URL") else "MISSING",
+            "set" if os.getenv("SOLAR_SUPABASE_URL") else "MISSING",
+        )
         if UNIVERSAL_SHADOW_MODE:
             relay_logger.info("UNIVERSAL SHADOW MODE: solar daily rollup writes skipped")
         relay_logger.info(describe_csv_logging())
