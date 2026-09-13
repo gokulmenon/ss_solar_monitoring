@@ -44,9 +44,9 @@ except ImportError:  # pragma: no cover - resolved when bridge deps are installe
     ReadHoldingRegistersResponse = None
 
 try:
-    import ev_mirror
-except ImportError:  # EV mirror stays disabled when the module is absent
-    ev_mirror = None
+    import ev_wall_connector as ev_charger
+except ImportError:  # EV polling stays disabled when the module is absent
+    ev_charger = None
 
 
 relay_logger = logging.getLogger("solar_relay")
@@ -196,12 +196,84 @@ WEATHER_CSV_BACKUP_DIR = os.getenv("WEATHER_CSV_BACKUP_DIR", "./logs/weather-bac
 WEATHER_CSV_BACKUP_PREFIX = os.getenv("WEATHER_CSV_BACKUP_PREFIX", "weather")
 OFFLINE_FAILURE_THRESHOLD = int(os.getenv("BRIDGE_OFFLINE_THRESHOLD", "10"))
 
-NEXT_PUBLIC_SUPABASE_URL = os.getenv("NEXT_PUBLIC_SUPABASE_URL", "").strip()
-SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "").strip()
+# NOTE: the legacy single-project credential pair (NEXT_PUBLIC_SUPABASE_URL /
+# SUPABASE_SERVICE_ROLE_KEY) is retired — dual-write targets below are the
+# only credentials read. Keeping the old names set is harmless but inert.
 SUPABASE_TABLE_NAME = os.getenv("SUPABASE_TABLE_NAME", "meter_readings")
 SUPABASE_DAILY_TABLE_NAME = os.getenv("SUPABASE_DAILY_TABLE_NAME", "daily_energy_summary")
 SUPABASE_PORT_TABLE_NAME = os.getenv("SUPABASE_PORT_TABLE_NAME", "inverter_port_readings")
 SUPABASE_WEATHER_TABLE_NAME = os.getenv("SUPABASE_WEATHER_TABLE_NAME", "weather_snapshots")
+
+# ---------------------------------------------------------------------------
+# Universal Relay dual-write targets. Each target is one Supabase project
+# plus its table map. The retired legacy single-pair vars are intentionally
+# unread (see NOTE above): configure both pairs below, or the startup
+# self-check will say loudly which target is missing.
+# ---------------------------------------------------------------------------
+HOME_SUPABASE_URL = os.getenv("HOME_SUPABASE_URL", "").strip()
+HOME_SUPABASE_SERVICE_KEY = os.getenv("HOME_SUPABASE_SERVICE_KEY", "").strip()
+HOME_SUPABASE_METER_TABLE = os.getenv("HOME_SUPABASE_METER_TABLE", "energy_meter_readings")
+HOME_SUPABASE_DAILY_TABLE = os.getenv("HOME_SUPABASE_DAILY_TABLE", "energy_daily_summary")
+HOME_SUPABASE_PORT_TABLE = os.getenv("HOME_SUPABASE_PORT_TABLE", "energy_inverter_port_readings")
+HOME_SUPABASE_WEATHER_TABLE = os.getenv("HOME_SUPABASE_WEATHER_TABLE", "energy_weather_snapshots")
+
+SOLAR_SUPABASE_URL = os.getenv("SOLAR_SUPABASE_URL", "").strip()
+SOLAR_SUPABASE_SERVICE_KEY = os.getenv("SOLAR_SUPABASE_SERVICE_KEY", "").strip()
+
+HOME_CSV_BACKUP_DIR = os.getenv("HOME_CSV_BACKUP_DIR", "./logs/home-meter-backups")
+HOME_CSV_BACKUP_PREFIX = os.getenv("HOME_CSV_BACKUP_PREFIX", "meter")
+HOME_PORT_CSV_BACKUP_DIR = os.getenv("HOME_PORT_CSV_BACKUP_DIR", "./logs/home-inverter-port-backups")
+HOME_PORT_CSV_BACKUP_PREFIX = os.getenv("HOME_PORT_CSV_BACKUP_PREFIX", "inverter_ports")
+HOME_WEATHER_CSV_BACKUP_DIR = os.getenv("HOME_WEATHER_CSV_BACKUP_DIR", "./logs/home-weather-backups")
+HOME_WEATHER_CSV_BACKUP_PREFIX = os.getenv("HOME_WEATHER_CSV_BACKUP_PREFIX", "weather")
+
+# Shadow mode (pre-cutover verification): point every *_CSV_* var at
+# ./logs/shadow-* dirs via env and set this to skip the solar daily
+# read-modify-write (the old relay still owns it until cutover).
+UNIVERSAL_SHADOW_MODE = os.getenv("UNIVERSAL_SHADOW_MODE", "0").strip() == "1"
+
+
+@dataclass
+class CloudTarget:
+    """One Supabase project plus its table map for dual-write fan-out."""
+
+    name: str
+    url: str
+    key: str
+    meter_table: str
+    daily_table: str
+    port_table: str
+    weather_table: str
+
+
+def build_cloud_targets() -> list[CloudTarget]:
+    """Build the configured dual-write targets (home + solar, whichever exists)."""
+    targets: list[CloudTarget] = []
+    if HOME_SUPABASE_URL or HOME_SUPABASE_SERVICE_KEY:
+        targets.append(
+            CloudTarget(
+                name="home",
+                url=HOME_SUPABASE_URL,
+                key=HOME_SUPABASE_SERVICE_KEY,
+                meter_table=HOME_SUPABASE_METER_TABLE,
+                daily_table=HOME_SUPABASE_DAILY_TABLE,
+                port_table=HOME_SUPABASE_PORT_TABLE,
+                weather_table=HOME_SUPABASE_WEATHER_TABLE,
+            )
+        )
+    if SOLAR_SUPABASE_URL or SOLAR_SUPABASE_SERVICE_KEY:
+        targets.append(
+            CloudTarget(
+                name="solar",
+                url=SOLAR_SUPABASE_URL,
+                key=SOLAR_SUPABASE_SERVICE_KEY,
+                meter_table=SUPABASE_TABLE_NAME,
+                daily_table=SUPABASE_DAILY_TABLE_NAME,
+                port_table=SUPABASE_PORT_TABLE_NAME,
+                weather_table=SUPABASE_WEATHER_TABLE_NAME,
+            )
+        )
+    return targets
 SUPABASE_BATCH_MINUTES = int(os.getenv("SUPABASE_BATCH_MINUTES", "10"))
 SUPABASE_SYNC_TIMEOUT_SECONDS = float(os.getenv("SUPABASE_SYNC_TIMEOUT_SECONDS", "5"))
 
@@ -524,25 +596,30 @@ def local_day_for_timestamp(timestamp: str) -> str:
     return date.date().isoformat()
 
 
-def resolve_csv_sink() -> tuple[Path | None, bool]:
+def resolve_csv_sink(
+    backup_dir: str | None = None,
+    prefix: str | None = None,
+    allow_legacy: bool = True,
+) -> tuple[Path | None, bool, str | None]:
     """
     Resolve the CSV target.
 
-    Returns:
-    - (path, True) for daily directory-backed CSV backups
-    - (path, False) for a legacy single CSV file
-    - (None, False) if CSV logging is disabled
+    Returns (path-or-dir, is_daily_directory, prefix):
+    - (path, True, prefix) for daily directory-backed CSV backups
+    - (path, False, None) for a legacy single CSV file
+    - (None, False, None) if CSV logging is disabled
     """
-    if CSV_LOG_PATH:
+    if allow_legacy and CSV_LOG_PATH:
         candidate = Path(CSV_LOG_PATH).expanduser()
         if candidate.suffix.lower() == ".csv":
-            return candidate, False
-        return candidate, True
+            return candidate, False, None
+        return candidate, True, prefix or CSV_BACKUP_PREFIX
 
-    if CSV_BACKUP_DIR:
-        return Path(CSV_BACKUP_DIR).expanduser(), True
+    directory = backup_dir if backup_dir is not None else CSV_BACKUP_DIR
+    if directory:
+        return Path(directory).expanduser(), True, prefix or CSV_BACKUP_PREFIX
 
-    return None, False
+    return None, False, None
 
 
 def coerce_int(value: Any) -> Optional[int]:
@@ -1283,7 +1360,12 @@ def build_unified_payload(
     )
 
 
-def write_csv_row(payload: UnifiedRelayPayload) -> None:
+def write_csv_row(
+    payload: UnifiedRelayPayload,
+    backup_dir: str | None = None,
+    prefix: str | None = None,
+    allow_legacy: bool = True,
+) -> None:
     """
     Optional CSV sink for offline backups.
 
@@ -1294,13 +1376,13 @@ def write_csv_row(payload: UnifiedRelayPayload) -> None:
     The first three columns stay compatible with the existing history parser.
     Additional columns carry the merged Hoymiles data.
     """
-    path, is_daily_directory = resolve_csv_sink()
+    path, is_daily_directory, resolved_prefix = resolve_csv_sink(backup_dir, prefix, allow_legacy)
     if path is None:
         return
 
     if is_daily_directory:
         local_day = datetime.now().astimezone().strftime("%Y-%m-%d")
-        path = path / f"{CSV_BACKUP_PREFIX}_{local_day}.csv"
+        path = path / f"{resolved_prefix}_{local_day}.csv"
 
     path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -1333,15 +1415,21 @@ def write_csv_row(payload: UnifiedRelayPayload) -> None:
         )
 
 
-def write_port_csv_rows(rows: list[dict[str, int | float | str]]) -> None:
+def write_port_csv_rows(
+    rows: list[dict[str, int | float | str]],
+    backup_dir: str | None = None,
+    prefix: str | None = None,
+) -> None:
     """Append the deduplicated per-port cloud batch to daily local CSV archives."""
     rows_by_day: dict[str, list[dict[str, int | float | str]]] = defaultdict(list)
+    directory = backup_dir if backup_dir is not None else PORT_CSV_BACKUP_DIR
+    resolved_prefix = prefix or PORT_CSV_BACKUP_PREFIX
 
     for row in rows:
         rows_by_day[local_day_for_timestamp(str(row["timestamp"]))].append(row)
 
     for local_day, daily_rows in rows_by_day.items():
-        path = Path(PORT_CSV_BACKUP_DIR) / f"{PORT_CSV_BACKUP_PREFIX}_{local_day}.csv"
+        path = Path(directory) / f"{resolved_prefix}_{local_day}.csv"
         path.parent.mkdir(parents=True, exist_ok=True)
 
         write_header = not path.exists() or path.stat().st_size == 0
@@ -1375,11 +1463,17 @@ def write_port_csv_rows(rows: list[dict[str, int | float | str]]) -> None:
                 )
 
 
-def write_weather_csv_row(row: dict[str, int | float | str | None]) -> None:
+def write_weather_csv_row(
+    row: dict[str, int | float | str | None],
+    backup_dir: str | None = None,
+    prefix: str | None = None,
+) -> None:
     """Append one successful weather observation to its relay-local daily archive."""
     timestamp = str(row["timestamp"])
     local_day = local_day_for_timestamp(timestamp)
-    path = Path(WEATHER_CSV_BACKUP_DIR) / f"{WEATHER_CSV_BACKUP_PREFIX}_{local_day}.csv"
+    directory = backup_dir if backup_dir is not None else WEATHER_CSV_BACKUP_DIR
+    resolved_prefix = prefix or WEATHER_CSV_BACKUP_PREFIX
+    path = Path(directory) / f"{resolved_prefix}_{local_day}.csv"
     path.parent.mkdir(parents=True, exist_ok=True)
 
     fields = [
@@ -1417,11 +1511,11 @@ def build_supabase_batch_row(payload: UnifiedRelayPayload) -> dict[str, int | fl
     }
 
 
-def supabase_headers(prefer: str = "return=representation") -> dict[str, str]:
+def supabase_headers(key: str, prefer: str = "return=representation") -> dict[str, str]:
     """Return the common headers used by every Supabase REST request."""
     return {
-        "apikey": SUPABASE_SERVICE_ROLE_KEY,
-        "Authorization": f"Bearer {SUPABASE_SERVICE_ROLE_KEY}",
+        "apikey": key,
+        "Authorization": f"Bearer {key}",
         "Content-Type": "application/json",
         "Accept": "application/json",
         "Prefer": prefer,
@@ -1478,24 +1572,28 @@ def build_weather_row(payload: dict[str, Any]) -> dict[str, int | float | str | 
     }
 
 
-async def upsert_weather_snapshot(session: aiohttp.ClientSession, row: dict[str, int | float | str | None]) -> None:
-    """Persist a single weather snapshot into Supabase without blocking Modbus reads."""
-    if not NEXT_PUBLIC_SUPABASE_URL or not SUPABASE_SERVICE_ROLE_KEY:
+async def upsert_weather_snapshot(
+    session: aiohttp.ClientSession,
+    target: CloudTarget,
+    row: dict[str, int | float | str | None],
+) -> None:
+    """Persist a single weather snapshot into one target without blocking Modbus reads."""
+    if not target.url or not target.key:
         return
 
-    url = (
-        f"{NEXT_PUBLIC_SUPABASE_URL.rstrip('/')}/rest/v1/{SUPABASE_WEATHER_TABLE_NAME}"
-        "?on_conflict=timestamp"
-    )
+    url = f"{target.url.rstrip('/')}/rest/v1/{target.weather_table}?on_conflict=timestamp"
     async with session.post(
         url,
         json=row,
-        headers=supabase_headers("resolution=merge-duplicates,return=minimal"),
+        headers=supabase_headers(target.key, "resolution=merge-duplicates,return=minimal"),
         timeout=aiohttp.ClientTimeout(total=SUPABASE_SYNC_TIMEOUT_SECONDS),
     ) as response:
         if response.status not in {200, 201, 204}:
             detail = await response.text()
-            raise RuntimeError(f"Supabase weather upsert failed with {response.status}: {detail}")
+            raise RuntimeError(
+                f"Supabase weather upsert failed for {target.name} "
+                f"with {response.status}: {detail}"
+            )
 
 
 async def poll_weather_once(session: aiohttp.ClientSession) -> dict[str, int | float | str | None]:
@@ -1515,12 +1613,17 @@ async def poll_weather_once(session: aiohttp.ClientSession) -> dict[str, int | f
     row = build_weather_row(payload)
     try:
         write_weather_csv_row(row)
+        write_weather_csv_row(row, HOME_WEATHER_CSV_BACKUP_DIR, HOME_WEATHER_CSV_BACKUP_PREFIX)
         relay_logger.info("Weather CSV backup ok %s", row["timestamp"])
     except OSError as exc:
         # A local archive problem should never prevent the live weather value
         # from being persisted to Supabase.
         relay_logger.error("Weather CSV backup failed: %s", exc)
-    await upsert_weather_snapshot(session, row)
+    for target in build_cloud_targets():
+        try:
+            await upsert_weather_snapshot(session, target, row)
+        except (aiohttp.ClientError, asyncio.TimeoutError, RuntimeError) as exc:
+            relay_logger.error("Weather sync failed for %s: %s", target.name, exc)
     return row
 
 
@@ -1530,7 +1633,7 @@ async def weather_poll_loop(session: aiohttp.ClientSession) -> None:
         relay_logger.warning("Weather polling disabled -> set WEATHER_LATITUDE and WEATHER_LONGITUDE")
         return
 
-    if not NEXT_PUBLIC_SUPABASE_URL or not SUPABASE_SERVICE_ROLE_KEY:
+    if not build_cloud_targets():
         relay_logger.warning("Weather polling disabled -> Supabase credentials are missing")
         return
 
@@ -1557,17 +1660,22 @@ def ping_dead_mans_snitch() -> None:
         relay_logger.error("Dead Man's Snitch ping failed: %s", exc)
 
 
-async def fetch_daily_summary(session: aiohttp.ClientSession, day: str) -> dict[str, Any] | None:
-    url = f"{NEXT_PUBLIC_SUPABASE_URL.rstrip('/')}/rest/v1/{SUPABASE_DAILY_TABLE_NAME}"
+async def fetch_daily_summary(
+    session: aiohttp.ClientSession, target: CloudTarget, day: str
+) -> dict[str, Any] | None:
+    url = f"{target.url.rstrip('/')}/rest/v1/{target.daily_table}"
     query = f"{url}?day=eq.{day}&select=day,imported_kwh,exported_kwh,solar_kwh,home_kwh,sample_count"
     async with session.get(
         query,
-        headers=supabase_headers(),
+        headers=supabase_headers(target.key),
         timeout=aiohttp.ClientTimeout(total=SUPABASE_SYNC_TIMEOUT_SECONDS),
     ) as response:
         if response.status != 200:
             detail = await response.text()
-            raise RuntimeError(f"Supabase daily summary lookup failed with {response.status}: {detail}")
+            raise RuntimeError(
+                f"Supabase daily summary lookup failed for {target.name} "
+                f"with {response.status}: {detail}"
+            )
         payload = await response.json()
 
     if isinstance(payload, list) and payload:
@@ -1576,9 +1684,11 @@ async def fetch_daily_summary(session: aiohttp.ClientSession, day: str) -> dict[
     return None
 
 
-async def sync_supabase_daily_summary(session: aiohttp.ClientSession, batch: CloudBatchState) -> None:
+async def sync_supabase_daily_summary(
+    session: aiohttp.ClientSession, target: CloudTarget, batch: CloudBatchState
+) -> None:
     """Update one relay-local daily aggregate row after each cloud batch flush."""
-    existing = await fetch_daily_summary(session, batch.local_day)
+    existing = await fetch_daily_summary(session, target, batch.local_day)
 
     def existing_number(key: str) -> float:
         value = existing.get(key) if existing else None
@@ -1600,21 +1710,30 @@ async def sync_supabase_daily_summary(session: aiohttp.ClientSession, batch: Clo
         "updated_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
     }
 
-    url = f"{NEXT_PUBLIC_SUPABASE_URL.rstrip('/')}/rest/v1/{SUPABASE_DAILY_TABLE_NAME}?on_conflict=day"
+    url = f"{target.url.rstrip('/')}/rest/v1/{target.daily_table}?on_conflict=day"
     async with session.post(
         url,
         json=row,
-        headers=supabase_headers("resolution=merge-duplicates,return=minimal"),
+        headers=supabase_headers(target.key, "resolution=merge-duplicates,return=minimal"),
         timeout=aiohttp.ClientTimeout(total=SUPABASE_SYNC_TIMEOUT_SECONDS),
     ) as response:
         if response.status not in {200, 201, 204}:
             detail = await response.text()
-            raise RuntimeError(f"Supabase daily summary upsert failed with {response.status}: {detail}")
+            raise RuntimeError(
+                f"Supabase daily summary upsert failed for {target.name} "
+                f"with {response.status}: {detail}"
+            )
 
 
-async def sync_supabase_batch(session: aiohttp.ClientSession, batch: CloudBatchState) -> None:
-    """POST one aggregated batch row to Supabase."""
-    if not NEXT_PUBLIC_SUPABASE_URL or not SUPABASE_SERVICE_ROLE_KEY:
+async def sync_supabase_batch(
+    session: aiohttp.ClientSession,
+    target: CloudTarget,
+    batch: CloudBatchState,
+    *,
+    with_daily: bool = True,
+) -> None:
+    """POST one aggregated batch row to one target (daily rollup optional)."""
+    if not target.url or not target.key:
         return
 
     average_watts = int(round(batch.net_grid_sum_w / max(batch.sample_count, 1)))
@@ -1637,43 +1756,50 @@ async def sync_supabase_batch(session: aiohttp.ClientSession, batch: CloudBatchS
         "phase_a_voltage_v": average_voltage,
     }
 
-    batch_url = f"{NEXT_PUBLIC_SUPABASE_URL.rstrip('/')}/rest/v1/{SUPABASE_TABLE_NAME}?on_conflict=timestamp"
+    batch_url = f"{target.url.rstrip('/')}/rest/v1/{target.meter_table}?on_conflict=timestamp"
 
     try:
         relay_logger.info(
-            "Supabase batch flush %s (%s samples)...",
+            "Supabase batch flush %s (%s samples) -> %s...",
             batch.bucket_start,
             batch.sample_count,
+            target.name,
         )
         async with session.post(
             batch_url,
             json=row,
-            headers=supabase_headers("resolution=merge-duplicates,return=minimal"),
+            headers=supabase_headers(target.key, "resolution=merge-duplicates,return=minimal"),
             timeout=aiohttp.ClientTimeout(total=SUPABASE_SYNC_TIMEOUT_SECONDS),
         ) as response:
             if response.status not in {200, 201, 204}:
                 detail = await response.text()
-                raise RuntimeError(f"Supabase batch upsert failed with {response.status}: {detail}")
-        await sync_supabase_daily_summary(session, batch)
+                raise RuntimeError(
+                    f"Supabase batch upsert failed for {target.name} "
+                    f"with {response.status}: {detail}"
+                )
+        if with_daily:
+            await sync_supabase_daily_summary(session, target, batch)
         relay_logger.info(
-            "Supabase batch ok %s (%s samples)",
+            "Supabase batch ok %s (%s samples) -> %s",
             batch.bucket_start,
             batch.sample_count,
+            target.name,
         )
     except (aiohttp.ClientError, asyncio.TimeoutError, RuntimeError) as exc:
-        relay_logger.error("Supabase batch failed %s: %s", batch.bucket_start, exc)
+        relay_logger.error("Supabase batch failed %s (%s): %s", batch.bucket_start, target.name, exc)
 
 
 async def sync_supabase_port_rows(
     session: aiohttp.ClientSession,
+    target: CloudTarget,
     rows: list[dict[str, int | float | str]],
 ) -> None:
     """Upsert non-zero Hoymiles port telemetry for one cloud batch."""
-    if not rows or not NEXT_PUBLIC_SUPABASE_URL or not SUPABASE_SERVICE_ROLE_KEY:
+    if not rows or not target.url or not target.key:
         return
 
     port_url = (
-        f"{NEXT_PUBLIC_SUPABASE_URL.rstrip('/')}/rest/v1/{SUPABASE_PORT_TABLE_NAME}"
+        f"{target.url.rstrip('/')}/rest/v1/{target.port_table}"
         "?on_conflict=timestamp,inverter_serial,port_number"
     )
 
@@ -1681,46 +1807,60 @@ async def sync_supabase_port_rows(
         async with session.post(
             port_url,
             json=rows,
-            headers=supabase_headers("resolution=merge-duplicates,return=minimal"),
+            headers=supabase_headers(target.key, "resolution=merge-duplicates,return=minimal"),
             timeout=aiohttp.ClientTimeout(total=SUPABASE_SYNC_TIMEOUT_SECONDS),
         ) as response:
             if response.status not in {200, 201, 204}:
                 detail = await response.text()
                 raise RuntimeError(
-                    f"Supabase port telemetry upsert failed with status {response.status}: {detail}"
+                    f"Supabase port telemetry upsert failed for {target.name} "
+                    f"with status {response.status}: {detail}"
                 )
 
-        relay_logger.info("Supabase port telemetry ok (%s rows)", len(rows))
+        relay_logger.info("Supabase port telemetry ok (%s rows) -> %s", len(rows), target.name)
     except (aiohttp.ClientError, asyncio.TimeoutError, RuntimeError) as exc:
-        relay_logger.error("Supabase port telemetry failed: %s", exc)
+        relay_logger.error("Supabase port telemetry failed (%s): %s", target.name, exc)
 
 
-async def flush_cloud_batch(session: aiohttp.ClientSession, batch: Optional[CloudBatchState]) -> None:
+async def flush_cloud_batch(
+    session: aiohttp.ClientSession,
+    targets: list[CloudTarget],
+    batch: Optional[CloudBatchState],
+) -> None:
     if batch is None or (batch.sample_count == 0 and not batch.port_archive_rows):
         return
 
     if batch.sample_count > 0:
-        await sync_supabase_batch(session, batch)
+        for target in targets:
+            # In shadow mode the old relay still owns the solar daily
+            # read-modify-write; skip it to avoid lost updates.
+            with_daily = not (UNIVERSAL_SHADOW_MODE and target.name == "solar")
+            await sync_supabase_batch(session, target, batch, with_daily=with_daily)
     if batch.port_archive_rows:
         port_archive_rows = list(batch.port_archive_rows.values())
         try:
             write_port_csv_rows(port_archive_rows)
+            write_port_csv_rows(
+                port_archive_rows, HOME_PORT_CSV_BACKUP_DIR, HOME_PORT_CSV_BACKUP_PREFIX
+            )
             relay_logger.info("Inverter port CSV backup ok (%s rows)", len(port_archive_rows))
         except OSError as exc:
             # Preserve the cloud path even if the local disk is temporarily unavailable.
             relay_logger.error("Inverter port CSV backup failed: %s", exc)
     if batch.port_readings:
         port_rows = list(batch.port_readings.values())
-        await sync_supabase_port_rows(session, port_rows)
+        for target in targets:
+            await sync_supabase_port_rows(session, target, port_rows)
 
 
 def queue_cloud_batch_flush(
     session: aiohttp.ClientSession,
+    targets: list[CloudTarget],
     batch: CloudBatchState,
     pending_tasks: set[asyncio.Task[None]],
 ) -> None:
     """Upload a completed batch without delaying the Modbus polling loop."""
-    task = asyncio.create_task(flush_cloud_batch(session, batch))
+    task = asyncio.create_task(flush_cloud_batch(session, targets, batch))
     pending_tasks.add(task)
     task.add_done_callback(pending_tasks.discard)
 
@@ -1759,13 +1899,14 @@ async def publish_current_payload(
 
 def advance_cloud_batch(
     session: aiohttp.ClientSession,
+    targets: list[CloudTarget],
     current_batch: Optional[CloudBatchState],
     payload: UnifiedRelayPayload,
     hoymiles_snapshot: HoymilesSnapshot | None,
     pending_sync_tasks: set[asyncio.Task[None]],
 ) -> CloudBatchState | None:
     """Aggregate grid, voltage, and solar readings into a cloud batch."""
-    if not NEXT_PUBLIC_SUPABASE_URL or not SUPABASE_SERVICE_ROLE_KEY:
+    if not targets:
         return current_batch
 
     if payload.meter_total_active_power_w is None:
@@ -1778,7 +1919,7 @@ def advance_cloud_batch(
     if batch is None:
         batch = CloudBatchState(bucket_start=bucket_start, local_day=local_day)
     elif batch.bucket_start != bucket_start:
-        queue_cloud_batch_flush(session, batch, pending_sync_tasks)
+        queue_cloud_batch_flush(session, targets, batch, pending_sync_tasks)
         batch = CloudBatchState(bucket_start=bucket_start, local_day=local_day)
 
     batch.add_sample(
@@ -1814,21 +1955,29 @@ def build_offline_status_payload(failures: int) -> RelayStatusPayload:
     )
 
 
-def describe_cloud_sync() -> str:
-    """Return a short human-readable cloud sync status for startup logs."""
-    if not NEXT_PUBLIC_SUPABASE_URL or not SUPABASE_SERVICE_ROLE_KEY:
-        return "Cloud sync disabled"
+def describe_dual_sync(targets: list[CloudTarget]) -> str:
+    """Return a short human-readable dual-write status for startup logs."""
+    if not targets:
+        return (
+            "Cloud sync disabled -> set HOME_SUPABASE_URL/HOME_SUPABASE_SERVICE_KEY "
+            "and/or SOLAR_SUPABASE_URL/SOLAR_SUPABASE_SERVICE_KEY"
+        )
 
-    host = urlparse(NEXT_PUBLIC_SUPABASE_URL).netloc or NEXT_PUBLIC_SUPABASE_URL
-    return (
-        f"Cloud sync enabled -> host {host}, table {SUPABASE_TABLE_NAME}, "
-        f"batch {SUPABASE_BATCH_MINUTES}m"
-    )
+    parts = []
+    for target in targets:
+        if not target.url or not target.key:
+            parts.append(f"{target.name} HALF-CONFIGURED (missing url or key — writes skipped)")
+            continue
+        host = urlparse(target.url).netloc or target.url
+        parts.append(f"{target.name} -> host {host}, table {target.meter_table}")
+    if len([t for t in targets if t.url and t.key]) < 2:
+        parts.append("WARNING: dual-write DEGRADED — configure both pairs")
+    return f"Cloud sync enabled ({'; '.join(parts)}), batch {SUPABASE_BATCH_MINUTES}m"
 
 
 def describe_csv_logging() -> str:
     """Return a short human-readable CSV backup status for startup logs."""
-    path, is_daily_directory = resolve_csv_sink()
+    path, is_daily_directory, _prefix = resolve_csv_sink()
     if path is None:
         return "CSV backup disabled"
 
@@ -1852,7 +2001,7 @@ def describe_weather_sync() -> str:
     """Return a short human-readable weather sync status for startup logs."""
     if not WEATHER_LATITUDE or not WEATHER_LONGITUDE:
         return "Weather sync disabled -> set WEATHER_LATITUDE and WEATHER_LONGITUDE"
-    if not NEXT_PUBLIC_SUPABASE_URL or not SUPABASE_SERVICE_ROLE_KEY:
+    if not build_cloud_targets():
         return "Weather sync disabled -> Supabase credentials are missing"
 
     return (
@@ -1901,6 +2050,7 @@ async def main() -> None:
     failure_count = 0
     pending_cloud_batch: Optional[CloudBatchState] = None
     pending_cloud_sync_tasks: set[asyncio.Task[None]] = set()
+    cloud_targets = build_cloud_targets()
     latest_meter_snapshot: dict[str, MeterSnapshot] = {
         "value": build_offline_meter_snapshot("Awaiting passive RS-485 meter traffic")
     }
@@ -1937,15 +2087,17 @@ async def main() -> None:
             SERIAL_BAUDRATE,
             METER_SLAVE_ID,
         )
-        relay_logger.info(describe_cloud_sync())
+        relay_logger.info(describe_dual_sync(cloud_targets))
+        if UNIVERSAL_SHADOW_MODE:
+            relay_logger.info("UNIVERSAL SHADOW MODE: solar daily rollup writes skipped")
         relay_logger.info(describe_csv_logging())
         relay_logger.info(describe_port_csv_logging())
         relay_logger.info(describe_weather_csv_logging())
         relay_logger.info(describe_weather_sync())
-        if ev_mirror is not None:
-            relay_logger.info(ev_mirror.describe_ev_mirror())
+        if ev_charger is not None:
+            relay_logger.info(ev_charger.describe_ev_sync())
         else:
-            relay_logger.info("EV mirror disabled (ev_mirror unavailable)")
+            relay_logger.info("EV polling disabled (ev_wall_connector unavailable)")
 
         log_task = asyncio.create_task(broadcast_logs(log_queue, connected_clients))
         meter_sniffer_task = asyncio.create_task(
@@ -1954,8 +2106,8 @@ async def main() -> None:
         hoymiles_task = asyncio.create_task(hoymiles_refresh_loop(latest_hoymiles_snapshot))
         weather_task = asyncio.create_task(weather_poll_loop(http_session))
         ev_task = (
-            asyncio.create_task(ev_mirror.run_ev_mirror_loop(on_block=_store_ev_block))
-            if ev_mirror is not None
+            asyncio.create_task(ev_charger.run_ev_poll_loop(on_block=_store_ev_block))
+            if ev_charger is not None
             else None
         )
 
@@ -1976,8 +2128,15 @@ async def main() -> None:
                         continue
 
                     write_csv_row(payload)
+                    write_csv_row(
+                        payload,
+                        HOME_CSV_BACKUP_DIR,
+                        HOME_CSV_BACKUP_PREFIX,
+                        allow_legacy=False,
+                    )
                     pending_cloud_batch = advance_cloud_batch(
                         http_session,
+                        cloud_targets,
                         pending_cloud_batch,
                         payload,
                         hoymiles_snapshot,
@@ -2049,7 +2208,7 @@ async def main() -> None:
                     await ev_task
             if pending_cloud_sync_tasks:
                 await asyncio.gather(*pending_cloud_sync_tasks)
-            await flush_cloud_batch(http_session, pending_cloud_batch)
+            await flush_cloud_batch(http_session, cloud_targets, pending_cloud_batch)
             await http_session.close()
 
 

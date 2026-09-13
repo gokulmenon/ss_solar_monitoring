@@ -63,6 +63,16 @@ memory (`coordination.md`); repo milestones in `docs/deprecation-plan.md`.
 - Deploy reminders: migration applied 2026-09-13; bridge host needs
   `EV_UPSTREAM_WS_URL` → home relay WS + `ev_mirror.py` + updated
   `bridge/modbus_ws_relay.py`, then a bridge restart.
+- SUPERSEDED 2026-09-13: Universal Relay plan (home repo
+  `.agents/plans/2026-09-13-universal-relay.md`, approved) replaces the
+  mirror with dual-write. Phase 1 code done, uncommitted: poller moved to
+  `bridge/ev_wall_connector.py` (dual sinks), bridge dual-writes all
+  streams to `HOME_*`/`SOLAR_*` pairs, mirror deleted.
+  Tests: `test_universal_relay.py` (8), `test_ev_wall_connector.py` (14).
+- [x] Phase 0 drift reconcile: owner confirmed the NSSM service runs the
+  plain `modbus_ws_relay.py`, identical to the repo file — no drift.
+- [ ] Phase 2 needs owner action: `HOME_SUPABASE_*` in host `.env` at
+  shadow-run time; shadow → cutover runbook in the plan file.
 
 ## Next: EV charging in the /home 2D/3D visualization (after home builds it)
 
