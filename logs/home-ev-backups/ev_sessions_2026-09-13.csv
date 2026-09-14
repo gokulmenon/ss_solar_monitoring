@@ -1,0 +1,2 @@
+session_id,started_at,ended_at,energy_wh,duration_s,max_current_a,avg_grid_v,max_handle_temp_c,alerts
+7531ef38-d6af-438e-8e17-e047fe4f6db2,2026-09-13T01:11:27.367561+00:00,2026-09-13T20:30:13.078272+00:00,54826.102,69525,33.0,235.8,33.5,[]
