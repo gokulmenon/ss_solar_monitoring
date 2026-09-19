@@ -258,6 +258,25 @@ Windows CSV example:
 npm run win-relay:csv
 ```
 
+### Deploying relay changes to the Windows server
+
+The live relay runs on the Windows server host `THE-GOKHILA` as the NSSM
+service `SSMonitoringPythonRelay` (NSSM 2.24 64-bit at
+`C:\Program Files\nssm\nssm.exe`).
+
+After copying updated relay code to the server (plus `bridge/.env` if it
+changed), restart the service over SSH so it picks up the new code:
+
+```powershell
+ssh gokulm@192.168.1.189
+"C:\Program Files\nssm\nssm.exe" stop SSMonitoringPythonRelay
+"C:\Program Files\nssm\nssm.exe" start SSMonitoringPythonRelay
+```
+
+Each command should report `The operation completed successfully.`
+Stop-then-start (rather than `restart`) also recovers the service if it was
+already stuck stopped.
+
 ## Monitoring Setup
 
 Reference links:
