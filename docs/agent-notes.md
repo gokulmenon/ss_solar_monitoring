@@ -161,3 +161,14 @@ memory (`coordination.md`); repo milestones in `docs/deprecation-plan.md`.
   manifests, all routes 500, never self-heals) — restart the server instead.
   After deleting a route, `rm -rf .next/types/app/<route>` alone is enough
   for `tsc` and leaves the server healthy.
+
+## Shared tunnel warning (2026-09-20, home repo change — read before touching cloudflared)
+
+- The Windows `solar-monitor` tunnel (`C:\Windows\System32\config\systemprofile\.cloudflared\config.yml`,
+  service `Cloudflared`) now fronts THREE hostnames: this repo's
+  `solar-monitoring.gokulmenon.com` → `:8787`, plus home repo's
+  `video.gokulmenon.com` and `video.homemonitoring.app` → go2rtc `:1984`
+  (Google-gated via Cloudflare Access).
+- Editing that config or restarting the service briefly blips the solar
+  route too. Coordinate with the home agent first; full layout (SSH, NSSM,
+  tunnel UUID, DNS/Access) is in home repo `docs/windows-host-runbook.md`.
