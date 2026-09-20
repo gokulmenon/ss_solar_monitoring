@@ -26,6 +26,16 @@ release = their M4 production-deploy smoke test.
   Supabase, export `meter_readings` + `inverter_port_readings` CSV backups to
   `logs/meter-backups/`, archive this repo read-only.
 
+> Amendment 2026-09-20 (homeowner decision, from the home side): the energy
+> relay cutover runs ahead of D4 as a dual-write comparison — home relay and
+> this repo's relay both writing, 2-day comparison soak with a 5-day cap —
+> instead of the 14-day clock above. Plan:
+> `home_monitoring/docs/plans/2026-09-20-energy-relay-cutover.md` (under
+> review, no implementation yet). No action required here until the home side
+> posts its step-0 courtesy notice; in particular, do NOT stop or restart the
+> host relay on the basis of this note. Shutdown criteria below are unchanged
+> and still gate D5.
+
 ## Sync on demand (backport procedure)
 
 Trigger: a solar-specific upgrade merges to home_monitoring `main` under
