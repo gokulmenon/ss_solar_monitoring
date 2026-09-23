@@ -100,5 +100,5 @@ flow, Supabase helpers. Still reusable on request:
   deprecation note).
 - [x] Gap backfill verified 2026-09-22 — Gate B executing (Vercel deployment
   stop, tunnel ingress removal; no deletion).
-- [ ] Gate C: delete solar Supabase project + archive this repo (≥24h after
-  Gate B per owner amendment 2026-09-22, separate owner sign-off — executing now).
+- [x] Gate C executed 2026-09-23 by owner: solar Supabase project deleted,
+  this repo archived (read-only). Cutover closed; no rollback path maintained.
