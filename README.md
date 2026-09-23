@@ -1,4 +1,9 @@
-# ss_solar_monitoring
+# ss_solar_monitoring — DEPRECATED
+
+> **Shutdown in progress (2026-09-22).** This site is deprecated: energy
+> monitoring moved to `home_monitoring` (relay cutover 2026-09-21, history
+> backfilled + verified). Do not deploy, restart the relay, or write to the
+> solar database. Details: [docs/deprecation-plan.md](docs/deprecation-plan.md).
 
 Mobile-first solar monitoring PWA for an iPhone-style dashboard.
 

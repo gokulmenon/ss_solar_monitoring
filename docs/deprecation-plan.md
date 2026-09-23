@@ -1,10 +1,15 @@
-# ss_solar_monitoring — Progress to Deprecation
+# ss_solar_monitoring — DEPRECATED 2026-09-22, shutdown in progress
 
-Status: maintenance-only. Active solar development moved to `home_monitoring`;
-this site stays up until home_monitoring Milestone 1 releases, then shuts down.
+Status: deprecated. The energy relay cutover to `home_monitoring` completed
+2026-09-21 (Plan B: HomeRelay sole writer on COM4 since 14:33 UTC, burn-in
+green across two midnight rollovers, 24h data check green). Gap backfill
+verified 2026-09-22 (daily 56/56, meter 7,149/7,149, weather 4,718/4,718,
+ports 457,948/457,948). Gate B (stop this site, no deletion) is executing;
+Gate C (delete solar Supabase project, archive this repo) follows with a
+separate sign-off. Do not restart the host relay or re-enable writes —
+COM4 belongs to HomeRelay and dual-write would corrupt both histories.
 Milestone labels (M1–M7) mirror
-`home_monitoring/docs/plans/2026-09-05-home-release-parity.md`; Milestone 1
-release = their M4 production-deploy smoke test.
+`home_monitoring/docs/plans/2026-09-05-home-release-parity.md`.
 
 ## Burndown (styled to the home_monitoring milestones)
 
@@ -90,5 +95,10 @@ flow, Supabase helpers. Still reusable on request:
 - [x] Roof/pipe/edge polish backport completed using §Sync (solar `da40e38`
   → home `d104eb8`, 2026-09-07): tiled `#3f454e` roofs, unburied upper drop,
   night-dim panel edges. Canvas byte-identical post-backport.
-- [ ] D4 freeze declared after their M4 release.
-- [ ] D5 shutdown executed and repo archived.
+- [x] Cutover superseded D4: Plan B executed 2026-09-21 (home relay sole
+  writer, solar relay stopped + set to manual; repo frozen except this
+  deprecation note).
+- [x] Gap backfill verified 2026-09-22 — Gate B executing (Vercel deployment
+  stop, tunnel ingress removal; no deletion).
+- [ ] Gate C: delete solar Supabase project + archive this repo (≥48h after
+  Gate B, separate owner sign-off).
