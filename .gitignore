@@ -16,3 +16,6 @@ __pycache__
 # site-photo working frames (never commit full frames; see assets/site-photos/README.md)
 assets/site-photos/photos/
 assets/site-photos/incoming/
+
+# TypeScript incremental build cache (regenerable, never commit)
+*.tsbuildinfo
