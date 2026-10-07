@@ -11,6 +11,13 @@ COM4 belongs to HomeRelay and dual-write would corrupt both histories.
 Milestone labels (M1–M7) mirror
 `home_monitoring/docs/plans/2026-09-05-home-release-parity.md`.
 
+> **Amendment 2026-10-07 (Gate C closed):** The "shutdown in progress"
+> status and "Gate B executing / Gate C follows with a separate sign-off"
+> opening above are superseded. Gate C was executed 2026-09-23 by the owner:
+> the solar Supabase project was deleted. This repo stays unarchived,
+> read-only by convention (owner decision 2026-09-23). Do not restart the
+> solar relay or re-enable writes — HomeRelay owns COM4.
+
 ## Burndown (styled to the home_monitoring milestones)
 
 - [x] D0 visualizer parity backported to home_monitoring (`fbfda67`: serial

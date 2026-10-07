@@ -1,9 +1,13 @@
 # ss_solar_monitoring — DEPRECATED
 
-> **Shutdown in progress (2026-09-22).** This site is deprecated: energy
+> **Shutdown complete (2026-09-23).** This site is deprecated: energy
 > monitoring moved to `home_monitoring` (relay cutover 2026-09-21, history
-> backfilled + verified). Do not deploy, restart the relay, or write to the
-> solar database. Details: [docs/deprecation-plan.md](docs/deprecation-plan.md).
+> backfilled + verified; Gate C executed 2026-09-23 — the solar Supabase
+> project was deleted). This repo stays unarchived, read-only by convention,
+> as a historical record. **Do not restart the solar relay or re-enable
+> writes — HomeRelay owns COM4.** Everything below describes the retired
+> system. Patch-forward from `home_monitoring`. Details:
+> [docs/deprecation-plan.md](docs/deprecation-plan.md).
 
 Mobile-first solar monitoring PWA for an iPhone-style dashboard.
 
